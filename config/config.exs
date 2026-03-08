@@ -61,7 +61,7 @@ config :logger, :default_formatter,
 config :phoenix, :json_library, Jason
 
 config :tennis_tracker,
-  ash_domains: []
+  ash_domains: [TennisTracker.Tennis]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
