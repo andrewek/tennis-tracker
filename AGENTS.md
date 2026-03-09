@@ -1,4 +1,4 @@
-This is a web application written using the Phoenix web framework.
+This is a web application written using the Phoenix web framework with Ash framework for the data layer.
 
 ## Project guidelines
 
@@ -43,6 +43,37 @@ custom classes must fully style the input
 - Ensure **clean typography, spacing, and layout balance** for a refined, premium look
 - Focus on **delightful details** like hover effects, loading states, and smooth page transitions
 
+
+## Ash framework guidelines
+
+This project uses Ash 3.x (`ash`, `ash_postgres`, `ash_phoenix`) as the data layer instead of raw Ecto schemas and contexts.
+
+### Resources and Domains
+
+- Define data models as Ash resources with `use Ash.Resource, domain: MyDomain, data_layer: AshPostgres.DataLayer`
+- Group resources under an Ash domain with `use Ash.Domain`; declare callable functions via `define` in the domain's `resources` block
+- **Always call domain functions** (e.g. `Tennis.list_players()`, `Tennis.create_player(params)`) rather than writing raw Ecto queries or calling `Repo` directly
+- Never write bare `Repo.insert/update/delete` calls for Ash-managed resources
+
+### Migrations
+
+- **Always** use `mix ash_postgres.generate_migrations --name migration_name` to generate migrations from resource changes. **Never** use `mix ecto.gen.migration` for Ash resources
+- Resource snapshots in `priv/resource_snapshots/` track schema state — do not edit them manually; they are updated automatically when you generate migrations
+- Run `mix ecto.migrate` after generating to apply pending migrations
+
+### Querying
+
+- `require Ash.Query` at the top of any module that uses query macros
+- Filter with `Ash.Query.filter/2`: `Ash.Query.filter(query, name == ^val)` or fragment-based `Ash.Query.filter(query, fragment("? ILIKE ?", name, ^pattern))`
+- Execute queries with `Ash.read!/2` or `Ash.count!/2`, always passing `domain:` option: `Ash.read!(query, domain: Tennis)`
+- Use `Ash.Query.sort/2` and `Ash.Query.limit/2` for ordering/pagination
+
+### Forms with AshPhoenix
+
+- Create forms with `AshPhoenix.Form.for_create(Resource, :action, domain: Domain)` or `AshPhoenix.Form.for_update(record, :action, domain: Domain)`
+- Validate on change with `AshPhoenix.Form.validate(form, params)`
+- Submit with `AshPhoenix.Form.submit(form)` — returns `{:ok, record}` or `{:error, form_with_errors}`
+- Pass the resulting `AshPhoenix.Form` struct to `to_form/1` and assign it to the socket as `form`; access in templates as `@form[:field]` like any other Phoenix form
 
 <!-- usage-rules-start -->
 
@@ -123,6 +154,8 @@ custom classes must fully style the input
 
 <!-- phoenix:ecto-start -->
 ## Ecto Guidelines
+
+> **Note:** This project uses Ash for all data resources. The Ecto guidelines below apply to any non-Ash Ecto usage (e.g. raw queries, seeds). For Ash resources, always use Ash domain functions and `AshPhoenix.Form` — not raw Ecto changesets or Repo calls.
 
 - **Always** preload Ecto associations in queries when they'll be accessed in templates, ie a message that needs to reference the `message.user.email`
 - Remember `import Ecto.Query` and other supporting modules when you write `seeds.exs`
