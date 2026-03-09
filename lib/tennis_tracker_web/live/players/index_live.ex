@@ -1,11 +1,48 @@
 defmodule TennisTrackerWeb.Players.IndexLive do
   use TennisTrackerWeb, :live_view
 
+  require Ash.Query
+
   alias TennisTracker.Tennis
+  alias TennisTracker.Tennis.Player
+
+  @ntrp_ratings ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+
+  @bracket_options [
+    {"18+ eligible", "18"},
+    {"40+ eligible", "40"},
+    {"55+ eligible", "55"}
+  ]
 
   def mount(_params, _session, socket) do
-    players = Tennis.list_players!()
-    {:ok, stream(socket, :players, players)}
+    total_count = Ash.count!(Player, domain: Tennis)
+
+    {:ok,
+     socket
+     |> stream(:players, [])
+     |> assign(:total_count, total_count)
+     |> assign(:player_count, 0)
+     |> assign(:name_search, "")
+     |> assign(:ntrp_filter, [])
+     |> assign(:bracket_filter, [])
+     |> assign(:ntrp_ratings, @ntrp_ratings)
+     |> assign(:bracket_options, @bracket_options)}
+  end
+
+  def handle_params(params, _url, socket) do
+    name_search = params["name"] || ""
+    ntrp_filter = parse_list_param(params["ntrp"])
+    bracket_filter = parse_list_param(params["bracket"])
+
+    players = fetch_players(name_search, ntrp_filter, bracket_filter)
+
+    {:noreply,
+     socket
+     |> assign(:name_search, name_search)
+     |> assign(:ntrp_filter, ntrp_filter)
+     |> assign(:bracket_filter, bracket_filter)
+     |> assign(:player_count, length(players))
+     |> stream(:players, players, reset: true)}
   end
 
   def render(assigns) do
@@ -13,10 +50,72 @@ defmodule TennisTrackerWeb.Players.IndexLive do
     <Layouts.app flash={@flash}>
       <.header>
         Players
+        <:subtitle>
+          Showing {@player_count} of {@total_count}
+        </:subtitle>
         <:actions>
           <.button navigate={~p"/players/new"}>New Player</.button>
         </:actions>
       </.header>
+
+      <div class="mb-4 space-y-3">
+        <form phx-change="search_name">
+          <input
+            type="text"
+            name="name_search"
+            value={@name_search}
+            placeholder="Search by name…"
+            phx-debounce="200"
+            class="input input-sm w-full max-w-sm"
+          />
+        </form>
+
+        <div class="flex flex-wrap gap-6">
+          <div>
+            <p class="text-xs text-base-content/60 mb-1">NTRP Rating</p>
+            <div class="flex gap-4 flex-wrap">
+              <%= for rating <- @ntrp_ratings do %>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    checked={rating in @ntrp_filter}
+                    phx-click="toggle_ntrp"
+                    phx-value-rating={rating}
+                  />
+                  <span class="text-sm">{rating}</span>
+                </label>
+              <% end %>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-xs text-base-content/60 mb-1">Age Bracket</p>
+            <div class="flex gap-4 flex-wrap">
+              <%= for {label, value} <- @bracket_options do %>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    checked={value in @bracket_filter}
+                    phx-click="toggle_bracket"
+                    phx-value-bracket={value}
+                  />
+                  <span class="text-sm">{label}</span>
+                </label>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <.button
+          :if={@name_search != "" or @ntrp_filter != [] or @bracket_filter != []}
+          phx-click="clear_filter"
+          class="btn btn-sm btn-ghost text-base-content/50"
+        >
+          ✕ Clear filters
+        </.button>
+      </div>
 
       <.table id="players" rows={@streams.players}>
         <:col :let={{_id, player}} label="Name">
@@ -35,5 +134,76 @@ defmodule TennisTrackerWeb.Players.IndexLive do
       </.table>
     </Layouts.app>
     """
+  end
+
+  def handle_event("clear_filter", _params, socket) do
+    {:noreply, push_patch(socket, to: ~p"/players")}
+  end
+
+  def handle_event("search_name", %{"name_search" => value}, socket) do
+    {:noreply, push_patch(socket, to: filter_url(socket, name_search: value))}
+  end
+
+  def handle_event("toggle_ntrp", %{"rating" => rating}, socket) do
+    current = socket.assigns.ntrp_filter
+    updated = if rating in current, do: List.delete(current, rating), else: [rating | current]
+    {:noreply, push_patch(socket, to: filter_url(socket, ntrp_filter: updated))}
+  end
+
+  def handle_event("toggle_bracket", %{"bracket" => bracket}, socket) do
+    current = socket.assigns.bracket_filter
+    updated = if bracket in current, do: List.delete(current, bracket), else: [bracket | current]
+    {:noreply, push_patch(socket, to: filter_url(socket, bracket_filter: updated))}
+  end
+
+  defp filter_url(socket, overrides) do
+    name = Keyword.get(overrides, :name_search, socket.assigns.name_search)
+    ntrp = Keyword.get(overrides, :ntrp_filter, socket.assigns.ntrp_filter)
+    bracket = Keyword.get(overrides, :bracket_filter, socket.assigns.bracket_filter)
+
+    params =
+      [{"name", name}, {"ntrp", Enum.join(ntrp, ",")}, {"bracket", Enum.join(bracket, ",")}]
+      |> Enum.reject(fn {_, v} -> v == "" end)
+      |> Map.new()
+
+    if map_size(params) > 0, do: ~p"/players?#{params}", else: ~p"/players"
+  end
+
+  defp parse_list_param(nil), do: []
+  defp parse_list_param(""), do: []
+  defp parse_list_param(s), do: String.split(s, ",")
+
+  defp fetch_players(name_search, ntrp_filter, bracket_filter) do
+    Player
+    |> maybe_filter_name(name_search)
+    |> maybe_filter_ntrp(ntrp_filter)
+    |> maybe_filter_bracket(bracket_filter)
+    |> Ash.read!(domain: Tennis)
+  end
+
+  defp maybe_filter_name(query, ""), do: query
+
+  defp maybe_filter_name(query, search) do
+    pattern = "%#{search}%"
+    Ash.Query.filter(query, fragment("? ILIKE ?", name, ^pattern))
+  end
+
+  defp maybe_filter_ntrp(query, []), do: query
+
+  defp maybe_filter_ntrp(query, ratings) do
+    decimal_ratings = Enum.map(ratings, &Decimal.new/1)
+    Ash.Query.filter(query, ntrp_rating in ^decimal_ratings)
+  end
+
+  defp maybe_filter_bracket(query, []), do: query
+
+  defp maybe_filter_bracket(query, brackets) do
+    Enum.reduce(brackets, query, fn bracket, q ->
+      case bracket do
+        "18" -> Ash.Query.filter(q, eligible_18_plus == true)
+        "40" -> Ash.Query.filter(q, eligible_40_plus == true)
+        "55" -> Ash.Query.filter(q, eligible_55_plus == true)
+      end
+    end)
   end
 end
