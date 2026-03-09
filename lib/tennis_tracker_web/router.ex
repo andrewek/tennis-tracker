@@ -18,6 +18,11 @@ defmodule TennisTrackerWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/players", Players.IndexLive, :index
+    live "/players/new", Players.FormLive, :new
+    live "/players/:id", Players.ShowLive, :show
+    live "/players/:id/edit", Players.FormLive, :edit
   end
 
   # Other scopes may use custom stacks.

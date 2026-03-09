@@ -28,8 +28,22 @@ defmodule TennisTracker.Tennis.Player do
       public?(true)
     end
 
-    attribute :birth_year, :integer do
+    attribute :eligible_18_plus, :boolean do
       public?(true)
+      default(true)
+      allow_nil?(false)
+    end
+
+    attribute :eligible_40_plus, :boolean do
+      public?(true)
+      default(false)
+      allow_nil?(false)
+    end
+
+    attribute :eligible_55_plus, :boolean do
+      public?(true)
+      default(false)
+      allow_nil?(false)
     end
 
     timestamps()
@@ -50,14 +64,40 @@ defmodule TennisTracker.Tennis.Player do
   end
 
   actions do
-    defaults([:read, :destroy])
+    read :read do
+      primary?(true)
+    end
 
     create :create do
-      accept([:name, :email, :phone_number, :ntrp_rating, :birth_year])
+      primary?(true)
+
+      accept([
+        :name,
+        :email,
+        :phone_number,
+        :ntrp_rating,
+        :eligible_18_plus,
+        :eligible_40_plus,
+        :eligible_55_plus
+      ])
     end
 
     update :update do
-      accept([:name, :email, :phone_number, :ntrp_rating, :birth_year])
+      primary?(true)
+
+      accept([
+        :name,
+        :email,
+        :phone_number,
+        :ntrp_rating,
+        :eligible_18_plus,
+        :eligible_40_plus,
+        :eligible_55_plus
+      ])
+    end
+
+    destroy :destroy do
+      primary?(true)
     end
   end
 end
