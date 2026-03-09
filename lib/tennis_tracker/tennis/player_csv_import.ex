@@ -109,10 +109,10 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
     Repo.transaction(fn ->
       params_list
       |> Enum.with_index(2)
-      |> Enum.reduce_while(0, fn {params, line}, count ->
-        case Tennis.create_player(params) do
-          {:ok, _player} ->
-            {:cont, count + 1}
+      |> Enum.reduce_while({[], 0}, fn {params, line}, {notifs, count} ->
+        case Tennis.create_player(params, return_notifications?: true) do
+          {:ok, _player, notifications} ->
+            {:cont, {notifs ++ notifications, count + 1}}
 
           {:error, error} ->
             Repo.rollback({:row_error, line, Exception.message(error)})
@@ -120,7 +120,10 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
       end)
     end)
     |> case do
-      {:ok, count} -> {:ok, count}
+      {:ok, {notifications, count}} ->
+        Ash.Notifier.notify(notifications)
+        {:ok, count}
+
       {:error, {:row_error, line, message}} -> {:error, :row_error, line, message}
       {:error, reason} -> {:error, :row_error, 0, inspect(reason)}
     end
