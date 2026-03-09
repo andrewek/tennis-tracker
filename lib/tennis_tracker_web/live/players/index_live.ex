@@ -54,6 +54,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
           Showing {@player_count} of {@total_count}
         </:subtitle>
         <:actions>
+          <.button navigate={~p"/players/import"}>Import CSV</.button>
           <.button navigate={~p"/players/new"}>New Player</.button>
         </:actions>
       </.header>
