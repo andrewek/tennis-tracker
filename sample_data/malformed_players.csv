@@ -1,0 +1,5 @@
+name,email,phone_number,ntrp_rating,eligible_18_plus,eligible_40_plus,eligible_55_plus
+Maria Sharapova,maria@example.com,555-101-0001,4.5,true,false,false
+Andre Agassi,andre@example.com,555-101-0002,5.0,true,true,false
+,lindsay@example.com,555-101-0003,4.0,true,true,false
+Michael Chang,michael@example.com,555-101-0004,3.5,true,true,true
