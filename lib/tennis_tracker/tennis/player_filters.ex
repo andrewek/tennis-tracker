@@ -10,7 +10,7 @@ defmodule TennisTracker.Tennis.PlayerFilters do
   alias TennisTracker.Tennis.Player
 
   @doc """
-  Fetch players matching the given filter params, ordered by name ascending.
+  Fetch players matching the given filter params, ordered by NTRP descending then name ascending.
 
   Params:
     - `name_search` – partial, case-insensitive name match (empty string = no filter)
@@ -22,7 +22,7 @@ defmodule TennisTracker.Tennis.PlayerFilters do
     |> maybe_filter_name(name_search)
     |> maybe_filter_ntrp(ntrp_filter)
     |> maybe_filter_bracket(bracket_filter)
-    |> Ash.Query.sort(name: :asc)
+    |> Ash.Query.sort(ntrp_rating: :desc, name: :asc)
     |> Ash.read!(domain: Tennis)
   end
 

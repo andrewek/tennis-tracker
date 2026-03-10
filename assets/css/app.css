@@ -102,4 +102,9 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Age bracket chip colors */
+.age-chip-18 { @apply bg-sky-100 text-sky-700; }
+.age-chip-40 { @apply bg-teal-100 text-teal-700; }
+.age-chip-55 { @apply bg-violet-100 text-violet-700; }
+
 /* This file is for your main application CSS */

@@ -121,18 +121,12 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
       <.table id="players" rows={@streams.players}>
         <:col :let={{_id, player}} label="Name">
-          <.link navigate={~p"/players/#{player.id}"}>{player.name}</.link>
+          <div class="flex items-center gap-2 flex-wrap">
+            <.link navigate={~p"/players/#{player.id}"}>{player.name}</.link>
+            <.age_bracket_chips player={player} />
+          </div>
         </:col>
         <:col :let={{_id, player}} label="NTRP">{player.ntrp_rating}</:col>
-        <:col :let={{_id, player}} label="18+ Eligible?">
-          {if player.eligible_18_plus, do: "Yes", else: "No"}
-        </:col>
-        <:col :let={{_id, player}} label="40+ Eligible?">
-          {if player.eligible_40_plus, do: "Yes", else: "No"}
-        </:col>
-        <:col :let={{_id, player}} label="55+ Eligible?">
-          {if player.eligible_55_plus, do: "Yes", else: "No"}
-        </:col>
       </.table>
     </Layouts.app>
     """

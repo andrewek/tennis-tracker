@@ -24,27 +24,32 @@ defmodule TennisTrackerWeb.Players.ShowLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <.header>
-        {@player.name}
-        <:actions>
-          <.button navigate={~p"/players/#{@player.id}/edit"}>Edit</.button>
-          <.link
-            phx-click="delete"
-            data-confirm="Delete this player?"
-            class="btn btn-error btn-soft"
-          >
-            Delete
-          </.link>
-        </:actions>
-      </.header>
+      <div class="mb-6">
+        <h1 class="text-4xl font-bold tracking-tight">
+          {@player.name}
+          <span class="text-3xl font-semibold text-base-content/60 ml-3">
+            {if @player.ntrp_rating, do: @player.ntrp_rating, else: "—"}
+          </span>
+        </h1>
+        <div class="mt-2">
+          <.age_bracket_chips player={@player} />
+        </div>
+      </div>
+
+      <div class="flex gap-3 mb-6">
+        <.button navigate={~p"/players/#{@player.id}/edit"}>Edit</.button>
+        <.link
+          phx-click="delete"
+          data-confirm="Delete this player?"
+          class="btn btn-error btn-soft"
+        >
+          Delete
+        </.link>
+      </div>
 
       <.list>
         <:item title="Email">{@player.email || "—"}</:item>
         <:item title="Phone">{@player.phone_number || "—"}</:item>
-        <:item title="NTRP Rating">{@player.ntrp_rating || "—"}</:item>
-        <:item title="18+ Eligible?">{if @player.eligible_18_plus, do: "Yes", else: "No"}</:item>
-        <:item title="40+ Eligible?">{if @player.eligible_40_plus, do: "Yes", else: "No"}</:item>
-        <:item title="55+ Eligible?">{if @player.eligible_55_plus, do: "Yes", else: "No"}</:item>
       </.list>
 
       <div class="mt-6">

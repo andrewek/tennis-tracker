@@ -392,6 +392,27 @@ defmodule TennisTrackerWeb.CoreComponents do
   end
 
   @doc """
+  Renders age bracket eligibility chips for a player.
+  """
+  attr :player, :map, required: true
+
+  def age_bracket_chips(assigns) do
+    ~H"""
+    <span class="inline-flex gap-1">
+      <span :if={@player.eligible_18_plus} class="badge badge-sm age-chip-18">
+        18+
+      </span>
+      <span :if={@player.eligible_40_plus} class="badge badge-sm age-chip-40">
+        40+
+      </span>
+      <span :if={@player.eligible_55_plus} class="badge badge-sm age-chip-55">
+        55+
+      </span>
+    </span>
+    """
+  end
+
+  @doc """
   Renders a data list.
 
   ## Examples

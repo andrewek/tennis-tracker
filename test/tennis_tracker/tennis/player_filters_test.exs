@@ -89,15 +89,16 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
       refute "Carol" in names
     end
 
-    test "returns players sorted by name ascending" do
-      create_player(%{name: "Zelda"})
-      create_player(%{name: "Alice"})
-      create_player(%{name: "Mike"})
+    test "returns players sorted by NTRP descending then name ascending" do
+      create_player(%{name: "Zelda", ntrp_rating: "3.5"})
+      create_player(%{name: "Alice", ntrp_rating: "4.0"})
+      create_player(%{name: "Mike", ntrp_rating: "4.0"})
+      create_player(%{name: "Bob", ntrp_rating: "3.0"})
 
       players = PlayerFilters.fetch_players("", [], [])
       names = Enum.map(players, & &1.name)
 
-      assert names == Enum.sort(names)
+      assert names == ["Alice", "Mike", "Zelda", "Bob"]
     end
   end
 end
