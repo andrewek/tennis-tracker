@@ -5,7 +5,15 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   alias TennisTracker.Tennis.Player
   alias TennisTracker.Tennis.PlayerFilters
 
-  @ntrp_ratings ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
+  @ntrp_ratings [
+    {"2.5", "2.5"},
+    {"3.0", "3.0"},
+    {"3.5", "3.5"},
+    {"4.0", "4.0"},
+    {"4.5", "4.5"},
+    {"5.0", "5.0"},
+    {"No rating", "none"}
+  ]
 
   @bracket_options [
     {"18+ eligible", "18"},
@@ -24,6 +32,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
      |> assign(:name_search, "")
      |> assign(:ntrp_filter, [])
      |> assign(:bracket_filter, [])
+     |> assign(:ntrp_sort, "desc")
      |> assign(:ntrp_ratings, @ntrp_ratings)
      |> assign(:bracket_options, @bracket_options)}
   end
@@ -32,14 +41,16 @@ defmodule TennisTrackerWeb.Players.IndexLive do
     name_search = params["name"] || ""
     ntrp_filter = parse_list_param(params["ntrp"])
     bracket_filter = parse_list_param(params["bracket"])
+    ntrp_sort = if params["ntrp_sort"] == "asc", do: "asc", else: "desc"
 
-    players = fetch_players(name_search, ntrp_filter, bracket_filter)
+    players = fetch_players(name_search, ntrp_filter, bracket_filter, String.to_atom(ntrp_sort))
 
     {:noreply,
      socket
      |> assign(:name_search, name_search)
      |> assign(:ntrp_filter, ntrp_filter)
      |> assign(:bracket_filter, bracket_filter)
+     |> assign(:ntrp_sort, ntrp_sort)
      |> assign(:export_url, export_url(name_search, ntrp_filter, bracket_filter))
      |> assign(:player_count, length(players))
      |> stream(:players, players, reset: true)}
@@ -74,18 +85,31 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
         <div class="flex flex-wrap gap-6">
           <div>
-            <p class="text-xs text-base-content/60 mb-1">NTRP Rating</p>
+            <div class="flex items-center gap-2 mb-1">
+              <p class="text-xs text-base-content/60">NTRP Rating</p>
+              <button
+                phx-click="toggle_ntrp_sort"
+                class="text-xs text-base-content/50 hover:text-base-content transition-colors"
+                title={"Sort #{if @ntrp_sort == "desc", do: "ascending", else: "descending"}"}
+              >
+                <%= if @ntrp_sort == "desc" do %>
+                  ↓ Desc
+                <% else %>
+                  ↑ Asc
+                <% end %>
+              </button>
+            </div>
             <div class="flex gap-4 flex-wrap">
-              <%= for rating <- @ntrp_ratings do %>
+              <%= for {label, value} <- @ntrp_ratings do %>
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     class="checkbox checkbox-sm"
-                    checked={rating in @ntrp_filter}
+                    checked={value in @ntrp_filter}
                     phx-click="toggle_ntrp"
-                    phx-value-rating={rating}
+                    phx-value-rating={value}
                   />
-                  <span class="text-sm">{rating}</span>
+                  <span class="text-sm">{label}</span>
                 </label>
               <% end %>
             </div>
@@ -152,13 +176,24 @@ defmodule TennisTrackerWeb.Players.IndexLive do
     {:noreply, push_patch(socket, to: filter_url(socket, bracket_filter: updated))}
   end
 
+  def handle_event("toggle_ntrp_sort", _params, socket) do
+    new_sort = if socket.assigns.ntrp_sort == "desc", do: "asc", else: "desc"
+    {:noreply, push_patch(socket, to: filter_url(socket, ntrp_sort: new_sort))}
+  end
+
   defp filter_url(socket, overrides) do
     name = Keyword.get(overrides, :name_search, socket.assigns.name_search)
     ntrp = Keyword.get(overrides, :ntrp_filter, socket.assigns.ntrp_filter)
     bracket = Keyword.get(overrides, :bracket_filter, socket.assigns.bracket_filter)
+    ntrp_sort = Keyword.get(overrides, :ntrp_sort, socket.assigns.ntrp_sort)
 
     params =
-      [{"name", name}, {"ntrp", Enum.join(ntrp, ",")}, {"bracket", Enum.join(bracket, ",")}]
+      [
+        {"name", name},
+        {"ntrp", Enum.join(ntrp, ",")},
+        {"bracket", Enum.join(bracket, ",")},
+        {"ntrp_sort", if(ntrp_sort == "asc", do: "asc", else: "")}
+      ]
       |> Enum.reject(fn {_, v} -> v == "" end)
       |> Map.new()
 
@@ -167,8 +202,8 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
   defp parse_list_param(s), do: PlayerFilters.parse_list_param(s)
 
-  defp fetch_players(name_search, ntrp_filter, bracket_filter) do
-    PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter)
+  defp fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort) do
+    PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort)
   end
 
   defp export_url(name_search, ntrp_filter, bracket_filter) do

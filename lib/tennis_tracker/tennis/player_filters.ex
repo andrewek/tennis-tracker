@@ -10,19 +10,20 @@ defmodule TennisTracker.Tennis.PlayerFilters do
   alias TennisTracker.Tennis.Player
 
   @doc """
-  Fetch players matching the given filter params, ordered by NTRP descending then name ascending.
+  Fetch players matching the given filter params, ordered by NTRP then name ascending.
 
   Params:
     - `name_search` – partial, case-insensitive name match (empty string = no filter)
-    - `ntrp_filter` – list of NTRP rating strings, e.g. `["3.5", "4.0"]`
+    - `ntrp_filter` – list of NTRP rating strings, e.g. `["3.5", "4.0"]`; use `"none"` to include unrated players
     - `bracket_filter` – list of age bracket strings: `"18"`, `"40"`, `"55"`
+    - `ntrp_sort` – `:asc` or `:desc` (default `:desc`)
   """
-  def fetch_players(name_search, ntrp_filter, bracket_filter) do
+  def fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort \\ :desc) do
     Player
     |> maybe_filter_name(name_search)
     |> maybe_filter_ntrp(ntrp_filter)
     |> maybe_filter_bracket(bracket_filter)
-    |> Ash.Query.sort(ntrp_rating: :desc, name: :asc)
+    |> Ash.Query.sort(ntrp_rating: ntrp_sort, name: :asc)
     |> Ash.read!(domain: Tennis)
   end
 
@@ -44,8 +45,21 @@ defmodule TennisTracker.Tennis.PlayerFilters do
   defp maybe_filter_ntrp(query, []), do: query
 
   defp maybe_filter_ntrp(query, ratings) do
-    decimal_ratings = Enum.map(ratings, &Decimal.new/1)
-    Ash.Query.filter(query, ntrp_rating in ^decimal_ratings)
+    include_none = "none" in ratings
+    rated = Enum.reject(ratings, &(&1 == "none"))
+
+    cond do
+      include_none and rated == [] ->
+        Ash.Query.filter(query, is_nil(ntrp_rating))
+
+      include_none ->
+        decimal_ratings = Enum.map(rated, &Decimal.new/1)
+        Ash.Query.filter(query, is_nil(ntrp_rating) or ntrp_rating in ^decimal_ratings)
+
+      true ->
+        decimal_ratings = Enum.map(rated, &Decimal.new/1)
+        Ash.Query.filter(query, ntrp_rating in ^decimal_ratings)
+    end
   end
 
   defp maybe_filter_bracket(query, []), do: query

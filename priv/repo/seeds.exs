@@ -166,3 +166,34 @@ names
 end)
 
 IO.puts("Seeded #{length(names)} players (skipped any already present).")
+
+# Players without NTRP ratings
+unrated_players = [
+  %{
+    name: "Alex Rivera",
+    eligible_18_plus: true,
+    eligible_40_plus: false,
+    eligible_55_plus: false
+  },
+  %{
+    name: "Jordan Casey",
+    eligible_18_plus: true,
+    eligible_40_plus: true,
+    eligible_55_plus: false
+  },
+  %{name: "Morgan Ellis", eligible_18_plus: true, eligible_40_plus: true, eligible_55_plus: true},
+  %{
+    name: "Taylor Quinn",
+    eligible_18_plus: true,
+    eligible_40_plus: false,
+    eligible_55_plus: false
+  }
+]
+
+unrated_players
+|> Enum.reject(fn %{name: name} -> MapSet.member?(existing_names, name) end)
+|> Enum.each(fn attrs ->
+  {:ok, _} = Tennis.create_player(Map.put(attrs, :ntrp_rating, nil))
+end)
+
+IO.puts("Seeded #{length(unrated_players)} unrated players (skipped any already present).")

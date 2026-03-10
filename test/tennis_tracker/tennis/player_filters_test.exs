@@ -100,5 +100,52 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
 
       assert names == ["Alice", "Mike", "Zelda", "Bob"]
     end
+
+    test "returns players sorted by NTRP ascending then name ascending when ntrp_sort is :asc" do
+      create_player(%{name: "Zelda", ntrp_rating: "3.5"})
+      create_player(%{name: "Alice", ntrp_rating: "4.0"})
+      create_player(%{name: "Bob", ntrp_rating: "3.0"})
+
+      players = PlayerFilters.fetch_players("", [], [], :asc)
+      names = Enum.map(players, & &1.name)
+
+      # Unrated (nil) sorts last with ascending; rated players: 3.0, 3.5, 4.0
+      rated_names = Enum.filter(names, &(&1 in ["Bob", "Zelda", "Alice"]))
+      assert rated_names == ["Bob", "Zelda", "Alice"]
+    end
+
+    test "filters to only unrated players when ntrp_filter is [\"none\"]" do
+      create_player(%{name: "Rated", ntrp_rating: "3.5"})
+      create_player(%{name: "Unrated"})
+
+      players = PlayerFilters.fetch_players("", ["none"], [])
+      names = Enum.map(players, & &1.name)
+
+      assert names == ["Unrated"]
+    end
+
+    test "includes unrated players alongside rated when \"none\" is combined with rated values" do
+      create_player(%{name: "Rated35", ntrp_rating: "3.5"})
+      create_player(%{name: "Rated40", ntrp_rating: "4.0"})
+      create_player(%{name: "Unrated"})
+
+      players = PlayerFilters.fetch_players("", ["3.5", "none"], [])
+      names = Enum.map(players, & &1.name)
+
+      assert "Rated35" in names
+      assert "Unrated" in names
+      refute "Rated40" in names
+    end
+
+    test "excludes unrated players when only rated NTRP values are selected" do
+      create_player(%{name: "Rated", ntrp_rating: "3.5"})
+      create_player(%{name: "Unrated"})
+
+      players = PlayerFilters.fetch_players("", ["3.5"], [])
+      names = Enum.map(players, & &1.name)
+
+      assert "Rated" in names
+      refute "Unrated" in names
+    end
   end
 end

@@ -6,6 +6,10 @@ defmodule TennisTracker.Tennis.Player do
   postgres do
     table("players")
     repo(TennisTracker.Repo)
+
+    custom_indexes do
+      index([:ntrp_rating, :name])
+    end
   end
 
   attributes do
