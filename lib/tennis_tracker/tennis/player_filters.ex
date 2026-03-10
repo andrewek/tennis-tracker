@@ -16,9 +16,9 @@ defmodule TennisTracker.Tennis.PlayerFilters do
     - `name_search` – partial, case-insensitive name match (empty string = no filter)
     - `ntrp_filter` – list of NTRP rating strings, e.g. `["3.5", "4.0"]`; use `"none"` to include unrated players
     - `bracket_filter` – list of age bracket strings: `"18"`, `"40"`, `"55"`
-    - `ntrp_sort` – `:asc` or `:desc` (default `:desc`)
+    - `ntrp_sort` – `:asc_nils_first` or `:desc_nils_last` (default `:desc_nils_last`)
   """
-  def fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort \\ :desc) do
+  def fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort \\ :desc_nils_last) do
     Player
     |> maybe_filter_name(name_search)
     |> maybe_filter_ntrp(ntrp_filter)

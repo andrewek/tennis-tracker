@@ -42,8 +42,9 @@ defmodule TennisTrackerWeb.Players.IndexLive do
     ntrp_filter = parse_list_param(params["ntrp"])
     bracket_filter = parse_list_param(params["bracket"])
     ntrp_sort = if params["ntrp_sort"] == "asc", do: "asc", else: "desc"
+    ntrp_sort_atom = if ntrp_sort == "asc", do: :asc_nils_first, else: :desc_nils_last
 
-    players = fetch_players(name_search, ntrp_filter, bracket_filter, String.to_atom(ntrp_sort))
+    players = fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort_atom)
 
     {:noreply,
      socket
