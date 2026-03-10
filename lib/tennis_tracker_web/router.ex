@@ -22,6 +22,7 @@ defmodule TennisTrackerWeb.Router do
     live "/players", Players.IndexLive, :index
     live "/players/new", Players.FormLive, :new
     live "/players/import", Players.ImportLive, :import
+    get "/players/export.csv", PlayerCSVController, :export
     live "/players/:id", Players.ShowLive, :show
     live "/players/:id/edit", Players.FormLive, :edit
   end

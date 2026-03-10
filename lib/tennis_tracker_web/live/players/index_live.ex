@@ -1,10 +1,9 @@
 defmodule TennisTrackerWeb.Players.IndexLive do
   use TennisTrackerWeb, :live_view
 
-  require Ash.Query
-
   alias TennisTracker.Tennis
   alias TennisTracker.Tennis.Player
+  alias TennisTracker.Tennis.PlayerFilters
 
   @ntrp_ratings ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"]
 
@@ -41,6 +40,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
      |> assign(:name_search, name_search)
      |> assign(:ntrp_filter, ntrp_filter)
      |> assign(:bracket_filter, bracket_filter)
+     |> assign(:export_url, export_url(name_search, ntrp_filter, bracket_filter))
      |> assign(:player_count, length(players))
      |> stream(:players, players, reset: true)}
   end
@@ -54,6 +54,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
           Showing {@player_count} of {@total_count}
         </:subtitle>
         <:actions>
+          <.button href={@export_url}>Export CSV</.button>
           <.button navigate={~p"/players/import"}>Import CSV</.button>
           <.button navigate={~p"/players/new"}>New Player</.button>
         </:actions>
@@ -170,41 +171,24 @@ defmodule TennisTrackerWeb.Players.IndexLive do
     if map_size(params) > 0, do: ~p"/players?#{params}", else: ~p"/players"
   end
 
-  defp parse_list_param(nil), do: []
-  defp parse_list_param(""), do: []
-  defp parse_list_param(s), do: String.split(s, ",")
+  defp parse_list_param(s), do: PlayerFilters.parse_list_param(s)
 
   defp fetch_players(name_search, ntrp_filter, bracket_filter) do
-    Player
-    |> maybe_filter_name(name_search)
-    |> maybe_filter_ntrp(ntrp_filter)
-    |> maybe_filter_bracket(bracket_filter)
-    |> Ash.read!(domain: Tennis)
+    PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter)
   end
 
-  defp maybe_filter_name(query, ""), do: query
+  defp export_url(name_search, ntrp_filter, bracket_filter) do
+    params =
+      [
+        {"name", name_search},
+        {"ntrp", Enum.join(ntrp_filter, ",")},
+        {"bracket", Enum.join(bracket_filter, ",")}
+      ]
+      |> Enum.reject(fn {_, v} -> v == "" end)
+      |> Map.new()
 
-  defp maybe_filter_name(query, search) do
-    pattern = "%#{search}%"
-    Ash.Query.filter(query, fragment("? ILIKE ?", name, ^pattern))
-  end
-
-  defp maybe_filter_ntrp(query, []), do: query
-
-  defp maybe_filter_ntrp(query, ratings) do
-    decimal_ratings = Enum.map(ratings, &Decimal.new/1)
-    Ash.Query.filter(query, ntrp_rating in ^decimal_ratings)
-  end
-
-  defp maybe_filter_bracket(query, []), do: query
-
-  defp maybe_filter_bracket(query, brackets) do
-    Enum.reduce(brackets, query, fn bracket, q ->
-      case bracket do
-        "18" -> Ash.Query.filter(q, eligible_18_plus == true)
-        "40" -> Ash.Query.filter(q, eligible_40_plus == true)
-        "55" -> Ash.Query.filter(q, eligible_55_plus == true)
-      end
-    end)
+    if map_size(params) > 0,
+      do: ~p"/players/export.csv?#{params}",
+      else: ~p"/players/export.csv"
   end
 end

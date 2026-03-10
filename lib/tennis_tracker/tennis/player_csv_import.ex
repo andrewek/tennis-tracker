@@ -101,8 +101,7 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
   defp coerce_field(col, "false", _line) when col in @boolean_columns, do: {:ok, false}
 
   defp coerce_field(col, value, line) when col in @boolean_columns do
-    {:error, :row_error, line,
-     "#{col} must be \"true\" or \"false\", got #{inspect(value)}"}
+    {:error, :row_error, line, "#{col} must be \"true\" or \"false\", got #{inspect(value)}"}
   end
 
   defp insert_all(params_list) do
@@ -124,8 +123,11 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
         Ash.Notifier.notify(notifications)
         {:ok, count}
 
-      {:error, {:row_error, line, message}} -> {:error, :row_error, line, message}
-      {:error, reason} -> {:error, :row_error, 0, inspect(reason)}
+      {:error, {:row_error, line, message}} ->
+        {:error, :row_error, line, message}
+
+      {:error, reason} ->
+        {:error, :row_error, 0, inspect(reason)}
     end
   end
 end

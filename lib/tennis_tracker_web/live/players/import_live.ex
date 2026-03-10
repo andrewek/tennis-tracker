@@ -70,11 +70,19 @@ defmodule TennisTrackerWeb.Players.ImportLive do
 
       [{:error, :invalid_headers, unknown}] ->
         {:noreply,
-         assign(socket, :error, "Unknown column(s): #{Enum.join(unknown, ", ")}. Import cancelled.")}
+         assign(
+           socket,
+           :error,
+           "Unknown column(s): #{Enum.join(unknown, ", ")}. Import cancelled."
+         )}
 
       [{:error, :missing_required_headers, missing}] ->
         {:noreply,
-         assign(socket, :error, "Missing required column(s): #{Enum.join(missing, ", ")}. Import cancelled.")}
+         assign(
+           socket,
+           :error,
+           "Missing required column(s): #{Enum.join(missing, ", ")}. Import cancelled."
+         )}
 
       [{:error, :row_error, line, message}] ->
         {:noreply, assign(socket, :error, "Error on line #{line}: #{message}")}
