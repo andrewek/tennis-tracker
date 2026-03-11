@@ -24,7 +24,7 @@ defmodule TennisTracker.Tennis.RosterHealthTest do
     }
   end
 
-  defp season_rules(min \\ 4, max \\ 10, pct \\ "0.60") do
+  defp season_rules(min, max, pct) do
     %{
       min_roster: min,
       max_roster: max,

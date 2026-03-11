@@ -129,6 +129,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         "team_id" => "unassigned"
       })
 
+      render(view)
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
@@ -144,6 +145,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         "team_id" => pseudo.id
       })
 
+      render(view)
       assert has_element?(view, "#col-#{pseudo.id} #player-#{player.id}")
     end
   end
@@ -384,6 +386,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       render_click(view, "open_team_modal", %{"mode" => "delete", "team_id" => team.id})
       render_click(view, "confirm_delete_team", %{"team_id" => team.id})
 
+      render(view)
       refute has_element?(view, "#col-#{team.id}")
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
@@ -444,6 +447,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         "team_id" => team.id
       })
 
+      render(view1)
       # view2 should reflect the change
       html2 = render(view2)
       assert has_element?(view2, "#col-#{team.id} #player-#{player.id}")

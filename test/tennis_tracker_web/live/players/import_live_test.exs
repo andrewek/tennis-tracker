@@ -23,8 +23,8 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
       ])
       |> render_upload("players.csv")
 
-      assert {:error, {:live_redirect, %{to: "/players"}}} =
-               render_submit(view, "import", %{})
+      render_submit(view, "import", %{})
+      assert_redirected(view, ~p"/players")
 
       assert length(Tennis.list_players!()) == 2
     end
