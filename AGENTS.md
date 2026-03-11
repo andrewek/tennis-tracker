@@ -1,9 +1,22 @@
 This is a web application written using the Phoenix web framework with Ash framework for the data layer.
 
+## Feature development workflow
+
+When building new functionality, follow this test-first loop:
+
+1. **Pick a small slice** — identify a single, focused piece of the use case to implement rather than tackling the whole thing at once.
+2. **Write the test first** — write a test that captures the spirit of that slice. Run it (`mix test path/to/test.exs`) and confirm it fails in the expected way. You **must** run the test before proceeding; do not skip this step.
+3. **Implement the change** — make the minimal code change needed to satisfy the test. Re-run the test. Fix any errors, adjusting the test itself if the failure reveals a misunderstanding of the design.
+
+Repeat for the next slice.
+
+We are not aiming for 100% test coverage, but 80–95% is a reasonable target and generally achievable with this approach.
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
+- This application is designed for concurrent multi-user usage. **Always** assume any page may be viewed by multiple users simultaneously. Use `Ash.Notifier.PubSub` on resources and `Phoenix.PubSub.subscribe` in LiveViews so that changes made by one user are reflected in real-time on other users' screens without a page refresh.
 
 ### Phoenix v1.8 guidelines
 
@@ -13,7 +26,7 @@ This is a web application written using the Phoenix web framework with Ash frame
   - You failed to follow the Authenticated Routes guidelines, or you failed to pass `current_scope` to `<Layouts.app>`
   - **Always** fix the `current_scope` error by moving your routes to the proper `live_session` and ensure you pass `current_scope` as needed
 - Phoenix v1.8 moved the `<.flash_group>` component to the `Layouts` module. You are **forbidden** from calling `<.flash_group>` outside of the `layouts.ex` module
-- Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
+- Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar. **Never** use unicode special characters (e.g. `←`, `✕`, `↓`, `✎`) as icons — always use the appropriate Heroicon instead. When an icon-only interactive element has no visible text label, always include a `<span class="sr-only">...</span>` or `aria-label` attribute for screen reader accessibility.
 - **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available. `<.input>` is imported and using it will save steps and prevent errors
 - If you override the default input classes (`<.input class="myclass px-2 py-1 rounded-lg">)`) class with your own values, no default classes are inherited, so your
 custom classes must fully style the input
@@ -67,6 +80,7 @@ This project uses Ash 3.x (`ash`, `ash_postgres`, `ash_phoenix`) as the data lay
 - Filter with `Ash.Query.filter/2`: `Ash.Query.filter(query, name == ^val)` or fragment-based `Ash.Query.filter(query, fragment("? ILIKE ?", name, ^pattern))`
 - Execute queries with `Ash.read!/2` or `Ash.count!/2`, always passing `domain:` option: `Ash.read!(query, domain: Tennis)`
 - Use `Ash.Query.sort/2` and `Ash.Query.limit/2` for ordering/pagination
+- **Always** push filtering and sorting to the database via `Ash.Query.filter/2` and `Ash.Query.sort/2`. **Never** load all records and then filter or sort in memory using `Enum.filter`, `Enum.sort`, `Enum.reject`, etc.
 
 ### Forms with AshPhoenix
 

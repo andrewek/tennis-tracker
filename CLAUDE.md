@@ -64,6 +64,10 @@ This is a Phoenix 1.8.5 application with PostgreSQL, LiveView, Tailwind CSS v4, 
 
 **HTTP:** Use `Req` (already included) — never `:httpoison`, `:tesla`, or `:httpc`.
 
+**Adding new resource fields:**
+- Before adding a new field, ask: Can this field be nil? What validations apply (allowed values, numeric bounds, format, length)? Does it need a unique constraint or index?
+- Do not assume non-nullable or pick validation rules without explicit confirmation.
+
 **Testing:**
 - Use `start_supervised!/1` for processes; avoid `Process.sleep/1`
 - Use `has_element?/2`, `element/2` — never assert on raw HTML strings
