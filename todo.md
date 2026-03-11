@@ -1,6 +1,6 @@
 # Todos & Open Questions
 
-1. On the player show page, show all team memberships for that player
+1. ~On the player show page, show all team memberships for that player~
 1. On the roster planner page, when clicking a player, provide a link (that
    opens in a new tab) to that player's show page.
 1. When I update a player (name, age group, NTRP rating), that change should

@@ -4,12 +4,14 @@ defmodule TennisTrackerWeb.Players.ShowLive do
   alias TennisTracker.Tennis
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, :player, nil)}
+    {:ok, socket |> assign(:player, nil) |> assign(:memberships, [])}
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
     player = Tennis.get_player!(id)
-    {:noreply, assign(socket, :player, player)}
+    memberships = Tennis.list_real_memberships_for_player!(id, load: [:display_label])
+
+    {:noreply, socket |> assign(:player, player) |> assign(:memberships, memberships)}
   end
 
   def handle_event("delete", _params, socket) do
@@ -51,6 +53,21 @@ defmodule TennisTrackerWeb.Players.ShowLive do
         <:item title="Email">{@player.email || "—"}</:item>
         <:item title="Phone">{@player.phone_number || "—"}</:item>
       </.list>
+
+      <div class="mt-6">
+        <h2 class="text-lg font-semibold mb-2">Team Memberships</h2>
+        <%= if @memberships == [] do %>
+          <p class="text-base-content/60 text-sm">No team memberships.</p>
+        <% else %>
+          <ul class="space-y-1">
+            <%= for membership <- @memberships do %>
+              <li class="text-sm">
+                {membership.display_label}
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+      </div>
 
       <div class="mt-6">
         <.link navigate={~p"/players"} class="text-sm text-base-content/70 hover:text-base-content">
