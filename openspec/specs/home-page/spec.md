@@ -1,15 +1,19 @@
 ## Requirements
 
 ### Requirement: Home page displays a branded card grid
-The home page at `/` SHALL display a responsive grid of card-style navigation links for Players, Teams, and Winter Tennis.
+The home page at `/` SHALL display a responsive grid of card-style navigation links for Players, Teams, Winter Tennis, and Roster Planner.
 
-#### Scenario: Three cards are visible
+#### Scenario: Four cards are visible
 - **WHEN** the home page is loaded
-- **THEN** three cards labeled "Players", "Teams", and "Winter Tennis" SHALL be visible
+- **THEN** four cards labeled "Players", "Teams", "Winter Tennis", and "Roster Planner" SHALL be visible
 
 #### Scenario: Players card links to /players
 - **WHEN** the user clicks the "Players" card
 - **THEN** the user SHALL be navigated to `/players`
+
+#### Scenario: Roster Planner card links to /roster-planner
+- **WHEN** the user clicks the "Roster Planner" card
+- **THEN** the user SHALL be navigated to `/roster-planner`
 
 #### Scenario: Teams card has no active destination
 - **WHEN** the Teams card is rendered
