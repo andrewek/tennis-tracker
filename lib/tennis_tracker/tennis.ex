@@ -3,7 +3,7 @@ defmodule TennisTracker.Tennis do
 
   require Ash.Query
 
-  alias TennisTracker.Tennis.{Team, TeamMembership, SeasonRules}
+  alias TennisTracker.Tennis.{Team, TeamMembership, SeasonRules, Player}
 
   resources do
     resource TennisTracker.Tennis.Player do
@@ -148,6 +148,38 @@ defmodule TennisTracker.Tennis do
     |> Enum.each(&destroy_team_membership/1)
 
     destroy_team(team)
+  end
+
+  @doc """
+  Returns all eligible, unassigned players for a planning context, sorted by NTRP
+  descending (nils last) then name ascending.
+
+  Eligibility is determined by:
+  - Age group flag (eligible_18_plus or eligible_40_plus) matching the team type
+  - NTRP rating within the team type's allowed_ntrp_levels, OR nil (unrated)
+
+  Players already assigned to any team in this context are excluded.
+  """
+  def list_eligible_unassigned_players(team_type, team_type_id, season_year) do
+    allowed_levels = team_type.allowed_ntrp_levels
+
+    age_query =
+      case team_type.age_group do
+        "18_plus" -> Ash.Query.filter(Player, eligible_18_plus == true)
+        "40_plus" -> Ash.Query.filter(Player, eligible_40_plus == true)
+        _ -> Ash.Query.filter(Player, eligible_18_plus == true)
+      end
+
+    age_query
+    |> Ash.Query.filter(
+      (is_nil(ntrp_rating) or ntrp_rating in ^allowed_levels) and
+        not exists(
+          team_memberships,
+          team_type_id == ^team_type_id and season_year == ^season_year
+        )
+    )
+    |> Ash.Query.sort(ntrp_rating: :desc_nils_last, name: :asc)
+    |> Ash.read!(domain: __MODULE__)
   end
 
   @doc """

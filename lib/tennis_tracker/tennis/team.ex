@@ -1,7 +1,19 @@
 defmodule TennisTracker.Tennis.Team do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    notifiers: [Ash.Notifier.PubSub],
+    primary_read_warning?: false
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(TennisTracker.PubSub)
+    prefix("roster")
+
+    publish(:create, [:team_type_id, :season_year])
+    publish(:update, [:team_type_id, :season_year])
+    publish(:destroy, [:team_type_id, :season_year])
+  end
 
   postgres do
     table("teams")
@@ -21,11 +33,6 @@ defmodule TennisTracker.Tennis.Team do
       public?(true)
     end
 
-    attribute :captain, :string do
-      allow_nil?(true)
-      public?(true)
-    end
-
     attribute :season_year, :integer do
       allow_nil?(false)
       public?(true)
@@ -40,6 +47,11 @@ defmodule TennisTracker.Tennis.Team do
     timestamps()
   end
 
+  calculations do
+    calculate(:team_type_age_group, :string, expr(team_type.age_group))
+    calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
+  end
+
   relationships do
     belongs_to :team_type, TennisTracker.Tennis.TeamType do
       allow_nil?(false)
@@ -52,6 +64,15 @@ defmodule TennisTracker.Tennis.Team do
   actions do
     read :read do
       primary?(true)
+
+      prepare(fn query, _ ->
+        Ash.Query.sort(query, [
+          {:season_year, :desc},
+          {:team_type_age_group, :asc_nils_last},
+          {:team_type_ntrp_level, :desc_nils_last},
+          {:name, :asc}
+        ])
+      end)
     end
 
     read :for_context do
@@ -63,12 +84,12 @@ defmodule TennisTracker.Tennis.Team do
 
     create :create do
       primary?(true)
-      accept([:name, :captain, :season_year, :is_pseudo, :team_type_id])
+      accept([:name, :season_year, :is_pseudo, :team_type_id])
     end
 
     update :update do
       primary?(true)
-      accept([:name, :captain])
+      accept([:name])
     end
 
     destroy :destroy do

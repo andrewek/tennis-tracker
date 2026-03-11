@@ -1,7 +1,18 @@
 defmodule TennisTracker.Tennis.TeamMembership do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    notifiers: [Ash.Notifier.PubSub]
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(TennisTracker.PubSub)
+    prefix("roster")
+
+    publish(:create, [:team_type_id, :season_year])
+    publish(:update, [:team_type_id, :season_year])
+    publish(:destroy, [:team_type_id, :season_year])
+  end
 
   postgres do
     table("team_memberships")

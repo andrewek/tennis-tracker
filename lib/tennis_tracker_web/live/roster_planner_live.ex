@@ -2,9 +2,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   use TennisTrackerWeb, :live_view
 
   alias TennisTracker.Tennis
-  alias TennisTracker.Tennis.RosterHealth
-
-  @pubsub TennisTracker.PubSub
+  alias TennisTracker.Tennis.{RosterHealth, Team}
+  alias AshPhoenix.Form
 
   # ---------------------------------------------------------------------------
   # Mount / Params
@@ -25,11 +24,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
      |> assign(:season_year_input, "2026")
      |> assign(:selected_team_type_id, nil)
      |> assign(:selected_player_id, nil)
-     |> assign(:show_new_team_form, false)
-     |> assign(:new_team_name, "")
-     |> assign(:renaming_team_id, nil)
-     |> assign(:rename_value, "")
-     |> assign(:deleting_team_id, nil)}
+     |> assign(:team_modal, nil)}
   end
 
   def handle_params(
@@ -44,7 +39,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         topic = topic(team_type_id, season_year)
 
         if connected?(socket) do
-          Phoenix.PubSub.subscribe(@pubsub, topic)
+          Phoenix.PubSub.subscribe(TennisTracker.PubSub, topic)
         end
 
         {:ok, season_rules} = Tennis.get_season_rules_for_context(team_type_id, season_year)
@@ -109,95 +104,91 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   def handle_event("move_player", %{"player_id" => player_id, "team_id" => "unassigned"}, socket) do
     ctx = socket.assigns.context
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
-    broadcast_update(ctx)
     {:noreply, socket |> assign(:selected_player_id, nil) |> reload_board(ctx)}
   end
 
   def handle_event("move_player", %{"player_id" => player_id, "team_id" => team_id}, socket) do
     ctx = socket.assigns.context
     Tennis.assign_player(player_id, team_id, ctx.team_type_id, ctx.season_year)
-    broadcast_update(ctx)
     {:noreply, socket |> assign(:selected_player_id, nil) |> reload_board(ctx)}
   end
 
   # ---------------------------------------------------------------------------
-  # Events — new team
+  # Events — team modal
   # ---------------------------------------------------------------------------
 
-  def handle_event("show_new_team_form", _params, socket) do
-    {:noreply, socket |> assign(:show_new_team_form, true) |> assign(:new_team_name, "")}
-  end
-
-  def handle_event("hide_new_team_form", _params, socket) do
-    {:noreply, assign(socket, :show_new_team_form, false)}
-  end
-
-  def handle_event("update_new_team_name", %{"value" => val}, socket) do
-    {:noreply, assign(socket, :new_team_name, val)}
-  end
-
-  def handle_event("create_team", %{"name" => name}, socket) do
+  def handle_event("open_team_modal", %{"mode" => "create"}, socket) do
     ctx = socket.assigns.context
-    trimmed = String.trim(name)
 
-    if trimmed == "" do
-      {:noreply, socket}
+    form =
+      Form.for_create(Team, :create,
+        domain: Tennis,
+        as: "team",
+        prepare_source: fn changeset ->
+          Ash.Changeset.set_argument(changeset, :team_type_id, ctx.team_type_id)
+          |> Ash.Changeset.force_change_attribute(:team_type_id, ctx.team_type_id)
+          |> Ash.Changeset.force_change_attribute(:season_year, ctx.season_year)
+          |> Ash.Changeset.force_change_attribute(:is_pseudo, false)
+        end
+      )
+      |> to_form()
+
+    {:noreply, assign(socket, :team_modal, %{mode: :create, form: form, team: nil})}
+  end
+
+  def handle_event("open_team_modal", %{"mode" => "edit", "team_id" => team_id}, socket) do
+    entry = Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id))
+
+    if entry do
+      form = Form.for_update(entry.team, :update, domain: Tennis, as: "team") |> to_form()
+      {:noreply, assign(socket, :team_modal, %{mode: :edit, form: form, team: entry.team})}
     else
-      Tennis.create_team!(%{
-        name: trimmed,
-        team_type_id: ctx.team_type_id,
-        season_year: ctx.season_year,
-        is_pseudo: false
-      })
-
-      broadcast_update(ctx)
-      {:noreply, socket |> assign(:show_new_team_form, false) |> reload_board(ctx)}
+      {:noreply, socket}
     end
   end
 
-  # ---------------------------------------------------------------------------
-  # Events — team rename
-  # ---------------------------------------------------------------------------
+  def handle_event("open_team_modal", %{"mode" => "delete", "team_id" => team_id}, socket) do
+    entry = Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id))
 
-  def handle_event("start_rename", %{"team_id" => team_id, "name" => name}, socket) do
-    {:noreply, socket |> assign(:renaming_team_id, team_id) |> assign(:rename_value, name)}
+    if entry do
+      {:noreply, assign(socket, :team_modal, %{mode: :delete, form: nil, team: entry.team})}
+    else
+      {:noreply, socket}
+    end
   end
 
-  def handle_event("update_rename_value", %{"value" => val}, socket) do
-    {:noreply, assign(socket, :rename_value, val)}
+  def handle_event("close_team_modal", _params, socket) do
+    {:noreply, assign(socket, :team_modal, nil)}
   end
 
-  def handle_event("cancel_rename", _params, socket) do
-    {:noreply, socket |> assign(:renaming_team_id, nil) |> assign(:rename_value, "")}
+  def handle_event("validate_team_form", %{"team" => params}, socket) do
+    modal = socket.assigns.team_modal
+    form = Form.validate(modal.form.source, params) |> to_form()
+    {:noreply, assign(socket, :team_modal, %{modal | form: form})}
   end
 
-  def handle_event("commit_rename", %{"team_id" => team_id}, socket) do
+  def handle_event("submit_team_form", %{"team" => params}, socket) do
     ctx = socket.assigns.context
-    trimmed = String.trim(socket.assigns.rename_value)
+    modal = socket.assigns.team_modal
 
-    if trimmed != "" do
-      team = Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id))
-
-      if team do
-        Tennis.update_team!(team.team, %{name: trimmed})
-        broadcast_update(ctx)
+    extra_params =
+      if modal.mode == :create do
+        %{
+          "team_type_id" => ctx.team_type_id,
+          "season_year" => ctx.season_year,
+          "is_pseudo" => false
+        }
+      else
+        %{}
       end
+
+    case Form.submit(modal.form.source, params: Map.merge(params, extra_params)) do
+      {:ok, _team} ->
+        {:noreply, socket |> assign(:team_modal, nil) |> reload_board(ctx)}
+
+      {:error, form} ->
+        {:noreply, assign(socket, :team_modal, %{modal | form: to_form(form)})}
     end
-
-    {:noreply,
-     socket |> assign(:renaming_team_id, nil) |> assign(:rename_value, "") |> reload_board(ctx)}
-  end
-
-  # ---------------------------------------------------------------------------
-  # Events — delete team
-  # ---------------------------------------------------------------------------
-
-  def handle_event("start_delete_team", %{"team_id" => team_id}, socket) do
-    {:noreply, assign(socket, :deleting_team_id, team_id)}
-  end
-
-  def handle_event("cancel_delete_team", _params, socket) do
-    {:noreply, assign(socket, :deleting_team_id, nil)}
   end
 
   def handle_event("confirm_delete_team", %{"team_id" => team_id}, socket) do
@@ -213,17 +204,16 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
     if team do
       Tennis.delete_team(team)
-      broadcast_update(ctx)
     end
 
-    {:noreply, socket |> assign(:deleting_team_id, nil) |> reload_board(ctx)}
+    {:noreply, socket |> assign(:team_modal, nil) |> reload_board(ctx)}
   end
 
   # ---------------------------------------------------------------------------
   # PubSub
   # ---------------------------------------------------------------------------
 
-  def handle_info({:roster_updated, _}, socket) do
+  def handle_info(%Ash.Notifier.Notification{}, socket) do
     ctx = socket.assigns.context
 
     if ctx do
@@ -237,15 +227,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # Board helpers
   # ---------------------------------------------------------------------------
 
-  defp topic(team_type_id, season_year), do: "roster_planner:#{team_type_id}:#{season_year}"
-
-  defp broadcast_update(ctx) do
-    Phoenix.PubSub.broadcast(
-      @pubsub,
-      topic(ctx.team_type_id, ctx.season_year),
-      {:roster_updated, %{team_type_id: ctx.team_type_id, season_year: ctx.season_year}}
-    )
-  end
+  defp topic(team_type_id, season_year), do: "roster:#{team_type_id}:#{season_year}"
 
   defp reload_board(socket, ctx) do
     board =
@@ -263,18 +245,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   defp load_board(team_type_id, season_year, pseudo_team, team_type, season_rules) do
     {:ok, all_teams} = Tennis.list_teams_for_context(team_type_id, season_year)
     {:ok, all_memberships} = Tennis.list_memberships_for_context(team_type_id, season_year)
-    all_players = Tennis.list_players!()
 
-    real_teams = Enum.reject(all_teams, & &1.is_pseudo) |> Enum.sort_by(& &1.name)
-    assigned_player_ids = MapSet.new(all_memberships, & &1.player_id)
-
-    unassigned =
-      Enum.reject(all_players, fn p -> MapSet.member?(assigned_player_ids, p.id) end)
-      |> Enum.filter(fn p -> eligible_for_team_type?(p, team_type) end)
-      |> Enum.sort_by(fn p ->
-        ntrp_sort = if p.ntrp_rating, do: Decimal.to_float(p.ntrp_rating), else: 0.0
-        {-ntrp_sort, p.name}
-      end)
+    real_teams = Enum.reject(all_teams, & &1.is_pseudo)
+    unassigned = Tennis.list_eligible_unassigned_players(team_type, team_type_id, season_year)
 
     not_participating =
       all_memberships
@@ -316,23 +289,6 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       not_participating: not_participating,
       pseudo_team: pseudo_team
     }
-  end
-
-  defp eligible_for_team_type?(player, team_type) do
-    age_eligible =
-      case team_type.age_group do
-        "18_plus" -> player.eligible_18_plus
-        "40_plus" -> player.eligible_40_plus
-        _ -> false
-      end
-
-    rating_eligible =
-      is_nil(player.ntrp_rating) or
-        Enum.any?(team_type.allowed_ntrp_levels, fn level ->
-          Decimal.equal?(player.ntrp_rating, level)
-        end)
-
-    age_eligible and rating_eligible
   end
 
   # ---------------------------------------------------------------------------
@@ -429,7 +385,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         <%!-- Board toolbar --%>
         <div class="flex items-center gap-6 mb-4">
           <.link navigate={~p"/roster-planner"} class="btn btn-sm btn-ghost">
-            ← Change context
+            <.icon name="hero-arrow-left" class="size-4" /> Change context
           </.link>
         </div>
 
@@ -462,11 +418,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               team_id={team.id}
               violations={violations}
               selected_player_id={@selected_player_id}
-              renaming={@renaming_team_id == team.id}
-              rename_value={@rename_value}
               team={team}
               deletable={true}
-              deleting={@deleting_team_id == team.id}
+              modal_open={not is_nil(@team_modal)}
             >
               <.player_card
                 :for={player <- players}
@@ -478,41 +432,17 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             </.board_column>
           <% end %>
 
-          <%!-- New Team card — collapsed --%>
+          <%!-- New Team button --%>
           <div
-            :if={not @show_new_team_form}
             id="col-new-team"
-            phx-click="show_new_team_form"
+            phx-click="open_team_modal"
+            phx-value-mode="create"
             class="flex-shrink-0 w-56 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer rounded-lg"
           >
             <div class="flex flex-col items-center justify-center text-center h-20">
               <span class="text-2xl text-base-content/30 leading-none">+</span>
               <p class="text-xs text-base-content/50 mt-1">New team</p>
             </div>
-          </div>
-
-          <%!-- New Team card — expanded with form --%>
-          <div
-            :if={@show_new_team_form}
-            id="col-new-team-form"
-            class="flex-shrink-0 w-56 bg-base-200 border-2 border-primary rounded-lg p-3"
-          >
-            <p class="font-semibold text-sm mb-3">New Team</p>
-            <form phx-submit="create_team" class="space-y-3">
-              <input
-                type="text"
-                name="name"
-                placeholder="Team name"
-                autofocus
-                class="input input-bordered input-sm w-full"
-              />
-              <div class="flex gap-2">
-                <button type="submit" class="btn btn-primary btn-sm flex-1">Save</button>
-                <button type="button" phx-click="hide_new_team_form" class="btn btn-ghost btn-sm">
-                  Cancel
-                </button>
-              </div>
-            </form>
           </div>
 
           <%!-- Not Participating column --%>
@@ -546,7 +476,13 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           >
             <div class="flex items-center justify-between mb-4">
               <p class="font-semibold">Move to...</p>
-              <button phx-click="deselect_player" class="btn btn-ghost btn-xs btn-circle">✕</button>
+              <button
+                phx-click="deselect_player"
+                class="btn btn-ghost btn-xs btn-circle"
+                aria-label="Close"
+              >
+                <.icon name="hero-x-mark" class="size-4" />
+              </button>
             </div>
             <div class="space-y-2">
               <button
@@ -579,6 +515,119 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             <button phx-click="deselect_player" class="btn btn-ghost btn-sm w-full">
               Cancel
             </button>
+          </div>
+        </div>
+
+        <%!-- Team modal (create / edit / delete) --%>
+        <div
+          :if={@team_modal}
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        >
+          <div
+            class="bg-base-100 rounded-2xl w-full max-w-sm p-6 shadow-xl"
+            phx-click-away="close_team_modal"
+          >
+            <%= cond do %>
+              <% @team_modal.mode == :create -> %>
+                <h3 class="font-semibold text-lg mb-4">New Team</h3>
+                <.form
+                  for={@team_modal.form}
+                  phx-change="validate_team_form"
+                  phx-submit="submit_team_form"
+                >
+                  <div class="mb-4">
+                    <label class="label py-0 mb-1">
+                      <span class="label-text">Team Name</span>
+                    </label>
+                    <input
+                      type="text"
+                      name={@team_modal.form[:name].name}
+                      value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
+                      placeholder="e.g. Team Alpha"
+                      autofocus
+                      class={[
+                        "input input-bordered w-full",
+                        @team_modal.form[:name].errors != [] && "input-error"
+                      ]}
+                    />
+                    <p
+                      :for={error <- @team_modal.form[:name].errors}
+                      class="text-error text-xs mt-1"
+                    >
+                      {elem(error, 0)}
+                    </p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-1">Create</button>
+                    <button
+                      type="button"
+                      phx-click="close_team_modal"
+                      class="btn btn-ghost"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </.form>
+              <% @team_modal.mode == :edit -> %>
+                <h3 class="font-semibold text-lg mb-4">Rename Team</h3>
+                <.form
+                  for={@team_modal.form}
+                  phx-change="validate_team_form"
+                  phx-submit="submit_team_form"
+                >
+                  <div class="mb-4">
+                    <label class="label py-0 mb-1">
+                      <span class="label-text">Team Name</span>
+                    </label>
+                    <input
+                      type="text"
+                      name={@team_modal.form[:name].name}
+                      value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
+                      autofocus
+                      class={[
+                        "input input-bordered w-full",
+                        @team_modal.form[:name].errors != [] && "input-error"
+                      ]}
+                    />
+                    <p
+                      :for={error <- @team_modal.form[:name].errors}
+                      class="text-error text-xs mt-1"
+                    >
+                      {elem(error, 0)}
+                    </p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-1">Save</button>
+                    <button
+                      type="button"
+                      phx-click="close_team_modal"
+                      class="btn btn-ghost"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </.form>
+              <% @team_modal.mode == :delete -> %>
+                <h3 class="font-semibold text-lg mb-2">Delete Team</h3>
+                <p class="text-sm text-base-content/70 mb-6">
+                  Delete <strong>{@team_modal.team.name}</strong>? All player assignments will be removed and those players will return to Unassigned. This cannot be undone.
+                </p>
+                <div class="flex gap-2">
+                  <button
+                    phx-click="confirm_delete_team"
+                    phx-value-team_id={@team_modal.team.id}
+                    class="btn btn-error flex-1"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    phx-click="close_team_modal"
+                    class="btn btn-ghost"
+                  >
+                    Cancel
+                  </button>
+                </div>
+            <% end %>
           </div>
         </div>
       </div>
@@ -634,11 +683,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   attr :team_id, :string, required: true
   attr :violations, :list, default: []
   attr :selected_player_id, :string, default: nil
-  attr :renaming, :boolean, default: false
-  attr :rename_value, :string, default: ""
   attr :team, :map, default: nil
   attr :deletable, :boolean, default: false
-  attr :deleting, :boolean, default: false
+  attr :modal_open, :boolean, default: false
   slot :inner_block, required: true
 
   defp board_column(assigns) do
@@ -652,62 +699,32 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       <%!-- Column header --%>
       <div class="flex items-center justify-between mb-2 px-1">
         <div class="flex-1 min-w-0">
-          <%= cond do %>
-            <% @deleting and @team -> %>
-              <div class="flex items-center gap-1">
-                <span class="text-xs text-error font-medium truncate">Delete team?</span>
-                <button
-                  phx-click="confirm_delete_team"
-                  phx-value-team_id={@team.id}
-                  class="btn btn-xs btn-error"
-                >
-                  Confirm
-                </button>
-                <button phx-click="cancel_delete_team" class="btn btn-xs btn-ghost">
-                  Cancel
-                </button>
-              </div>
-            <% @renaming and @team -> %>
-              <form phx-submit="commit_rename" class="flex gap-1">
-                <input
-                  type="text"
-                  name="rename_value"
-                  value={@rename_value}
-                  phx-keyup="update_rename_value"
-                  autofocus
-                  class="input input-xs input-bordered flex-1 min-w-0"
-                />
-                <input type="hidden" name="team_id" value={@team.id} />
-                <button type="submit" class="btn btn-xs btn-primary">✓</button>
-                <button type="button" phx-click="cancel_rename" class="btn btn-xs btn-ghost">
-                  ✕
-                </button>
-              </form>
-            <% true -> %>
-              <div class="flex items-center gap-1">
-                <span class="font-semibold text-sm truncate">{@title}</span>
-                <span class="badge badge-xs badge-ghost">{@count}</span>
-                <button
-                  :if={@team && not @renaming}
-                  phx-click="start_rename"
-                  phx-value-team_id={@team.id}
-                  phx-value-name={@title}
-                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
-                  title="Rename team"
-                >
-                  ✎
-                </button>
-                <button
-                  :if={@deletable && not @renaming}
-                  phx-click="start_delete_team"
-                  phx-value-team_id={@team.id}
-                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
-                  title="Delete team"
-                >
-                  🗑
-                </button>
-              </div>
-          <% end %>
+          <div class="flex items-center gap-1">
+            <span class="font-semibold text-sm truncate">{@title}</span>
+            <span class="badge badge-xs badge-ghost">{@count}</span>
+            <button
+              :if={@team && not @modal_open}
+              phx-click="open_team_modal"
+              phx-value-mode="edit"
+              phx-value-team_id={@team.id}
+              class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
+              aria-label="Rename team"
+            >
+              <.icon name="hero-pencil-square" class="size-3.5" />
+              <span class="sr-only">Rename team</span>
+            </button>
+            <button
+              :if={@deletable && not @modal_open}
+              phx-click="open_team_modal"
+              phx-value-mode="delete"
+              phx-value-team_id={@team.id}
+              class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
+              aria-label="Delete team"
+            >
+              <.icon name="hero-trash" class="size-3.5" />
+              <span class="sr-only">Delete team</span>
+            </button>
+          </div>
         </div>
       </div>
 

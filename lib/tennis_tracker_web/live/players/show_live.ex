@@ -54,7 +54,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
 
       <div class="mt-6">
         <.link navigate={~p"/players"} class="text-sm text-base-content/70 hover:text-base-content">
-          ← Back to players
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to players
         </.link>
       </div>
     </Layouts.app>

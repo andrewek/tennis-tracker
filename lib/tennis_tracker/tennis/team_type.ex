@@ -17,12 +17,12 @@ defmodule TennisTracker.Tennis.TeamType do
     end
 
     attribute :age_group, :string do
-      allow_nil?(false)
+      allow_nil?(true)
       public?(true)
     end
 
     attribute :ntrp_level, :decimal do
-      allow_nil?(false)
+      allow_nil?(true)
       public?(true)
     end
 
@@ -36,16 +36,13 @@ defmodule TennisTracker.Tennis.TeamType do
   end
 
   validations do
-    validate(attribute_in(:age_group, ["18_plus", "40_plus"]))
+    validate attribute_in(:age_group, ["18_plus", "40_plus"]) do
+      where([present(:age_group)])
+    end
 
-    validate(
-      attribute_in(:ntrp_level, [
-        Decimal.new("3.0"),
-        Decimal.new("3.5"),
-        Decimal.new("4.0"),
-        Decimal.new("4.5")
-      ])
-    )
+    validate attribute_in(:ntrp_level, TennisTracker.Tennis.NtrpLevels.team_levels()) do
+      where([present(:ntrp_level)])
+    end
   end
 
   relationships do

@@ -17,21 +17,41 @@ defmodule TennisTracker.Tennis.SeasonRules do
     end
 
     attribute :min_roster, :integer do
-      allow_nil?(false)
+      allow_nil?(true)
       public?(true)
     end
 
     attribute :max_roster, :integer do
-      allow_nil?(false)
+      allow_nil?(true)
       public?(true)
     end
 
     attribute :on_level_min_pct, :decimal do
-      allow_nil?(false)
+      allow_nil?(true)
       public?(true)
     end
 
     timestamps()
+  end
+
+  validations do
+    validate numericality(:min_roster, greater_than: 0) do
+      where([present(:min_roster)])
+      message("must be a positive integer")
+    end
+
+    validate numericality(:max_roster, greater_than: 0) do
+      where([present(:max_roster)])
+      message("must be a positive integer")
+    end
+
+    validate numericality(:on_level_min_pct,
+               greater_than_or_equal_to: 0,
+               less_than_or_equal_to: 100
+             ) do
+      where([present(:on_level_min_pct)])
+      message("must be between 0.0 and 100.0")
+    end
   end
 
   identities do
@@ -60,6 +80,11 @@ defmodule TennisTracker.Tennis.SeasonRules do
     create :create do
       primary?(true)
       accept([:season_year, :min_roster, :max_roster, :on_level_min_pct, :team_type_id])
+    end
+
+    update :update do
+      primary?(true)
+      accept([:min_roster, :max_roster, :on_level_min_pct])
     end
   end
 end

@@ -94,9 +94,9 @@ defmodule TennisTrackerWeb.Players.IndexLive do
                 title={"Sort #{if @ntrp_sort == "desc", do: "ascending", else: "descending"}"}
               >
                 <%= if @ntrp_sort == "desc" do %>
-                  ↓ Desc
+                  <.icon name="hero-arrow-down" class="size-3.5 inline" /> Desc
                 <% else %>
-                  ↑ Asc
+                  <.icon name="hero-arrow-up" class="size-3.5 inline" /> Asc
                 <% end %>
               </button>
             </div>
@@ -140,7 +140,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
           phx-click="clear_filter"
           class="btn btn-sm btn-ghost text-base-content/50"
         >
-          ✕ Clear filters
+          <.icon name="hero-x-mark" class="size-4 inline" /> Clear filters
         </.button>
       </div>
 

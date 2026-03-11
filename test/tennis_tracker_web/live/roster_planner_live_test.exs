@@ -381,7 +381,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
 
-      render_click(view, "start_delete_team", %{"team_id" => team.id})
+      render_click(view, "open_team_modal", %{"mode" => "delete", "team_id" => team.id})
       render_click(view, "confirm_delete_team", %{"team_id" => team.id})
 
       refute has_element?(view, "#col-#{team.id}")
@@ -410,8 +410,8 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
 
-      render_click(view, "start_delete_team", %{"team_id" => team.id})
-      render_click(view, "cancel_delete_team", %{})
+      render_click(view, "open_team_modal", %{"mode" => "delete", "team_id" => team.id})
+      render_click(view, "close_team_modal", %{})
 
       assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
     end
