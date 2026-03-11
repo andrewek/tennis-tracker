@@ -11,12 +11,43 @@ The system SHALL provide a way for users to select a planning context (season ye
 - **WHEN** the context selector is displayed
 - **THEN** all seeded TeamTypes are listed as options
 
+### Requirement: Planning board takes full width of the page
+The planning board SHALL use the full available page width (with standard horizontal padding) rather than a constrained content-width layout. This is necessary because the board may contain 5 or more columns simultaneously.
+
+#### Scenario: Board uses full page width
+- **WHEN** the planning board is displayed
+- **THEN** the board columns span the full available viewport width (minus padding)
+- **AND** other pages in the application are unaffected
+
 ### Requirement: Planning board displays all teams and unassigned players
 The system SHALL display a board with one column per team (plus Unassigned and Not Participating) for the selected planning context. Player cards SHALL be shown in each column according to their membership status.
 
+### Requirement: Unassigned column shows only eligible players for the planning context
+The Unassigned column SHALL show only players who are eligible for the current planning context's team type. A player is eligible if:
+- Their age-group eligibility flag matches the team type's age group (e.g. `eligible_18_plus` for an 18+ team type)
+- Their NTRP rating is within the team type's `allowed_ntrp_levels`, OR their NTRP rating is nil (unrated)
+
+Players who do not meet these criteria SHALL NOT appear in the Unassigned column. This filtering is derived automatically from the `TeamType` in context — no user configuration is required.
+
+Players who are already assigned to a team column SHALL always be shown in their team column regardless of eligibility. Eligibility filtering applies only to the Unassigned pool.
+
 #### Scenario: Unassigned column shows eligible players
 - **WHEN** the planning board loads
-- **THEN** the Unassigned column contains all players with no membership in this planning context
+- **THEN** the Unassigned column contains only players with no membership in this planning context who are eligible for the team type
+
+#### Scenario: Ineligible player already assigned to a team
+- **WHEN** a player's eligibility changes after they were assigned to a team
+- **THEN** the player still appears in their team column
+- **AND** existing RosterHealth violation indicators surface the issue
+- **AND** the player does NOT appear in the Unassigned column
+
+#### Scenario: Unrated player appears in Unassigned
+- **WHEN** a player with a nil NTRP rating is age-group eligible for the planning context
+- **THEN** the player appears in the Unassigned column
+
+#### Scenario: Over-rated player is excluded from Unassigned
+- **WHEN** a player has an NTRP rating above the team type's allowed levels (e.g. a 4.0-rated player for a 3.5 team)
+- **THEN** the player does NOT appear in the Unassigned column
 
 #### Scenario: Team columns show their assigned players
 - **WHEN** the planning board loads

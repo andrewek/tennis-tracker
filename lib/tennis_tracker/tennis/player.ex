@@ -67,6 +67,10 @@ defmodule TennisTracker.Tennis.Player do
     end
   end
 
+  relationships do
+    has_many :team_memberships, TennisTracker.Tennis.TeamMembership
+  end
+
   actions do
     read :read do
       primary?(true)

@@ -25,6 +25,9 @@ defmodule TennisTrackerWeb.Router do
     get "/players/export.csv", PlayerCSVController, :export
     live "/players/:id", Players.ShowLive, :show
     live "/players/:id/edit", Players.FormLive, :edit
+
+    live "/roster-planner", RosterPlannerLive, :index
+    live "/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
   end
 
   # Other scopes may use custom stacks.

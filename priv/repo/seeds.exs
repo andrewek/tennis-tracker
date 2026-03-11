@@ -197,3 +197,124 @@ unrated_players
 end)
 
 IO.puts("Seeded #{length(unrated_players)} unrated players (skipped any already present).")
+
+# ==============================================================================
+# TeamTypes — 2 age groups × 4 NTRP levels = 8 types
+# Safe to run multiple times — skips types that already exist by name.
+# ==============================================================================
+
+team_type_definitions = [
+  %{
+    age_group: "18_plus",
+    ntrp_level: Decimal.new("3.0"),
+    allowed_ntrp_levels: [Decimal.new("3.0")],
+    name: "18+ 3.0"
+  },
+  %{
+    age_group: "18_plus",
+    ntrp_level: Decimal.new("3.5"),
+    allowed_ntrp_levels: [Decimal.new("3.0"), Decimal.new("3.5")],
+    name: "18+ 3.5"
+  },
+  %{
+    age_group: "18_plus",
+    ntrp_level: Decimal.new("4.0"),
+    allowed_ntrp_levels: [Decimal.new("3.5"), Decimal.new("4.0")],
+    name: "18+ 4.0"
+  },
+  %{
+    age_group: "18_plus",
+    ntrp_level: Decimal.new("4.5"),
+    allowed_ntrp_levels: [Decimal.new("4.0"), Decimal.new("4.5")],
+    name: "18+ 4.5"
+  },
+  %{
+    age_group: "40_plus",
+    ntrp_level: Decimal.new("3.0"),
+    allowed_ntrp_levels: [Decimal.new("3.0")],
+    name: "40+ 3.0"
+  },
+  %{
+    age_group: "40_plus",
+    ntrp_level: Decimal.new("3.5"),
+    allowed_ntrp_levels: [Decimal.new("3.0"), Decimal.new("3.5")],
+    name: "40+ 3.5"
+  },
+  %{
+    age_group: "40_plus",
+    ntrp_level: Decimal.new("4.0"),
+    allowed_ntrp_levels: [Decimal.new("3.5"), Decimal.new("4.0")],
+    name: "40+ 4.0"
+  },
+  %{
+    age_group: "40_plus",
+    ntrp_level: Decimal.new("4.5"),
+    allowed_ntrp_levels: [Decimal.new("4.0"), Decimal.new("4.5")],
+    name: "40+ 4.5"
+  }
+]
+
+existing_team_type_names =
+  Tennis.list_team_types!()
+  |> Enum.map(& &1.name)
+  |> MapSet.new()
+
+seeded_team_types =
+  team_type_definitions
+  |> Enum.reject(fn %{name: name} -> MapSet.member?(existing_team_type_names, name) end)
+  |> Enum.map(fn attrs ->
+    {:ok, tt} = Tennis.create_team_type(attrs)
+    tt
+  end)
+
+# Build a map of team type name → record for SeasonRules seeding
+all_team_types = Tennis.list_team_types!()
+team_types_by_name = Map.new(all_team_types, &{&1.name, &1})
+
+IO.puts("Seeded #{length(seeded_team_types)} team types (skipped any already present).")
+
+# ==============================================================================
+# SeasonRules for season 2026 — reasonable USTA defaults
+# Safe to run multiple times — skips rules that already exist.
+# ==============================================================================
+
+season_rules_2026 = [
+  %{name: "18+ 3.0", min_roster: 8, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 3.5", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 4.0", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 4.5", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 3.0", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 3.5", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 4.0", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 4.5", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")}
+]
+
+require Ash.Query
+
+existing_2026_type_ids =
+  TennisTracker.Tennis.SeasonRules
+  |> Ash.Query.filter(season_year == 2026)
+  |> Ash.read!(domain: Tennis)
+  |> Enum.map(& &1.team_type_id)
+  |> MapSet.new()
+
+seeded_rules =
+  season_rules_2026
+  |> Enum.reject(fn %{name: name} ->
+    team_type = Map.get(team_types_by_name, name)
+    team_type && MapSet.member?(existing_2026_type_ids, team_type.id)
+  end)
+  |> Enum.each(fn %{name: name} = attrs ->
+    team_type = Map.fetch!(team_types_by_name, name)
+
+    {:ok, _} =
+      Tennis.create_season_rules(%{
+        team_type_id: team_type.id,
+        season_year: 2026,
+        min_roster: attrs.min_roster,
+        max_roster: attrs.max_roster,
+        on_level_min_pct: attrs.on_level_min_pct
+      })
+  end)
+
+IO.puts("Seeded SeasonRules for 2026 (skipped any already present).")
