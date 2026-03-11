@@ -31,6 +31,7 @@ defmodule TennisTracker.Tennis do
     end
 
     resource TennisTracker.Tennis.TeamMembership do
+      define(:list_real_memberships_for_player, action: :for_player, args: [:player_id])
       define(:create_team_membership, action: :create)
       define(:update_team_membership, action: :update)
       define(:destroy_team_membership, action: :destroy)

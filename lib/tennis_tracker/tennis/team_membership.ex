@@ -40,6 +40,24 @@ defmodule TennisTracker.Tennis.TeamMembership do
     identity(:unique_player_context, [:player_id, :team_type_id, :season_year])
   end
 
+  calculations do
+    calculate(
+      :display_label,
+      :string,
+      expr(
+        fragment(
+          "CAST(? AS text) || ' ' || ? || ' - ' || ?",
+          season_year,
+          team.team_type.name,
+          team.name
+        )
+      )
+    )
+
+    calculate(:team_age_group, :string, expr(team.team_type.age_group))
+    calculate(:team_ntrp_level, :decimal, expr(team.team_type.ntrp_level))
+  end
+
   relationships do
     belongs_to :player, TennisTracker.Tennis.Player do
       allow_nil?(false)
@@ -55,6 +73,20 @@ defmodule TennisTracker.Tennis.TeamMembership do
   actions do
     read :read do
       primary?(true)
+    end
+
+    read :for_player do
+      argument(:player_id, :uuid, allow_nil?: false)
+
+      filter(expr(player_id == ^arg(:player_id) and team.is_pseudo == false))
+
+      prepare(fn query, _ ->
+        Ash.Query.sort(query, [
+          {:season_year, :desc},
+          {:team_age_group, :asc_nils_last},
+          {:team_ntrp_level, :desc_nils_last}
+        ])
+      end)
     end
 
     read :for_context do
