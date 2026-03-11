@@ -27,3 +27,5 @@
 1. What makes sense in terms of lineup scheduling? We have slightly different
    use cases for various USTA matches, and a different use case for something
    like Winter Tennis.
+1. At some point we need to figure out how to deploy. We also probably need a
+   CI/CD pipeline. At this time I am leaning toward Fly.io.
