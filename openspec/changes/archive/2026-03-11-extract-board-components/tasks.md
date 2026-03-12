@@ -40,7 +40,7 @@
 
 ## 7. Verify and clean up
 
-- [ ] 7.1 Run `mix phx.server` and manually verify drag-and-drop still works on the Roster Planner board
-- [ ] 7.2 Verify tap-to-assign modal opens, shows player name + NTRP + "View profile" link, and move-to-team buttons work
-- [ ] 7.3 Verify "View profile" link navigates to the correct player show page
+- [x] 7.1 Run `mix phx.server` and manually verify drag-and-drop still works on the Roster Planner board
+- [x] 7.2 Verify tap-to-assign modal opens, shows player name + NTRP + "View profile" link, and move-to-team buttons work
+- [x] 7.3 Verify "View profile" link navigates to the correct player show page
 - [x] 7.4 Run `mix precommit` (compile with warnings-as-errors, format, tests) and fix any issues
