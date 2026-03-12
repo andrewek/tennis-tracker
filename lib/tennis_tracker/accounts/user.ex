@@ -18,6 +18,13 @@ defmodule TennisTracker.Accounts.User do
   end
 
   authentication do
+    strategies do
+      password :password do
+        identity_field :email
+        hashed_password_field :hashed_password
+      end
+    end
+
     add_ons do
       log_out_everywhere do
         apply_on_password_change? true
@@ -35,6 +42,20 @@ defmodule TennisTracker.Accounts.User do
 
   attributes do
     uuid_primary_key(:id)
+
+    attribute :email, :ci_string do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :hashed_password, :string do
+      allow_nil?(true)
+      sensitive?(true)
+    end
+  end
+
+  identities do
+    identity :unique_email, [:email]
   end
 
   actions do
