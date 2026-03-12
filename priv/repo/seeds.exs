@@ -343,7 +343,8 @@ existing_emails =
 Enum.each(dev_users, fn %{email: email, password: password} ->
   unless MapSet.member?(existing_emails, email) do
     {:ok, _} =
-      Ash.create(TennisTracker.Accounts.User,
+      Ash.create(
+        TennisTracker.Accounts.User,
         %{email: email, password: password, password_confirmation: password},
         action: :register_with_password,
         domain: Accounts,

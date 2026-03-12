@@ -8,7 +8,10 @@
 import Config
 
 config :spark,
-  formatter: ["Ash.Resource": [section_order: [:authentication, :token, :user_identity]]]
+  formatter: [
+    "Ash.Resource": [section_order: [:admin, :authentication, :token, :user_identity]],
+    "Ash.Domain": [section_order: [:admin]]
+  ]
 
 config :tennis_tracker,
   ecto_repos: [TennisTracker.Repo],

@@ -1,41 +1,12 @@
 defmodule TennisTracker.Tennis do
-  use Ash.Domain
+  use Ash.Domain, extensions: [AshAdmin.Domain]
 
   require Ash.Query
 
   alias TennisTracker.Tennis.{Team, TeamMembership, SeasonRules, Player}
 
-  resources do
-    resource TennisTracker.Tennis.Player do
-      define(:list_players, action: :read)
-      define(:get_player, action: :read, get_by: [:id])
-      define(:create_player, action: :create)
-      define(:update_player, action: :update)
-      define(:destroy_player, action: :destroy)
-    end
-
-    resource TennisTracker.Tennis.TeamType do
-      define(:list_team_types, action: :read)
-      define(:get_team_type, action: :read, get_by: [:id])
-      define(:create_team_type, action: :create)
-    end
-
-    resource TennisTracker.Tennis.SeasonRules do
-      define(:create_season_rules, action: :create)
-    end
-
-    resource TennisTracker.Tennis.Team do
-      define(:create_team, action: :create)
-      define(:update_team, action: :update)
-      define(:destroy_team, action: :destroy)
-    end
-
-    resource TennisTracker.Tennis.TeamMembership do
-      define(:list_real_memberships_for_player, action: :for_player, args: [:player_id])
-      define(:create_team_membership, action: :create)
-      define(:update_team_membership, action: :update)
-      define(:destroy_team_membership, action: :destroy)
-    end
+  admin do
+    show? true
   end
 
   @doc """
@@ -192,6 +163,39 @@ defmodule TennisTracker.Tennis do
       destroy_team_membership(membership)
     else
       {:ok, nil}
+    end
+  end
+
+  resources do
+    resource TennisTracker.Tennis.Player do
+      define(:list_players, action: :read)
+      define(:get_player, action: :read, get_by: [:id])
+      define(:create_player, action: :create)
+      define(:update_player, action: :update)
+      define(:destroy_player, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.TeamType do
+      define(:list_team_types, action: :read)
+      define(:get_team_type, action: :read, get_by: [:id])
+      define(:create_team_type, action: :create)
+    end
+
+    resource TennisTracker.Tennis.SeasonRules do
+      define(:create_season_rules, action: :create)
+    end
+
+    resource TennisTracker.Tennis.Team do
+      define(:create_team, action: :create)
+      define(:update_team, action: :update)
+      define(:destroy_team, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.TeamMembership do
+      define(:list_real_memberships_for_player, action: :for_player, args: [:player_id])
+      define(:create_team_membership, action: :create)
+      define(:update_team_membership, action: :update)
+      define(:destroy_team_membership, action: :destroy)
     end
   end
 end

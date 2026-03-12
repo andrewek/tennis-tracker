@@ -54,10 +54,6 @@ defmodule TennisTracker.Accounts.User do
     end
   end
 
-  identities do
-    identity :unique_email, [:email]
-  end
-
   actions do
     defaults([:read])
 
@@ -67,5 +63,9 @@ defmodule TennisTracker.Accounts.User do
       get?(true)
       prepare(AshAuthentication.Preparations.FilterBySubject)
     end
+  end
+
+  identities do
+    identity(:unique_email, [:email])
   end
 end

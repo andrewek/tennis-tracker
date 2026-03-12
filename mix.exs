@@ -41,6 +41,7 @@ defmodule TennisTracker.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:ash_admin, "~> 0.14"},
       {:picosat_elixir, "~> 0.2"},
       {:ash_authentication_phoenix, "~> 2.0"},
       {:ash_authentication, "~> 4.0"},
@@ -56,6 +57,7 @@ defmodule TennisTracker.MixProject do
       {:lazy_html, ">= 0.1.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:sourceror, "~> 1.7", only: [:dev, :test]},
       {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
