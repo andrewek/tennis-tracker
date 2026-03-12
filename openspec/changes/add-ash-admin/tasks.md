@@ -1,6 +1,6 @@
 ## 1. Prerequisites (user handles these before implementation begins)
 
-- [ ] 1.1 Run `mix igniter.install ash_authentication ash_authentication_phoenix` and commit the generated scaffold
+- [x] 1.1 Run `mix igniter.install ash_authentication ash_authentication_phoenix` and commit the generated scaffold
 - [ ] 1.2 Run `mix igniter.install ash_admin` and commit the generated scaffold
 - [ ] 1.3 Verify the app still compiles and tests pass after both installs (`mix precommit`)
 

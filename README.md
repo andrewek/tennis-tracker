@@ -34,6 +34,17 @@ To start your Phoenix server:
 
 Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
 
+## Dev Users
+
+Running `mix run priv/repo/seeds.exs` (or `mix setup`) creates two local dev accounts:
+
+| Email | Password | Role |
+|---|---|---|
+| `admin@example.com` | `Password1!` | admin |
+| `user@example.com` | `Password1!` | member |
+
+The admin panel is at [`localhost:4000/admin`](http://localhost:4000/admin) — requires an admin account.
+
 ## Development
 
 I'm currently using OpenSpec to design things, and then implementing as built.

@@ -2,6 +2,7 @@
 
 In no particular order. Crossed out when done.
 
+1. Configure with ngrok so we can demonstrate locally without needing to deploy
 1. ~On the player show page, show all team memberships for that player~
 1. ~On the roster planner page, when clicking a player, provide a link (that
    opens in a new tab) to that player's show page.~

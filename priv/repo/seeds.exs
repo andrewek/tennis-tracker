@@ -318,3 +318,38 @@ seeded_rules =
   end)
 
 IO.puts("Seeded SeasonRules for 2026 (skipped any already present).")
+
+# ==============================================================================
+# Dev users — admin@example.com and user@example.com
+# Safe to run multiple times — skips users that already exist by email.
+# ==============================================================================
+
+alias TennisTracker.Accounts
+
+require Ash.Query
+
+dev_users = [
+  %{email: "admin@example.com", password: "Password1!"},
+  %{email: "user@example.com", password: "Password1!"}
+]
+
+existing_emails =
+  TennisTracker.Accounts.User
+  |> Ash.Query.new()
+  |> Ash.read!(domain: Accounts, authorize?: false)
+  |> Enum.map(&to_string(&1.email))
+  |> MapSet.new()
+
+Enum.each(dev_users, fn %{email: email, password: password} ->
+  unless MapSet.member?(existing_emails, email) do
+    {:ok, _} =
+      Ash.create(TennisTracker.Accounts.User,
+        %{email: email, password: password, password_confirmation: password},
+        action: :register_with_password,
+        domain: Accounts,
+        authorize?: false
+      )
+  end
+end)
+
+IO.puts("Seeded dev users (skipped any already present).")
