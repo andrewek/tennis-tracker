@@ -41,6 +41,9 @@ defmodule TennisTracker.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:picosat_elixir, "~> 0.2"},
+      {:ash_authentication_phoenix, "~> 2.0"},
+      {:ash_authentication, "~> 4.0"},
       {:usage_rules, "~> 1.0", only: [:dev]},
       {:tidewave, "~> 0.5", only: [:dev]},
       {:phoenix, "~> 1.8.5"},

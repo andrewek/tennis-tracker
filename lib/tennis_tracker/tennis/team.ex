@@ -5,16 +5,6 @@ defmodule TennisTracker.Tennis.Team do
     notifiers: [Ash.Notifier.PubSub],
     primary_read_warning?: false
 
-  pub_sub do
-    module(Phoenix.PubSub)
-    name(TennisTracker.PubSub)
-    prefix("roster")
-
-    publish(:create, [:team_type_id, :season_year])
-    publish(:update, [:team_type_id, :season_year])
-    publish(:destroy, [:team_type_id, :season_year])
-  end
-
   postgres do
     table("teams")
     repo(TennisTracker.Repo)
@@ -23,6 +13,16 @@ defmodule TennisTracker.Tennis.Team do
       index([:season_year])
       index([:team_type_id, :season_year])
     end
+  end
+
+  pub_sub do
+    module(Phoenix.PubSub)
+    name(TennisTracker.PubSub)
+    prefix("roster")
+
+    publish(:create, [:team_type_id, :season_year])
+    publish(:update, [:team_type_id, :season_year])
+    publish(:destroy, [:team_type_id, :season_year])
   end
 
   attributes do
@@ -45,11 +45,6 @@ defmodule TennisTracker.Tennis.Team do
     end
 
     timestamps()
-  end
-
-  calculations do
-    calculate(:team_type_age_group, :string, expr(team_type.age_group))
-    calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
   end
 
   relationships do
@@ -95,5 +90,10 @@ defmodule TennisTracker.Tennis.Team do
     destroy :destroy do
       primary?(true)
     end
+  end
+
+  calculations do
+    calculate(:team_type_age_group, :string, expr(team_type.age_group))
+    calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
   end
 end

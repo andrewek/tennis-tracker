@@ -4,6 +4,15 @@ defmodule TennisTracker.Tennis.TeamMembership do
     data_layer: AshPostgres.DataLayer,
     notifiers: [Ash.Notifier.PubSub]
 
+  postgres do
+    table("team_memberships")
+    repo(TennisTracker.Repo)
+
+    custom_indexes do
+      index([:team_type_id, :season_year])
+    end
+  end
+
   pub_sub do
     module(Phoenix.PubSub)
     name(TennisTracker.PubSub)
@@ -12,15 +21,6 @@ defmodule TennisTracker.Tennis.TeamMembership do
     publish(:create, [:team_type_id, :season_year])
     publish(:update, [:team_type_id, :season_year])
     publish(:destroy, [:team_type_id, :season_year])
-  end
-
-  postgres do
-    table("team_memberships")
-    repo(TennisTracker.Repo)
-
-    custom_indexes do
-      index([:team_type_id, :season_year])
-    end
   end
 
   attributes do
@@ -38,28 +38,6 @@ defmodule TennisTracker.Tennis.TeamMembership do
     end
 
     timestamps()
-  end
-
-  identities do
-    identity(:unique_player_context, [:player_id, :team_type_id, :season_year])
-  end
-
-  calculations do
-    calculate(
-      :display_label,
-      :string,
-      expr(
-        fragment(
-          "CAST(? AS text) || ' ' || ? || ' - ' || ?",
-          season_year,
-          team.team_type.name,
-          team.name
-        )
-      )
-    )
-
-    calculate(:team_age_group, :string, expr(team.team_type.age_group))
-    calculate(:team_ntrp_level, :decimal, expr(team.team_type.ntrp_level))
   end
 
   relationships do
@@ -113,5 +91,27 @@ defmodule TennisTracker.Tennis.TeamMembership do
     destroy :destroy do
       primary?(true)
     end
+  end
+
+  identities do
+    identity(:unique_player_context, [:player_id, :team_type_id, :season_year])
+  end
+
+  calculations do
+    calculate(
+      :display_label,
+      :string,
+      expr(
+        fragment(
+          "CAST(? AS text) || ' ' || ? || ' - ' || ?",
+          season_year,
+          team.team_type.name,
+          team.name
+        )
+      )
+    )
+
+    calculate(:team_age_group, :string, expr(team.team_type.age_group))
+    calculate(:team_ntrp_level, :decimal, expr(team.team_type.ntrp_level))
   end
 end

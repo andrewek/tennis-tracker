@@ -1,4 +1,6 @@
 import Config
+config :tennis_tracker, token_signing_secret: "9AfIVF43iL2ertzt5tDlgDsmeCAyHheT"
+config :bcrypt_elixir, log_rounds: 1
 
 # Configure your database
 #

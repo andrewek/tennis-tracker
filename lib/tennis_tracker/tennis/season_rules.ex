@@ -34,30 +34,6 @@ defmodule TennisTracker.Tennis.SeasonRules do
     timestamps()
   end
 
-  validations do
-    validate numericality(:min_roster, greater_than: 0) do
-      where([present(:min_roster)])
-      message("must be a positive integer")
-    end
-
-    validate numericality(:max_roster, greater_than: 0) do
-      where([present(:max_roster)])
-      message("must be a positive integer")
-    end
-
-    validate numericality(:on_level_min_pct,
-               greater_than_or_equal_to: 0,
-               less_than_or_equal_to: 100
-             ) do
-      where([present(:on_level_min_pct)])
-      message("must be between 0.0 and 100.0")
-    end
-  end
-
-  identities do
-    identity(:unique_team_type_season, [:team_type_id, :season_year])
-  end
-
   relationships do
     belongs_to :team_type, TennisTracker.Tennis.TeamType do
       allow_nil?(false)
@@ -85,6 +61,30 @@ defmodule TennisTracker.Tennis.SeasonRules do
     update :update do
       primary?(true)
       accept([:min_roster, :max_roster, :on_level_min_pct])
+    end
+  end
+
+  identities do
+    identity(:unique_team_type_season, [:team_type_id, :season_year])
+  end
+
+  validations do
+    validate numericality(:min_roster, greater_than: 0) do
+      where([present(:min_roster)])
+      message("must be a positive integer")
+    end
+
+    validate numericality(:max_roster, greater_than: 0) do
+      where([present(:max_roster)])
+      message("must be a positive integer")
+    end
+
+    validate numericality(:on_level_min_pct,
+               greater_than_or_equal_to: 0,
+               less_than_or_equal_to: 100
+             ) do
+      where([present(:on_level_min_pct)])
+      message("must be between 0.0 and 100.0")
     end
   end
 end

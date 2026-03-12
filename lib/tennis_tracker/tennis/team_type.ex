@@ -35,16 +35,6 @@ defmodule TennisTracker.Tennis.TeamType do
     timestamps()
   end
 
-  validations do
-    validate attribute_in(:age_group, ["18_plus", "40_plus"]) do
-      where([present(:age_group)])
-    end
-
-    validate attribute_in(:ntrp_level, TennisTracker.Tennis.NtrpLevels.team_levels()) do
-      where([present(:ntrp_level)])
-    end
-  end
-
   relationships do
     has_many :teams, TennisTracker.Tennis.Team
     has_many :season_rules, TennisTracker.Tennis.SeasonRules
@@ -58,6 +48,16 @@ defmodule TennisTracker.Tennis.TeamType do
     create :create do
       primary?(true)
       accept([:name, :age_group, :ntrp_level, :allowed_ntrp_levels])
+    end
+  end
+
+  validations do
+    validate attribute_in(:age_group, ["18_plus", "40_plus"]) do
+      where([present(:age_group)])
+    end
+
+    validate attribute_in(:ntrp_level, TennisTracker.Tennis.NtrpLevels.team_levels()) do
+      where([present(:ntrp_level)])
     end
   end
 end

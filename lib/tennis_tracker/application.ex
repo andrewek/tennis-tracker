@@ -15,7 +15,8 @@ defmodule TennisTracker.Application do
       # Start a worker by calling: TennisTracker.Worker.start_link(arg)
       # {TennisTracker.Worker, arg},
       # Start to serve requests, typically the last entry
-      TennisTrackerWeb.Endpoint
+      TennisTrackerWeb.Endpoint,
+      {AshAuthentication.Supervisor, [otp_app: :tennis_tracker]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

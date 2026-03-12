@@ -68,7 +68,7 @@ config :tennis_tracker, TennisTrackerWeb.Endpoint,
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :tennis_tracker, dev_routes: true
+config :tennis_tracker, dev_routes: true, token_signing_secret: "QgNthrG8S7NxaI21s5TMKYc0+sL7QZ06"
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

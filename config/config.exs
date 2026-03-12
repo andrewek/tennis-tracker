@@ -7,9 +7,13 @@
 # General application configuration
 import Config
 
+config :spark,
+  formatter: ["Ash.Resource": [section_order: [:authentication, :token, :user_identity]]]
+
 config :tennis_tracker,
   ecto_repos: [TennisTracker.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  ash_domains: [TennisTracker.Accounts]
 
 # Configure the endpoint
 config :tennis_tracker, TennisTrackerWeb.Endpoint,

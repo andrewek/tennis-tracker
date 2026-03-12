@@ -53,13 +53,6 @@ defmodule TennisTracker.Tennis.Player do
     timestamps()
   end
 
-  validations do
-    validate attribute_in(:ntrp_rating, TennisTracker.Tennis.NtrpLevels.player_levels()) do
-      where([present(:ntrp_rating)])
-      message("must be a valid NTRP rating (2.5, 3.0, 3.5, 4.0, 4.5, or 5.0)")
-    end
-  end
-
   relationships do
     has_many :team_memberships, TennisTracker.Tennis.TeamMembership
   end
@@ -99,6 +92,13 @@ defmodule TennisTracker.Tennis.Player do
 
     destroy :destroy do
       primary?(true)
+    end
+  end
+
+  validations do
+    validate attribute_in(:ntrp_rating, TennisTracker.Tennis.NtrpLevels.player_levels()) do
+      where([present(:ntrp_rating)])
+      message("must be a valid NTRP rating (2.5, 3.0, 3.5, 4.0, 4.5, or 5.0)")
     end
   end
 end
