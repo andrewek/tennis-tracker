@@ -23,6 +23,7 @@ metadata:
 - [relationships](references/relationships.md)
 - [testing](references/testing.md)
 - [ash](references/ash.md)
+- [ash_admin](references/ash_admin.md)
 - [ash_authentication](references/ash_authentication.md)
 - [ash_authentication_phoenix](references/ash_authentication_phoenix.md)
 - [ash_phoenix](references/ash_phoenix.md)
@@ -31,7 +32,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_authentication -p ash_authentication_phoenix -p ash_phoenix -p ash_postgres
+mix usage_rules.search_docs "search term" -p ash -p ash_admin -p ash_authentication -p ash_authentication_phoenix -p ash_phoenix -p ash_postgres
 ```
 
 ## Available Mix Tasks
@@ -57,6 +58,8 @@ mix usage_rules.search_docs "search term" -p ash -p ash_authentication -p ash_au
 - `mix ash.rollback` - Runs all rollback tasks for any extension on any resource/domain in your application.
 - `mix ash.setup` - Runs all setup tasks for any extension on any resource/domain in your application.
 - `mix ash.tear_down` - Runs all tear_down tasks for any extension on any resource/domain in your application.
+- `mix ash_admin.install` - Installs AshAdmin
+- `mix ash_admin.install.docs`
 - `mix ash_authentication.add_add_on` - Adds the provided add-on to your user resource
 - `mix ash_authentication.add_strategy` - Adds the provided strategy or strategies to your user resource
 - `mix ash_authentication.install` - Installs AshAuthentication. Invoke with `mix igniter.install ash_authentication`
