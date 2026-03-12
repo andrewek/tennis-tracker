@@ -1,13 +1,13 @@
 # Todos & Open Questions
 
 1. ~On the player show page, show all team memberships for that player~
-1. On the roster planner page, when clicking a player, provide a link (that
-   opens in a new tab) to that player's show page.
+1. ~On the roster planner page, when clicking a player, provide a link (that
+   opens in a new tab) to that player's show page.~
 1. When I update a player (name, age group, NTRP rating), that change should
    propagate across all pages that would have that player visible (e.g., the
    roster planner, team show page, etc.). This might mean that a player will
    appear or disappear from dynamically applied filters.
-1. Install the Usage Rules package and configure it properly
+1. ~Install the Usage Rules package and configure it properly~
 1. Figure out how to actually use Tidewave; what's the point of entry? What
    tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
    to be able to interact with it, or do I have to _just_ interact with it in the
