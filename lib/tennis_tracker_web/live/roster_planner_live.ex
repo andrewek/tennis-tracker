@@ -1,6 +1,8 @@
 defmodule TennisTrackerWeb.RosterPlannerLive do
   use TennisTrackerWeb, :live_view
 
+  import TennisTrackerWeb.BoardComponents
+
   alias TennisTracker.Tennis
   alias TennisTracker.Tennis.{RosterHealth, Team}
   alias AshPhoenix.Form
@@ -24,6 +26,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
      |> assign(:season_year_input, "2026")
      |> assign(:selected_team_type_id, nil)
      |> assign(:selected_player_id, nil)
+     |> assign(:selected_player, nil)
      |> assign(:team_modal, nil)}
   end
 
@@ -90,27 +93,50 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("select_player", %{"player_id" => player_id}, socket) do
-    {:noreply, assign(socket, :selected_player_id, player_id)}
+    player = find_player_in_board(socket.assigns.board, player_id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_player_id, player_id)
+     |> assign(:selected_player, player)}
   end
 
   def handle_event("deselect_player", _params, socket) do
-    {:noreply, assign(socket, :selected_player_id, nil)}
+    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
   end
 
   # ---------------------------------------------------------------------------
   # Events — move player (drag-and-drop + tap-to-assign)
   # ---------------------------------------------------------------------------
 
-  def handle_event("move_player", %{"player_id" => player_id, "team_id" => "unassigned"}, socket) do
+  def handle_event(
+        "move_player",
+        %{"player_id" => player_id, "target_id" => "unassigned"},
+        socket
+      ) do
     ctx = socket.assigns.context
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
-    {:noreply, socket |> assign(:selected_player_id, nil) |> reload_board(ctx)}
+
+    {:noreply,
+     socket
+     |> assign(:selected_player_id, nil)
+     |> assign(:selected_player, nil)
+     |> reload_board(ctx)}
   end
 
-  def handle_event("move_player", %{"player_id" => player_id, "team_id" => team_id}, socket) do
+  def handle_event(
+        "move_player",
+        %{"player_id" => player_id, "target_id" => target_id},
+        socket
+      ) do
     ctx = socket.assigns.context
-    Tennis.assign_player(player_id, team_id, ctx.team_type_id, ctx.season_year)
-    {:noreply, socket |> assign(:selected_player_id, nil) |> reload_board(ctx)}
+    Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
+
+    {:noreply,
+     socket
+     |> assign(:selected_player_id, nil)
+     |> assign(:selected_player, nil)
+     |> reload_board(ctx)}
   end
 
   # ---------------------------------------------------------------------------
@@ -228,6 +254,15 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   defp topic(team_type_id, season_year), do: "roster:#{team_type_id}:#{season_year}"
+
+  defp find_player_in_board(board, player_id) do
+    all_players =
+      board.unassigned ++
+        board.not_participating ++
+        Enum.flat_map(board.real_teams, & &1.players)
+
+    Enum.find(all_players, &(&1.id == player_id))
+  end
 
   defp reload_board(socket, ctx) do
     board =
@@ -396,16 +431,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             id="col-unassigned"
             title="Unassigned"
             count={length(@board.unassigned)}
-            team_id="unassigned"
+            target_id="unassigned"
             violations={[]}
-            selected_player_id={@selected_player_id}
           >
             <.player_card
               :for={player <- @board.unassigned}
               player={player}
               has_violation={false}
               selected={@selected_player_id == player.id}
-              column_id="unassigned"
             />
           </.board_column>
 
@@ -415,19 +448,38 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               id={"col-#{team.id}"}
               title={team.name}
               count={length(players)}
-              team_id={team.id}
+              target_id={team.id}
               violations={violations}
-              selected_player_id={@selected_player_id}
-              team={team}
-              deletable={true}
-              modal_open={not is_nil(@team_modal)}
             >
+              <:header_actions>
+                <button
+                  :if={is_nil(@team_modal)}
+                  phx-click="open_team_modal"
+                  phx-value-mode="edit"
+                  phx-value-team_id={team.id}
+                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
+                  aria-label="Rename team"
+                >
+                  <.icon name="hero-pencil-square" class="size-3.5" />
+                  <span class="sr-only">Rename team</span>
+                </button>
+                <button
+                  :if={is_nil(@team_modal)}
+                  phx-click="open_team_modal"
+                  phx-value-mode="delete"
+                  phx-value-team_id={team.id}
+                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
+                  aria-label="Delete team"
+                >
+                  <.icon name="hero-trash" class="size-3.5" />
+                  <span class="sr-only">Delete team</span>
+                </button>
+              </:header_actions>
               <.player_card
                 :for={player <- players}
                 player={player}
                 has_violation={MapSet.member?(violation_ids, player.id)}
                 selected={@selected_player_id == player.id}
-                column_id={team.id}
               />
             </.board_column>
           <% end %>
@@ -450,73 +502,48 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             id={"col-#{@board.pseudo_team.id}"}
             title="Not Participating"
             count={length(@board.not_participating)}
-            team_id={@board.pseudo_team.id}
+            target_id={@board.pseudo_team.id}
             violations={[]}
-            selected_player_id={@selected_player_id}
           >
             <.player_card
               :for={player <- @board.not_participating}
               player={player}
               has_violation={false}
               selected={@selected_player_id == player.id}
-              column_id={@board.pseudo_team.id}
             />
           </.board_column>
         </div>
 
         <%!-- Mobile: destination picker modal --%>
-        <div
-          :if={@selected_player_id}
-          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
-          phx-click="deselect_player"
-        >
-          <div
-            class="bg-base-100 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 shadow-xl"
-            phx-click-away="deselect_player"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <p class="font-semibold">Move to...</p>
-              <button
-                phx-click="deselect_player"
-                class="btn btn-ghost btn-xs btn-circle"
-                aria-label="Close"
-              >
-                <.icon name="hero-x-mark" class="size-4" />
-              </button>
-            </div>
-            <div class="space-y-2">
-              <button
-                phx-click="move_player"
-                phx-value-player_id={@selected_player_id}
-                phx-value-team_id="unassigned"
-                class="btn btn-outline btn-sm w-full"
-              >
-                Unassigned
-              </button>
-              <button
-                :for={%{team: team} <- @board.real_teams}
-                phx-click="move_player"
-                phx-value-player_id={@selected_player_id}
-                phx-value-team_id={team.id}
-                class="btn btn-primary btn-sm w-full"
-              >
-                {team.name}
-              </button>
-              <button
-                phx-click="move_player"
-                phx-value-player_id={@selected_player_id}
-                phx-value-team_id={@board.pseudo_team.id}
-                class="btn btn-outline btn-secondary btn-sm w-full"
-              >
-                Not Participating
-              </button>
-            </div>
-            <div class="divider my-2"></div>
-            <button phx-click="deselect_player" class="btn btn-ghost btn-sm w-full">
-              Cancel
+        <.player_detail_modal :if={@selected_player_id} player={@selected_player}>
+          <:actions>
+            <button
+              phx-click="move_player"
+              phx-value-player_id={@selected_player_id}
+              phx-value-target_id="unassigned"
+              class="btn btn-outline btn-sm w-full"
+            >
+              Unassigned
             </button>
-          </div>
-        </div>
+            <button
+              :for={%{team: team} <- @board.real_teams}
+              phx-click="move_player"
+              phx-value-player_id={@selected_player_id}
+              phx-value-target_id={team.id}
+              class="btn btn-primary btn-sm w-full"
+            >
+              {team.name}
+            </button>
+            <button
+              phx-click="move_player"
+              phx-value-player_id={@selected_player_id}
+              phx-value-target_id={@board.pseudo_team.id}
+              class="btn btn-outline btn-secondary btn-sm w-full"
+            >
+              Not Participating
+            </button>
+          </:actions>
+        </.player_detail_modal>
 
         <%!-- Team modal (create / edit / delete) --%>
         <div
@@ -632,156 +659,6 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         </div>
       </div>
     </Layouts.app>
-
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".RosterDrag">
-      export default {
-        mounted() {
-          this.el.addEventListener("dragstart", (e) => {
-            const playerId = this.el.dataset.playerId
-            e.dataTransfer.setData("text/plain", playerId)
-            e.dataTransfer.effectAllowed = "move"
-          })
-        }
-      }
-    </script>
-
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".RosterDrop">
-      export default {
-        mounted() {
-          this.el.addEventListener("dragover", (e) => {
-            e.preventDefault()
-            e.dataTransfer.dropEffect = "move"
-            this.el.classList.add("ring-2", "ring-primary")
-          })
-          this.el.addEventListener("dragleave", (e) => {
-            if (!this.el.contains(e.relatedTarget)) {
-              this.el.classList.remove("ring-2", "ring-primary")
-            }
-          })
-          this.el.addEventListener("drop", (e) => {
-            e.preventDefault()
-            this.el.classList.remove("ring-2", "ring-primary")
-            const playerId = e.dataTransfer.getData("text/plain")
-            const teamId = this.el.dataset.teamId
-            if (playerId && teamId) {
-              this.pushEvent("move_player", { player_id: playerId, team_id: teamId })
-            }
-          })
-        }
-      }
-    </script>
-    """
-  end
-
-  # ---------------------------------------------------------------------------
-  # Components
-  # ---------------------------------------------------------------------------
-
-  attr :id, :string, required: true
-  attr :title, :any, required: true
-  attr :count, :integer, required: true
-  attr :team_id, :string, required: true
-  attr :violations, :list, default: []
-  attr :selected_player_id, :string, default: nil
-  attr :team, :map, default: nil
-  attr :deletable, :boolean, default: false
-  attr :modal_open, :boolean, default: false
-  slot :inner_block, required: true
-
-  defp board_column(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      class="flex-shrink-0 w-56 bg-base-200 rounded-lg p-2"
-      phx-hook=".RosterDrop"
-      data-team-id={@team_id}
-    >
-      <%!-- Column header --%>
-      <div class="flex items-center justify-between mb-2 px-1">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-1">
-            <span class="font-semibold text-sm truncate">{@title}</span>
-            <span class="badge badge-xs badge-ghost">{@count}</span>
-            <button
-              :if={@team && not @modal_open}
-              phx-click="open_team_modal"
-              phx-value-mode="edit"
-              phx-value-team_id={@team.id}
-              class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
-              aria-label="Rename team"
-            >
-              <.icon name="hero-pencil-square" class="size-3.5" />
-              <span class="sr-only">Rename team</span>
-            </button>
-            <button
-              :if={@deletable && not @modal_open}
-              phx-click="open_team_modal"
-              phx-value-mode="delete"
-              phx-value-team_id={@team.id}
-              class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
-              aria-label="Delete team"
-            >
-              <.icon name="hero-trash" class="size-3.5" />
-              <span class="sr-only">Delete team</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Health violations --%>
-      <div :if={@violations != []} class="mb-2 space-y-1">
-        <div
-          :for={v <- @violations}
-          class={[
-            "text-xs px-2 py-1 rounded border-l-2 text-base-content",
-            v.level == :warning && "bg-warning/15 border-warning",
-            v.level == :caution && "bg-info/15 border-info"
-          ]}
-        >
-          {v.message}
-        </div>
-      </div>
-
-      <%!-- Player cards drop zone --%>
-      <div class="space-y-1 min-h-8">
-        {render_slot(@inner_block)}
-      </div>
-    </div>
-    """
-  end
-
-  attr :player, :map, required: true
-  attr :has_violation, :boolean, default: false
-  attr :selected, :boolean, default: false
-  attr :column_id, :string, required: true
-
-  defp player_card(assigns) do
-    ~H"""
-    <div
-      id={"player-#{@player.id}"}
-      class={[
-        "flex items-center justify-between px-2 py-1.5 rounded text-sm cursor-pointer select-none",
-        "bg-base-100 hover:bg-base-300 transition-colors",
-        @selected && "ring-2 ring-primary",
-        @has_violation && "border border-warning"
-      ]}
-      draggable="true"
-      phx-hook=".RosterDrag"
-      data-player-id={@player.id}
-      phx-click="select_player"
-      phx-value-player_id={@player.id}
-    >
-      <span class="truncate">{@player.name}</span>
-      <div class="flex items-center gap-1 ml-1 flex-shrink-0">
-        <span :if={@player.ntrp_rating} class="text-xs text-base-content/50">
-          {@player.ntrp_rating}
-        </span>
-        <span :if={is_nil(@player.ntrp_rating)} class="text-xs text-info" title="No rating">
-          ?
-        </span>
-        <span :if={@has_violation} class="text-warning text-xs" title="Rating issue">⚠</span>
-      </div>
-    </div>
     """
   end
 end

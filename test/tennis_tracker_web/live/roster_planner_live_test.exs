@@ -99,7 +99,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       html =
         render_click(view, "move_player", %{
           "player_id" => player.id,
-          "team_id" => real_team.id
+          "target_id" => real_team.id
         })
 
       assert html =~ "Team Alpha"
@@ -126,7 +126,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       render_click(view, "move_player", %{
         "player_id" => player.id,
-        "team_id" => "unassigned"
+        "target_id" => "unassigned"
       })
 
       render(view)
@@ -142,11 +142,86 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       render_click(view, "move_player", %{
         "player_id" => player.id,
-        "team_id" => pseudo.id
+        "target_id" => pseudo.id
       })
 
       render(view)
       assert has_element?(view, "#col-#{pseudo.id} #player-#{player.id}")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Player detail modal
+  # ---------------------------------------------------------------------------
+
+  describe "player detail modal" do
+    test "clicking a player card shows the player detail modal", %{conn: conn} do
+      tt = create_team_type()
+      player = create_player(%{name: "Modal Player"})
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(view, "[data-player-modal]")
+    end
+
+    test "player detail modal shows the player's name", %{conn: conn} do
+      tt = create_team_type()
+      player = create_player(%{name: "Named Player"})
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(view, "[data-player-modal]", "Named Player")
+    end
+
+    test "player detail modal contains a View profile link to the player's show page", %{
+      conn: conn
+    } do
+      tt = create_team_type()
+      player = create_player(%{name: "Profile Player"})
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(view, "a[href='/players/#{player.id}']")
+    end
+
+    test "firing deselect_player closes the modal", %{conn: conn} do
+      tt = create_team_type()
+      player = create_player(%{name: "Deselect Player"})
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+      assert has_element?(view, "[data-player-modal]")
+
+      render_click(view, "deselect_player", %{})
+      refute has_element?(view, "[data-player-modal]")
+    end
+
+    test "firing move_player closes the modal", %{conn: conn} do
+      tt = create_team_type()
+      player = create_player(%{name: "Move Player"})
+
+      team =
+        Tennis.create_team!(%{
+          name: "Team Modal",
+          team_type_id: tt.id,
+          season_year: 2026,
+          is_pseudo: false
+        })
+
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+      assert has_element?(view, "[data-player-modal]")
+
+      render_click(view, "move_player", %{
+        "player_id" => player.id,
+        "target_id" => team.id
+      })
+
+      refute has_element?(view, "[data-player-modal]")
     end
   end
 
@@ -444,7 +519,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       # Move player in view1
       render_click(view1, "move_player", %{
         "player_id" => player.id,
-        "team_id" => team.id
+        "target_id" => team.id
       })
 
       render(view1)

@@ -25,11 +25,46 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/tennis_tracker"
 import topbar from "../vendor/topbar"
 
+const DraggableCard = {
+  mounted() {
+    this.el.addEventListener("dragstart", (e) => {
+      const playerId = this.el.dataset.playerId
+      e.dataTransfer.setData("text/plain", playerId)
+      e.dataTransfer.effectAllowed = "move"
+    })
+  }
+}
+
+const DropZone = {
+  mounted() {
+    this.el.addEventListener("dragover", (e) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = "move"
+      this.el.classList.add("ring-2", "ring-primary")
+    })
+    this.el.addEventListener("dragleave", (e) => {
+      if (!this.el.contains(e.relatedTarget)) {
+        this.el.classList.remove("ring-2", "ring-primary")
+      }
+    })
+    this.el.addEventListener("drop", (e) => {
+      e.preventDefault()
+      this.el.classList.remove("ring-2", "ring-primary")
+      const playerId = e.dataTransfer.getData("text/plain")
+      const targetId = this.el.dataset.targetId
+      const dropEvent = this.el.dataset.dropEvent || "move_player"
+      if (playerId && targetId) {
+        this.pushEvent(dropEvent, { player_id: playerId, target_id: targetId })
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, DraggableCard, DropZone},
 })
 
 // Show progress bar on live navigation and form submits
