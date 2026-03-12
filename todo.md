@@ -1,5 +1,7 @@
 # Todos & Open Questions
 
+In no particular order. Crossed out when done.
+
 1. ~On the player show page, show all team memberships for that player~
 1. ~On the roster planner page, when clicking a player, provide a link (that
    opens in a new tab) to that player's show page.~
@@ -30,3 +32,11 @@
    like Winter Tennis.
 1. At some point we need to figure out how to deploy. We also probably need a
    CI/CD pipeline. At this time I am leaning toward Fly.io.
+1. We'll need some way to basically "finalize" a planning session. Then teams
+   are effectively locked in. There will still need to be some mechanism to add
+   a player mid-season, but the planning tool is really just meant for easy roster
+   collaboration in the pre-season.
+1. I want to be able to scrape the estimated dynamic NTRP from TennisRecord.
+   We'll assume here that "tennis_record_url` is a field we can store, and
+   we'll also assume that it's durable enough to account for things like two
+   players with the same name.
