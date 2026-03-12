@@ -17,6 +17,10 @@ defmodule TennisTracker.Tennis.TeamMembership do
   postgres do
     table("team_memberships")
     repo(TennisTracker.Repo)
+
+    custom_indexes do
+      index([:team_type_id, :season_year])
+    end
   end
 
   attributes do

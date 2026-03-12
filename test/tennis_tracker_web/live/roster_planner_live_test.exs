@@ -275,7 +275,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
 
       # Player card should have the warning indicator when NTRP is invalid
-      assert has_element?(view, "#player-#{player.id} span[title='Rating issue']")
+      assert has_element?(view, "#player-#{player.id} span.sr-only", "Rating issue")
     end
 
     test "caution shown for unrated player on a team", %{conn: conn} do

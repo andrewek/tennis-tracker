@@ -116,12 +116,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       ) do
     ctx = socket.assigns.context
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
-
-    {:noreply,
-     socket
-     |> assign(:selected_player_id, nil)
-     |> assign(:selected_player, nil)
-     |> reload_board(ctx)}
+    # Board reload is driven by the PubSub notification from the Ash action
+    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
   end
 
   def handle_event(
@@ -131,12 +127,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       ) do
     ctx = socket.assigns.context
     Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
-
-    {:noreply,
-     socket
-     |> assign(:selected_player_id, nil)
-     |> assign(:selected_player, nil)
-     |> reload_board(ctx)}
+    # Board reload is driven by the PubSub notification from the Ash action
+    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
   end
 
   # ---------------------------------------------------------------------------

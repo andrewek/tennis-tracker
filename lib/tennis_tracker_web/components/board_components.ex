@@ -83,7 +83,10 @@ defmodule TennisTrackerWeb.BoardComponents do
         <span :if={is_nil(@player.ntrp_rating)} class="text-xs text-info" title="No rating">
           ?
         </span>
-        <span :if={@has_violation} class="text-warning text-xs" title="Rating issue">⚠</span>
+        <span :if={@has_violation} class="text-warning">
+          <.icon name="hero-exclamation-triangle" class="size-3.5" />
+          <span class="sr-only">Rating issue</span>
+        </span>
       </div>
     </div>
     """

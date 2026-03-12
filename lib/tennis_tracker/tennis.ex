@@ -105,7 +105,7 @@ defmodule TennisTracker.Tennis do
   def list_memberships_for_context(team_type_id, season_year) do
     TeamMembership
     |> Ash.Query.filter(team_type_id == ^team_type_id and season_year == ^season_year)
-    |> Ash.Query.load([:player, :team])
+    |> Ash.Query.load([:player])
     |> Ash.read(domain: __MODULE__)
   end
 
@@ -115,28 +115,22 @@ defmodule TennisTracker.Tennis do
   If the target team_id is nil, the membership is removed (unassign).
   """
   def assign_player(player_id, team_id, team_type_id, season_year) do
-    existing =
-      TeamMembership
-      |> Ash.Query.filter(
-        player_id == ^player_id and team_type_id == ^team_type_id and season_year == ^season_year
-      )
-      |> Ash.read_one(domain: __MODULE__)
-
-    case existing do
-      {:ok, nil} ->
-        create_team_membership(%{
-          player_id: player_id,
-          team_id: team_id,
-          team_type_id: team_type_id,
-          season_year: season_year
-        })
-
-      {:ok, membership} ->
-        update_team_membership(membership, %{team_id: team_id})
-
-      error ->
-        error
-    end
+    TeamMembership
+    |> Ash.Changeset.for_create(
+      :create,
+      %{
+        player_id: player_id,
+        team_id: team_id,
+        team_type_id: team_type_id,
+        season_year: season_year
+      },
+      domain: __MODULE__
+    )
+    |> Ash.create(
+      upsert?: true,
+      upsert_identity: :unique_player_context,
+      upsert_fields: [:team_id]
+    )
   end
 
   @doc """
