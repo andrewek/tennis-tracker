@@ -266,6 +266,27 @@ This project uses Ash 3.x (`ash`, `ash_postgres`, `ash_phoenix`) as the data lay
 - **Avoid LiveComponent's** unless you have a strong, specific need for them
 - LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
 
+### LiveView callback returns
+
+**Never** construct result tuples inline inside callback returns. **Always** build the socket as a pipeline and pipe into the helper at the end:
+
+```elixir
+# Bad — tuple wraps the expression inline
+{:noreply, socket |> assign(:foo, foo) |> assign(:bar, bar)}
+
+# Good — pipeline first, result tuple last
+socket
+|> assign(:foo, foo)
+|> assign(:bar, bar)
+|> noreply()
+```
+
+The helpers `ok/1`, `noreply/1`, and `error/1` from `TennisTrackerWeb.LiveHelpers` are automatically imported into every LiveView. Use:
+
+- `ok/1` — for `mount/3` returns: `socket |> ... |> ok()`
+- `noreply/1` — for `handle_params`, `handle_event`, `handle_info` returns: `socket |> ... |> noreply()`
+- `error/1` — for `{:error, value}` tuple construction in other contexts
+
 ### LiveView streams
 
 - **Always** use LiveView streams for collections for assigning regular lists to avoid memory ballooning and runtime termination with the following operations:

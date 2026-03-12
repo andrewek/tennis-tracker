@@ -15,19 +15,19 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     team_types = Tennis.list_team_types!()
     planning_contexts = Tennis.list_planning_contexts()
 
-    {:ok,
-     socket
-     |> assign(:page_title, "Roster Planner")
-     |> assign(:team_types, team_types)
-     |> assign(:planning_contexts, planning_contexts)
-     |> assign(:show_create_form, false)
-     |> assign(:context, nil)
-     |> assign(:board, nil)
-     |> assign(:season_year_input, "2026")
-     |> assign(:selected_team_type_id, nil)
-     |> assign(:selected_player_id, nil)
-     |> assign(:selected_player, nil)
-     |> assign(:team_modal, nil)}
+    socket
+    |> assign(:page_title, "Roster Planner")
+    |> assign(:team_types, team_types)
+    |> assign(:planning_contexts, planning_contexts)
+    |> assign(:show_create_form, false)
+    |> assign(:context, nil)
+    |> assign(:board, nil)
+    |> assign(:season_year_input, "2026")
+    |> assign(:selected_team_type_id, nil)
+    |> assign(:selected_player_id, nil)
+    |> assign(:selected_player, nil)
+    |> assign(:team_modal, nil)
+    |> ok()
   end
 
   def handle_params(
@@ -48,24 +48,26 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         {:ok, season_rules} = Tennis.get_season_rules_for_context(team_type_id, season_year)
         board = load_board(team_type_id, season_year, pseudo_team, team_type, season_rules)
 
-        {:noreply,
-         socket
-         |> assign(:context, %{
-           team_type: team_type,
-           team_type_id: team_type_id,
-           season_year: season_year,
-           pseudo_team: pseudo_team,
-           season_rules: season_rules
-         })
-         |> assign(:board, board)}
+        socket
+        |> assign(:context, %{
+          team_type: team_type,
+          team_type_id: team_type_id,
+          season_year: season_year,
+          pseudo_team: pseudo_team,
+          season_rules: season_rules
+        })
+        |> assign(:board, board)
+        |> noreply()
 
       _ ->
-        {:noreply, push_navigate(socket, to: ~p"/roster-planner")}
+        socket
+        |> push_navigate(to: ~p"/roster-planner")
+        |> noreply()
     end
   end
 
   def handle_params(_params, _url, socket) do
-    {:noreply, socket}
+    socket |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -73,19 +75,27 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("select_context", %{"team_type_id" => ttid, "season_year" => year}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/roster-planner/#{ttid}/#{year}")}
+    socket
+    |> push_navigate(to: ~p"/roster-planner/#{ttid}/#{year}")
+    |> noreply()
   end
 
   def handle_event("update_season_year", %{"value" => val}, socket) do
-    {:noreply, assign(socket, :season_year_input, val)}
+    socket
+    |> assign(:season_year_input, val)
+    |> noreply()
   end
 
   def handle_event("show_create_form", _params, socket) do
-    {:noreply, assign(socket, :show_create_form, true)}
+    socket
+    |> assign(:show_create_form, true)
+    |> noreply()
   end
 
   def handle_event("hide_create_form", _params, socket) do
-    {:noreply, assign(socket, :show_create_form, false)}
+    socket
+    |> assign(:show_create_form, false)
+    |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -95,14 +105,17 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   def handle_event("select_player", %{"player_id" => player_id}, socket) do
     player = find_player_in_board(socket.assigns.board, player_id)
 
-    {:noreply,
-     socket
-     |> assign(:selected_player_id, player_id)
-     |> assign(:selected_player, player)}
+    socket
+    |> assign(:selected_player_id, player_id)
+    |> assign(:selected_player, player)
+    |> noreply()
   end
 
   def handle_event("deselect_player", _params, socket) do
-    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
+    socket
+    |> assign(:selected_player_id, nil)
+    |> assign(:selected_player, nil)
+    |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -117,7 +130,10 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ctx = socket.assigns.context
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
-    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
+    socket
+    |> assign(:selected_player_id, nil)
+    |> assign(:selected_player, nil)
+    |> noreply()
   end
 
   def handle_event(
@@ -128,7 +144,10 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ctx = socket.assigns.context
     Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
-    {:noreply, socket |> assign(:selected_player_id, nil) |> assign(:selected_player, nil)}
+    socket
+    |> assign(:selected_player_id, nil)
+    |> assign(:selected_player, nil)
+    |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -151,7 +170,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       )
       |> to_form()
 
-    {:noreply, assign(socket, :team_modal, %{mode: :create, form: form, team: nil})}
+    socket
+    |> assign(:team_modal, %{mode: :create, form: form, team: nil})
+    |> noreply()
   end
 
   def handle_event("open_team_modal", %{"mode" => "edit", "team_id" => team_id}, socket) do
@@ -159,9 +180,12 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
     if entry do
       form = Form.for_update(entry.team, :update, domain: Tennis, as: "team") |> to_form()
-      {:noreply, assign(socket, :team_modal, %{mode: :edit, form: form, team: entry.team})}
+
+      socket
+      |> assign(:team_modal, %{mode: :edit, form: form, team: entry.team})
+      |> noreply()
     else
-      {:noreply, socket}
+      socket |> noreply()
     end
   end
 
@@ -169,20 +193,27 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     entry = Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id))
 
     if entry do
-      {:noreply, assign(socket, :team_modal, %{mode: :delete, form: nil, team: entry.team})}
+      socket
+      |> assign(:team_modal, %{mode: :delete, form: nil, team: entry.team})
+      |> noreply()
     else
-      {:noreply, socket}
+      socket |> noreply()
     end
   end
 
   def handle_event("close_team_modal", _params, socket) do
-    {:noreply, assign(socket, :team_modal, nil)}
+    socket
+    |> assign(:team_modal, nil)
+    |> noreply()
   end
 
   def handle_event("validate_team_form", %{"team" => params}, socket) do
     modal = socket.assigns.team_modal
     form = Form.validate(modal.form.source, params) |> to_form()
-    {:noreply, assign(socket, :team_modal, %{modal | form: form})}
+
+    socket
+    |> assign(:team_modal, %{modal | form: form})
+    |> noreply()
   end
 
   def handle_event("submit_team_form", %{"team" => params}, socket) do
@@ -202,10 +233,15 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
     case Form.submit(modal.form.source, params: Map.merge(params, extra_params)) do
       {:ok, _team} ->
-        {:noreply, socket |> assign(:team_modal, nil) |> reload_board(ctx)}
+        socket
+        |> assign(:team_modal, nil)
+        |> reload_board(ctx)
+        |> noreply()
 
       {:error, form} ->
-        {:noreply, assign(socket, :team_modal, %{modal | form: to_form(form)})}
+        socket
+        |> assign(:team_modal, %{modal | form: to_form(form)})
+        |> noreply()
     end
   end
 
@@ -224,7 +260,10 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       Tennis.delete_team(team)
     end
 
-    {:noreply, socket |> assign(:team_modal, nil) |> reload_board(ctx)}
+    socket
+    |> assign(:team_modal, nil)
+    |> reload_board(ctx)
+    |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -235,9 +274,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ctx = socket.assigns.context
 
     if ctx do
-      {:noreply, reload_board(socket, ctx)}
+      socket
+      |> reload_board(ctx)
+      |> noreply()
     else
-      {:noreply, socket}
+      socket |> noreply()
     end
   end
 

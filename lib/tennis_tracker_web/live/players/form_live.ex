@@ -14,7 +14,9 @@ defmodule TennisTrackerWeb.Players.FormLive do
   ]
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, :ntrp_options, @ntrp_options)}
+    socket
+    |> assign(:ntrp_options, @ntrp_options)
+    |> ok()
   end
 
   def handle_params(params, _url, socket) do
@@ -28,7 +30,9 @@ defmodule TennisTrackerWeb.Players.FormLive do
           AshPhoenix.Form.for_update(player, :update, domain: Tennis) |> to_form()
       end
 
-    {:noreply, assign(socket, :form, form)}
+    socket
+    |> assign(:form, form)
+    |> noreply()
   end
 
   def render(assigns) do
@@ -71,19 +75,24 @@ defmodule TennisTrackerWeb.Players.FormLive do
 
   def handle_event("validate", %{"form" => params}, socket) do
     form = AshPhoenix.Form.validate(socket.assigns.form, params)
-    {:noreply, assign(socket, :form, form)}
+
+    socket
+    |> assign(:form, form)
+    |> noreply()
   end
 
   def handle_event("save", %{"form" => params}, socket) do
     case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
       {:ok, player} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Player saved.")
-         |> push_navigate(to: ~p"/players/#{player.id}")}
+        socket
+        |> put_flash(:info, "Player saved.")
+        |> push_navigate(to: ~p"/players/#{player.id}")
+        |> noreply()
 
       {:error, form} ->
-        {:noreply, assign(socket, :form, form)}
+        socket
+        |> assign(:form, form)
+        |> noreply()
     end
   end
 end

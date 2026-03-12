@@ -24,17 +24,17 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   def mount(_params, _session, socket) do
     total_count = Ash.count!(Player, domain: Tennis)
 
-    {:ok,
-     socket
-     |> stream(:players, [])
-     |> assign(:total_count, total_count)
-     |> assign(:player_count, 0)
-     |> assign(:name_search, "")
-     |> assign(:ntrp_filter, [])
-     |> assign(:bracket_filter, [])
-     |> assign(:ntrp_sort, "desc")
-     |> assign(:ntrp_ratings, @ntrp_ratings)
-     |> assign(:bracket_options, @bracket_options)}
+    socket
+    |> stream(:players, [])
+    |> assign(:total_count, total_count)
+    |> assign(:player_count, 0)
+    |> assign(:name_search, "")
+    |> assign(:ntrp_filter, [])
+    |> assign(:bracket_filter, [])
+    |> assign(:ntrp_sort, "desc")
+    |> assign(:ntrp_ratings, @ntrp_ratings)
+    |> assign(:bracket_options, @bracket_options)
+    |> ok()
   end
 
   def handle_params(params, _url, socket) do
@@ -46,15 +46,15 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
     players = fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort_atom)
 
-    {:noreply,
-     socket
-     |> assign(:name_search, name_search)
-     |> assign(:ntrp_filter, ntrp_filter)
-     |> assign(:bracket_filter, bracket_filter)
-     |> assign(:ntrp_sort, ntrp_sort)
-     |> assign(:export_url, export_url(name_search, ntrp_filter, bracket_filter))
-     |> assign(:player_count, length(players))
-     |> stream(:players, players, reset: true)}
+    socket
+    |> assign(:name_search, name_search)
+    |> assign(:ntrp_filter, ntrp_filter)
+    |> assign(:bracket_filter, bracket_filter)
+    |> assign(:ntrp_sort, ntrp_sort)
+    |> assign(:export_url, export_url(name_search, ntrp_filter, bracket_filter))
+    |> assign(:player_count, length(players))
+    |> stream(:players, players, reset: true)
+    |> noreply()
   end
 
   def render(assigns) do
@@ -158,28 +158,41 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   end
 
   def handle_event("clear_filter", _params, socket) do
-    {:noreply, push_patch(socket, to: ~p"/players")}
+    socket
+    |> push_patch(to: ~p"/players")
+    |> noreply()
   end
 
   def handle_event("search_name", %{"name_search" => value}, socket) do
-    {:noreply, push_patch(socket, to: filter_url(socket, name_search: value))}
+    socket
+    |> push_patch(to: filter_url(socket, name_search: value))
+    |> noreply()
   end
 
   def handle_event("toggle_ntrp", %{"rating" => rating}, socket) do
     current = socket.assigns.ntrp_filter
     updated = if rating in current, do: List.delete(current, rating), else: [rating | current]
-    {:noreply, push_patch(socket, to: filter_url(socket, ntrp_filter: updated))}
+
+    socket
+    |> push_patch(to: filter_url(socket, ntrp_filter: updated))
+    |> noreply()
   end
 
   def handle_event("toggle_bracket", %{"bracket" => bracket}, socket) do
     current = socket.assigns.bracket_filter
     updated = if bracket in current, do: List.delete(current, bracket), else: [bracket | current]
-    {:noreply, push_patch(socket, to: filter_url(socket, bracket_filter: updated))}
+
+    socket
+    |> push_patch(to: filter_url(socket, bracket_filter: updated))
+    |> noreply()
   end
 
   def handle_event("toggle_ntrp_sort", _params, socket) do
     new_sort = if socket.assigns.ntrp_sort == "desc", do: "asc", else: "desc"
-    {:noreply, push_patch(socket, to: filter_url(socket, ntrp_sort: new_sort))}
+
+    socket
+    |> push_patch(to: filter_url(socket, ntrp_sort: new_sort))
+    |> noreply()
   end
 
   defp filter_url(socket, overrides) do

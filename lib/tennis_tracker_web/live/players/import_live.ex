@@ -5,14 +5,14 @@ defmodule TennisTrackerWeb.Players.ImportLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:error, nil)
-     |> allow_upload(:csv_file,
-       accept: ~w(.csv),
-       max_entries: 1,
-       max_file_size: 1_000_000
-     )}
+    socket
+    |> assign(:error, nil)
+    |> allow_upload(:csv_file,
+      accept: ~w(.csv),
+      max_entries: 1,
+      max_file_size: 1_000_000
+    )
+    |> ok()
   end
 
   @impl true
@@ -50,7 +50,7 @@ defmodule TennisTrackerWeb.Players.ImportLive do
 
   @impl true
   def handle_event("validate", _params, socket) do
-    {:noreply, socket}
+    socket |> noreply()
   end
 
   @impl true
@@ -63,32 +63,33 @@ defmodule TennisTrackerWeb.Players.ImportLive do
 
     case result do
       [{:ok, count}] ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Imported #{count} player(s).")
-         |> push_navigate(to: ~p"/players")}
+        socket
+        |> put_flash(:info, "Imported #{count} player(s).")
+        |> push_navigate(to: ~p"/players")
+        |> noreply()
 
       [{:error, :invalid_headers, unknown}] ->
-        {:noreply,
-         assign(
-           socket,
-           :error,
-           "Unknown column(s): #{Enum.join(unknown, ", ")}. Import cancelled."
-         )}
+        socket
+        |> assign(:error, "Unknown column(s): #{Enum.join(unknown, ", ")}. Import cancelled.")
+        |> noreply()
 
       [{:error, :missing_required_headers, missing}] ->
-        {:noreply,
-         assign(
-           socket,
-           :error,
-           "Missing required column(s): #{Enum.join(missing, ", ")}. Import cancelled."
-         )}
+        socket
+        |> assign(
+          :error,
+          "Missing required column(s): #{Enum.join(missing, ", ")}. Import cancelled."
+        )
+        |> noreply()
 
       [{:error, :row_error, line, message}] ->
-        {:noreply, assign(socket, :error, "Error on line #{line}: #{message}")}
+        socket
+        |> assign(:error, "Error on line #{line}: #{message}")
+        |> noreply()
 
       [] ->
-        {:noreply, assign(socket, :error, "Please select a CSV file.")}
+        socket
+        |> assign(:error, "Please select a CSV file.")
+        |> noreply()
     end
   end
 

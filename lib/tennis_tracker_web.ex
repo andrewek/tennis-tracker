@@ -52,6 +52,8 @@ defmodule TennisTrackerWeb do
     quote do
       use Phoenix.LiveView
 
+      import TennisTrackerWeb.LiveHelpers
+
       unquote(html_helpers())
     end
   end
