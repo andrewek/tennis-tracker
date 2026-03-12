@@ -1,8 +1,8 @@
 ## 1. Prerequisites (user handles these before implementation begins)
 
 - [x] 1.1 Run `mix igniter.install ash_authentication ash_authentication_phoenix` and commit the generated scaffold
-- [ ] 1.2 Run `mix igniter.install ash_admin` and commit the generated scaffold
-- [ ] 1.3 Verify the app still compiles and tests pass after both installs (`mix precommit`)
+- [x] 1.2 Run `mix igniter.install ash_admin` and commit the generated scaffold
+- [x] 1.3 Verify the app still compiles and tests pass after both installs (`mix precommit`)
 
 ## 2. Add role attribute to User
 
@@ -44,19 +44,27 @@
 - [ ] 7.3 Seed `user@example.com` with role `:member` — same idempotency pattern
 - [ ] 7.4 Run `mix ecto.reset` and verify seeds complete without errors
 
-## 8. Add admin link to home page
+## 8. Authenticate all routes and add logout to nav
 
-- [ ] 8.1 Add an "Admin" card to the grid in `lib/tennis_tracker_web/controllers/page_html/home.html.heex` linking to `/admin`, following the existing card pattern (icon, label, subtitle)
+- [ ] 8.1 Add a `current_user` attr to `Layouts.app` in `lib/tennis_tracker_web/components/layouts.ex` and add a logout link (DELETE to the sign-out route) in the nav bar, rendered only when `@current_user` is not nil
+- [ ] 8.2 Move all LiveView routes (`/players/*`, `/roster-planner/*`) inside the `ash_authentication_live_session :authenticated_routes` block and add `on_mount: [{TennisTrackerWeb.LiveUserAuth, :live_user_required}]` to the session options
+- [ ] 8.3 Protect the `PageController` home route: add an `ensure_authenticated` plug (or equivalent) so unauthenticated `GET /` redirects to `/sign-in`; update all LiveView `<Layouts.app>` calls to pass `current_user={@current_user}`
 
-## 9. Update documentation
+## 9. Add admin link to home page
 
-- [ ] 9.1 Add a section to `README.md` documenting the admin panel: URL (`/admin`), access requirement (`:admin` role), and how to promote a user via IEx or the DB
+- [ ] 9.1 Add an "Admin" card to the grid in `lib/tennis_tracker_web/controllers/page_html/home.html.heex` linking to `/admin`, following the existing card pattern (icon, label, subtitle)
 
-## 10. Verify and clean up
+## 10. Update documentation
 
-- [ ] 10.1 Log in as `admin@example.com` and verify the admin panel loads at `/admin` with all 6 resources visible
-- [ ] 10.2 Log in as `user@example.com` and verify access to `/admin` is denied
-- [ ] 10.3 Verify TeamType update and destroy work from the admin panel
-- [ ] 10.4 Verify SeasonRules destroy works from the admin panel
-- [ ] 10.5 Verify TeamMembership shows no create or update controls in the admin panel
-- [ ] 10.6 Run `mix precommit` and fix any issues
+- [ ] 10.1 Add a section to `README.md` documenting the admin panel: URL (`/admin`), access requirement (`:admin` role), and how to promote a user via IEx or the DB
+
+## 11. Verify and clean up
+
+- [ ] 11.1 Log in as `admin@example.com` and verify the admin panel loads at `/admin` with all 6 resources visible
+- [ ] 11.2 Log in as `user@example.com` and verify access to `/admin` is denied
+- [ ] 11.3 Verify TeamType update and destroy work from the admin panel
+- [ ] 11.4 Verify SeasonRules destroy works from the admin panel
+- [ ] 11.5 Verify TeamMembership shows no create or update controls in the admin panel
+- [ ] 11.6 Verify unauthenticated access to `/` and `/players` redirects to `/sign-in`
+- [ ] 11.7 Verify logout link appears in nav when logged in and signs the user out
+- [ ] 11.8 Run `mix precommit` and fix any issues
