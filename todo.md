@@ -40,3 +40,9 @@ In no particular order. Crossed out when done.
    We'll assume here that "tennis_record_url` is a field we can store, and
    we'll also assume that it's durable enough to account for things like two
    players with the same name.
+1. Assuming we have a notion of an `Organization`, I would like there to be an
+   easy link that I (as a group administrator) could send to new players so
+   they can easily fill in their information and get added to the player pool for
+   that organization. It'd be even better if it handled de-duplication, and if it
+   let us also send "Hey, go update your stuff!" emails (without needing to create
+   an account) to existing players.
