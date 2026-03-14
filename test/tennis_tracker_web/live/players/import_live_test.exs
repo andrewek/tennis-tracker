@@ -3,6 +3,10 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
 
   import Phoenix.LiveViewTest
 
+  setup %{conn: conn} do
+    {:ok, conn: log_in_user(conn)}
+  end
+
   alias TennisTracker.Tennis
 
   describe "ImportLive" do

@@ -329,27 +329,38 @@ alias TennisTracker.Accounts
 require Ash.Query
 
 dev_users = [
-  %{email: "admin@example.com", password: "Password1!"},
-  %{email: "user@example.com", password: "Password1!"}
+  %{email: "admin@example.com", password: "Password1!", role: :admin},
+  %{email: "user@example.com", password: "Password1!", role: :member}
 ]
 
-existing_emails =
+existing_users =
   TennisTracker.Accounts.User
   |> Ash.Query.new()
   |> Ash.read!(domain: Accounts, authorize?: false)
-  |> Enum.map(&to_string(&1.email))
-  |> MapSet.new()
 
-Enum.each(dev_users, fn %{email: email, password: password} ->
-  unless MapSet.member?(existing_emails, email) do
+existing_emails = existing_users |> Enum.map(&to_string(&1.email)) |> MapSet.new()
+users_by_email = Map.new(existing_users, &{to_string(&1.email), &1})
+
+Enum.each(dev_users, fn %{email: email, password: password, role: role} ->
+  user =
+    if MapSet.member?(existing_emails, email) do
+      Map.fetch!(users_by_email, email)
+    else
+      {:ok, created} =
+        Ash.create(
+          TennisTracker.Accounts.User,
+          %{email: email, password: password, password_confirmation: password},
+          action: :register_with_password,
+          domain: Accounts,
+          authorize?: false
+        )
+
+      created
+    end
+
+  if user.role != role do
     {:ok, _} =
-      Ash.create(
-        TennisTracker.Accounts.User,
-        %{email: email, password: password, password_confirmation: password},
-        action: :register_with_password,
-        domain: Accounts,
-        authorize?: false
-      )
+      Ash.update(user, %{role: role}, action: :update_role, domain: Accounts, authorize?: false)
   end
 end)
 

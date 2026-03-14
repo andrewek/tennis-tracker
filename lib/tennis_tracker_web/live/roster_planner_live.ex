@@ -365,7 +365,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} fluid={true}>
+    <Layouts.app flash={@flash} fluid={true} current_user={@current_user}>
       <.header>
         Roster Planner
         <:subtitle :if={@context}>

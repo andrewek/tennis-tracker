@@ -3,6 +3,10 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
 
   import Phoenix.LiveViewTest
 
+  setup %{conn: conn} do
+    {:ok, conn: log_in_user(conn)}
+  end
+
   alias TennisTracker.Tennis
 
   defp create_player(attrs) do

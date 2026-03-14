@@ -1,4 +1,4 @@
-<Layouts.app flash={@flash}>
+<Layouts.app flash={@flash} current_user={@current_user}>
   <div class="text-center mb-8">
     <h1 class="text-5xl font-bold tracking-tight">Tennis Tracker</h1>
   </div>
@@ -95,5 +95,21 @@
         <span class="text-xs font-normal text-base-content/60">Plan and assign team rosters</span>
       </span>
     </a>
+
+    <%!-- Admin card --%>
+    <%= if @current_user && @current_user.role == :admin do %>
+      <a
+        href="/admin"
+        class="group relative rounded-box px-6 py-8 text-center font-semibold leading-6 block"
+      >
+        <span class="absolute inset-0 rounded-box bg-base-200 transition-all duration-200 group-hover:bg-base-300 group-hover:scale-105 group-hover:shadow-lg">
+        </span>
+        <span class="relative flex flex-col items-center gap-3">
+          <.icon name="hero-wrench-screwdriver" class="h-8 w-8" />
+          <span class="text-base">Admin</span>
+          <span class="text-xs font-normal text-base-content/60">Manage data and users</span>
+        </span>
+      </a>
+    <% end %>
   </div>
 </Layouts.app>

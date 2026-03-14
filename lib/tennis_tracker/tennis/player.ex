@@ -1,7 +1,8 @@
 defmodule TennisTracker.Tennis.Player do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    extensions: [AshAdmin.Resource]
 
   postgres do
     table("players")
@@ -10,6 +11,9 @@ defmodule TennisTracker.Tennis.Player do
     custom_indexes do
       index([:ntrp_rating, :name])
     end
+  end
+
+  admin do
   end
 
   attributes do

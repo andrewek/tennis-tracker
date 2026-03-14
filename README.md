@@ -43,7 +43,22 @@ Running `mix run priv/repo/seeds.exs` (or `mix setup`) creates two local dev acc
 | `admin@example.com` | `Password1!` | admin |
 | `user@example.com` | `Password1!` | member |
 
-The admin panel is at [`localhost:4000/admin`](http://localhost:4000/admin) — requires an admin account.
+The admin panel is at [`localhost:4000/admin`](http://localhost:4000/admin) — requires an account with the `:admin` role.
+
+To promote an existing user to admin via IEx:
+
+```elixir
+iex -S mix
+
+user = Ash.get!(TennisTracker.Accounts.User, "user-uuid-here", domain: TennisTracker.Accounts, authorize?: false)
+Ash.update!(user, %{role: :admin}, action: :update_role, domain: TennisTracker.Accounts, authorize?: false)
+```
+
+Or directly in the database:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'user@example.com';
+```
 
 ## Development
 

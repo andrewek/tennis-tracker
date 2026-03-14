@@ -1,11 +1,16 @@
 defmodule TennisTracker.Tennis.TeamType do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    extensions: [AshAdmin.Resource]
 
   postgres do
     table("team_types")
     repo(TennisTracker.Repo)
+  end
+
+  admin do
+    relationship_display_fields [:name]
   end
 
   attributes do
@@ -48,6 +53,15 @@ defmodule TennisTracker.Tennis.TeamType do
     create :create do
       primary?(true)
       accept([:name, :age_group, :ntrp_level, :allowed_ntrp_levels])
+    end
+
+    update :update do
+      primary?(true)
+      accept([:name, :age_group, :ntrp_level, :allowed_ntrp_levels])
+    end
+
+    destroy :destroy do
+      primary?(true)
     end
   end
 

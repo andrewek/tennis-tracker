@@ -24,34 +24,21 @@ defmodule TennisTrackerWeb.Router do
   scope "/", TennisTrackerWeb do
     pipe_through :browser
 
-    ash_authentication_live_session :authenticated_routes do
-      # in each liveview, add one of the following at the top of the module:
-      #
-      # If an authenticated user must be present:
-      # on_mount {TennisTrackerWeb.LiveUserAuth, :live_user_required}
-      #
-      # If an authenticated user *may* be present:
-      # on_mount {TennisTrackerWeb.LiveUserAuth, :live_user_optional}
-      #
-      # If an authenticated user must *not* be present:
-      # on_mount {TennisTrackerWeb.LiveUserAuth, :live_no_user}
-    end
-  end
-
-  scope "/", TennisTrackerWeb do
-    pipe_through :browser
-
     get "/", PageController, :home
-
-    live "/players", Players.IndexLive, :index
-    live "/players/new", Players.FormLive, :new
-    live "/players/import", Players.ImportLive, :import
     get "/players/export.csv", PlayerCSVController, :export
-    live "/players/:id", Players.ShowLive, :show
-    live "/players/:id/edit", Players.FormLive, :edit
 
-    live "/roster-planner", RosterPlannerLive, :index
-    live "/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
+    ash_authentication_live_session :authenticated_routes,
+      on_mount: [{TennisTrackerWeb.LiveUserAuth, :live_user_required}] do
+      live "/players", Players.IndexLive, :index
+      live "/players/new", Players.FormLive, :new
+      live "/players/import", Players.ImportLive, :import
+      live "/players/:id", Players.ShowLive, :show
+      live "/players/:id/edit", Players.FormLive, :edit
+
+      live "/roster-planner", RosterPlannerLive, :index
+      live "/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
+    end
+
     auth_routes AuthController, TennisTracker.Accounts.User, path: "/auth"
     sign_out_route AuthController
 
@@ -85,13 +72,11 @@ defmodule TennisTrackerWeb.Router do
     end
   end
 
-  if Application.compile_env(:tennis_tracker, :dev_routes) do
-    import AshAdmin.Router
+  import AshAdmin.Router
 
-    scope "/admin" do
-      pipe_through :browser
+  scope "/admin" do
+    pipe_through :browser
 
-      ash_admin "/"
-    end
+    ash_admin "/", on_mount: [{TennisTrackerWeb.LiveUserAuth, :admin_only}]
   end
 end

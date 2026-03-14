@@ -3,7 +3,8 @@ defmodule TennisTracker.Tennis.Team do
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
     notifiers: [Ash.Notifier.PubSub],
-    primary_read_warning?: false
+    primary_read_warning?: false,
+    extensions: [AshAdmin.Resource]
 
   postgres do
     table("teams")
@@ -23,6 +24,9 @@ defmodule TennisTracker.Tennis.Team do
     publish(:create, [:team_type_id, :season_year])
     publish(:update, [:team_type_id, :season_year])
     publish(:destroy, [:team_type_id, :season_year])
+  end
+
+  admin do
   end
 
   attributes do

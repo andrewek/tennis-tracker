@@ -59,7 +59,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <.header>
         Players
         <:subtitle>

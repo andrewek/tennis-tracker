@@ -35,4 +35,28 @@ defmodule TennisTrackerWeb.ConnCase do
     TennisTracker.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  @doc """
+  Creates a user and logs them in, returning the authenticated connection.
+  """
+  def log_in_user(conn, attrs \\ %{}) do
+    defaults = %{
+      email: "test_#{System.unique_integer()}@example.com",
+      password: "Password1!",
+      password_confirmation: "Password1!"
+    }
+
+    {:ok, user} =
+      Ash.create(
+        TennisTracker.Accounts.User,
+        Map.merge(defaults, attrs),
+        action: :register_with_password,
+        domain: TennisTracker.Accounts,
+        authorize?: false
+      )
+
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> AshAuthentication.Plug.Helpers.store_in_session(user)
+  end
 end

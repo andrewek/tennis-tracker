@@ -31,6 +31,8 @@ defmodule TennisTrackerWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :current_user, :map, default: nil, doc: "the currently authenticated user"
+
   attr :fluid, :boolean, default: false, doc: "when true, removes max-width constraint"
 
   slot :inner_block, required: true
@@ -43,9 +45,16 @@ defmodule TennisTrackerWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex flex-row px-1 space-x-4 items-center">
-          <li>
-            <.link navigate={~p"/players"} class="btn btn-ghost">Players</.link>
-          </li>
+          <%= if @current_user do %>
+            <li>
+              <.link
+                href={~p"/sign-out"}
+                class="btn btn-ghost"
+              >
+                Sign out
+              </.link>
+            </li>
+          <% end %>
           <li>
             <.theme_toggle />
           </li>

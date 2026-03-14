@@ -1,5 +1,5 @@
 ### Requirement: TeamType records exist as seeded reference data
-The system SHALL provide a set of seeded `TeamType` records representing supported USTA league formats. Each `TeamType` SHALL have a name, age group, top NTRP level, and list of allowed NTRP levels. TeamTypes SHALL NOT be creatable or editable through the application UI in this phase.
+The system SHALL provide a set of seeded `TeamType` records representing supported USTA league formats. Each `TeamType` SHALL have a name, age group, top NTRP level, and list of allowed NTRP levels. TeamTypes MAY be updated or deleted through the admin panel.
 
 #### Scenario: Seed produces expected team types
 - **WHEN** the seed script is run
@@ -20,3 +20,25 @@ The system SHALL provide a set of seeded `TeamType` records representing support
 #### Scenario: TeamType name is human-readable
 - **WHEN** a TeamType is queried
 - **THEN** its name is a human-readable string such as "18+ 3.5" or "40+ 4.0"
+
+### Requirement: TeamType records can be updated
+The system SHALL allow `TeamType` records to be updated via the `:update` action.
+
+#### Scenario: TeamType name can be updated
+- **WHEN** a TeamType record is updated with a new name
+- **THEN** the record SHALL reflect the new name
+
+#### Scenario: TeamType allowed_ntrp_levels can be updated
+- **WHEN** a TeamType record is updated with a new allowed_ntrp_levels list
+- **THEN** the record SHALL reflect the updated list
+
+### Requirement: TeamType records can be destroyed
+The system SHALL allow `TeamType` records to be destroyed via the `:destroy` action. Destroying a TeamType that has associated Teams SHALL fail at the database level due to the foreign key constraint.
+
+#### Scenario: TeamType with no associated teams can be destroyed
+- **WHEN** a TeamType with no associated Team records is destroyed
+- **THEN** the record SHALL be removed from the database
+
+#### Scenario: TeamType with associated teams cannot be destroyed
+- **WHEN** an attempt is made to destroy a TeamType that has one or more associated Team records
+- **THEN** the operation SHALL fail with a constraint error

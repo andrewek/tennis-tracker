@@ -1,11 +1,16 @@
 defmodule TennisTracker.Tennis.SeasonRules do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
-    data_layer: AshPostgres.DataLayer
+    data_layer: AshPostgres.DataLayer,
+    extensions: [AshAdmin.Resource]
 
   postgres do
     table("season_rules")
     repo(TennisTracker.Repo)
+  end
+
+  admin do
+    table_columns [:season_year, :team_type, :min_roster, :max_roster, :on_level_min_pct]
   end
 
   attributes do
@@ -61,6 +66,10 @@ defmodule TennisTracker.Tennis.SeasonRules do
     update :update do
       primary?(true)
       accept([:min_roster, :max_roster, :on_level_min_pct])
+    end
+
+    destroy :destroy do
+      primary?(true)
     end
   end
 

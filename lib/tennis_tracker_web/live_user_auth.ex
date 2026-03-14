@@ -36,4 +36,14 @@ defmodule TennisTrackerWeb.LiveUserAuth do
       {:cont, assign(socket, :current_user, nil)}
     end
   end
+
+  def on_mount(:admin_only, _params, session, socket) do
+    socket = AshAuthentication.Phoenix.LiveSession.assign_new_resources(socket, session)
+
+    case socket.assigns[:current_user] do
+      %{role: :admin} -> {:cont, socket}
+      nil -> {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/sign-in")}
+      _ -> {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
+    end
+  end
 end

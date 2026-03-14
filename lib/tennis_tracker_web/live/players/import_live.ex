@@ -18,7 +18,7 @@ defmodule TennisTrackerWeb.Players.ImportLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <.header>
         Import Players
         <:subtitle>Upload a CSV file to bulk-import tennis players.</:subtitle>

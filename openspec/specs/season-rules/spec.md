@@ -1,5 +1,5 @@
 ### Requirement: SeasonRules define variable roster constraints per team type per year
-The system SHALL support `SeasonRules` records that capture the roster constraints for a given `TeamType` in a given season year. Each combination of `(team_type_id, season_year)` SHALL have at most one `SeasonRules` record. SeasonRules SHALL be managed outside the application UI (via seed scripts or console) in this phase.
+The system SHALL support `SeasonRules` records that capture the roster constraints for a given `TeamType` in a given season year. Each combination of `(team_type_id, season_year)` SHALL have at most one `SeasonRules` record. SeasonRules MAY be managed via the admin panel in addition to seed scripts or console.
 
 #### Scenario: SeasonRules are unique per team type and season
 - **WHEN** a SeasonRules record already exists for a (team_type_id, season_year) pair
@@ -12,6 +12,17 @@ The system SHALL support `SeasonRules` records that capture the roster constrain
 #### Scenario: SeasonRules capture on-level minimum percentage
 - **WHEN** a SeasonRules record is queried
 - **THEN** it exposes an on_level_min_pct decimal representing the minimum fraction of the roster that must be rated at the team's top NTRP level (e.g. 0.60 for 60%)
+
+### Requirement: SeasonRules records can be destroyed
+The system SHALL allow `SeasonRules` records to be destroyed via the `:destroy` action.
+
+#### Scenario: SeasonRules record can be destroyed
+- **WHEN** a SeasonRules record is destroyed
+- **THEN** the record SHALL be removed from the database
+
+#### Scenario: Destroying SeasonRules suppresses health warnings for that context
+- **WHEN** a SeasonRules record for a planning context is destroyed
+- **THEN** the planning board for that context SHALL load without rule-based health warnings
 
 ### Requirement: Health checks degrade gracefully when SeasonRules are absent
 The system SHALL NOT error if no SeasonRules exist for the current planning context. Instead, roster health indicators SHALL be suppressed or show a "no rules configured" state.

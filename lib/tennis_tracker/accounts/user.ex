@@ -4,7 +4,7 @@ defmodule TennisTracker.Accounts.User do
     domain: TennisTracker.Accounts,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication]
+    extensions: [AshAuthentication, AshAdmin.Resource]
 
   postgres do
     table("users")
@@ -15,6 +15,9 @@ defmodule TennisTracker.Accounts.User do
     bypass(AshAuthentication.Checks.AshAuthenticationInteraction) do
       authorize_if(always())
     end
+  end
+
+  admin do
   end
 
   authentication do
@@ -52,6 +55,13 @@ defmodule TennisTracker.Accounts.User do
       allow_nil?(true)
       sensitive?(true)
     end
+
+    attribute :role, :atom do
+      constraints(one_of: [:admin, :member])
+      default(:member)
+      allow_nil?(false)
+      public?(true)
+    end
   end
 
   actions do
@@ -62,6 +72,14 @@ defmodule TennisTracker.Accounts.User do
       argument(:subject, :string, allow_nil?: false)
       get?(true)
       prepare(AshAuthentication.Preparations.FilterBySubject)
+    end
+
+    update :update_role do
+      accept([:role])
+    end
+
+    destroy :destroy do
+      primary?(true)
     end
   end
 

@@ -31,7 +31,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mb-6">
         <h1 class="text-4xl font-bold tracking-tight">
           {@player.name}
