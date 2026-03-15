@@ -204,6 +204,7 @@ defmodule TennisTracker.Tennis do
     end
 
     resource TennisTracker.Tennis.Team do
+      define(:list_real_teams, action: :list_real)
       define(:create_team, action: :create)
       define(:update_team, action: :update)
       define(:destroy_team, action: :destroy)

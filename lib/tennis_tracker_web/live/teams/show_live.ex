@@ -74,7 +74,11 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   defp format_age_group(other), do: other
 
   defp format_match_time(%Time{hour: h, minute: m}) do
-    {hour, ampm} = if h >= 12, do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"}, else: {if(h == 0, do: 12, else: h), "AM"}
+    {hour, ampm} =
+      if h >= 12,
+        do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
+        else: {if(h == 0, do: 12, else: h), "AM"}
+
     minute_str = m |> Integer.to_string() |> String.pad_leading(2, "0")
     "#{hour}:#{minute_str} #{ampm}"
   end
@@ -89,9 +93,8 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <%!-- Back link (TODO: update to ~p"/teams" once the teams index page exists) --%>
       <div class="mb-6">
-        <.link navigate={~p"/"} class="text-sm text-base-content/70 hover:text-base-content">
+        <.link navigate={~p"/teams"} class="text-sm text-base-content/70 hover:text-base-content">
           <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Teams
         </.link>
       </div>

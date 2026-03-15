@@ -329,14 +329,11 @@ defmodule TennisTrackerWeb.CoreComponents do
 
   def modal(assigns) do
     ~H"""
-    <div
-      class={[
-        "fixed inset-0 z-50 flex justify-center bg-black/40",
-        @position == :center && "items-center",
-        @position == :bottom && "items-end sm:items-center"
-      ]}
-      phx-click={@on_close}
-    >
+    <div class={[
+      "fixed inset-0 z-50 flex justify-center bg-black/40",
+      @position == :center && "items-center",
+      @position == :bottom && "items-end sm:items-center"
+    ]}>
       <div
         class={[
           "bg-base-100 w-full p-6 shadow-xl",

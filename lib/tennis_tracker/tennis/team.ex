@@ -63,15 +63,12 @@ defmodule TennisTracker.Tennis.Team do
   actions do
     read :read do
       primary?(true)
+      prepare(&default_sort/2)
+    end
 
-      prepare(fn query, _ ->
-        Ash.Query.sort(query, [
-          {:season_year, :desc},
-          {:team_type_age_group, :asc_nils_last},
-          {:team_type_ntrp_level, :desc_nils_last},
-          {:name, :asc}
-        ])
-      end)
+    read :list_real do
+      filter(expr(is_pseudo == false))
+      prepare(&default_sort/2)
     end
 
     read :for_context do
@@ -96,7 +93,17 @@ defmodule TennisTracker.Tennis.Team do
     end
   end
 
+  defp default_sort(query, _context) do
+    Ash.Query.sort(query, [
+      {:season_year, :desc},
+      {:team_type_age_group, :asc_nils_last},
+      {:team_type_ntrp_level, :desc_nils_last},
+      {:name, :asc}
+    ])
+  end
+
   calculations do
+    calculate(:team_type_name, :string, expr(team_type.name))
     calculate(:team_type_age_group, :string, expr(team_type.age_group))
     calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
   end
