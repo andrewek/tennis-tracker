@@ -13,7 +13,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
 
   def handle_params(%{"id" => id}, _url, socket) do
     player = Tennis.get_player!(id)
-    memberships = Tennis.list_real_memberships_for_player!(id, load: [:display_label])
+    memberships = Tennis.list_real_memberships_for_player!(id, load: [:display_label, :team])
 
     socket
     |> assign(:player, player)
@@ -85,7 +85,9 @@ defmodule TennisTrackerWeb.Players.ShowLive do
           <ul class="space-y-1">
             <%= for membership <- @memberships do %>
               <li class="text-sm">
-                {membership.display_label}
+                <.link navigate={~p"/teams/#{membership.team.id}"} class="hover:underline">
+                  {membership.display_label}
+                </.link>
               </li>
             <% end %>
           </ul>

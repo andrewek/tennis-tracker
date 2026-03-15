@@ -33,7 +33,7 @@ defmodule TennisTrackerWeb.Layouts do
 
   attr :current_user, :map, default: nil, doc: "the currently authenticated user"
 
-  attr :fluid, :boolean, default: false, doc: "when true, removes max-width constraint"
+  attr :fluid, :boolean, default: true, doc: "when true, removes max-width constraint"
 
   slot :inner_block, required: true
 

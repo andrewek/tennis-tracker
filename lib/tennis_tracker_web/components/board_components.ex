@@ -58,6 +58,8 @@ defmodule TennisTrackerWeb.BoardComponents do
   attr :player, :map, required: true
   attr :has_violation, :boolean, default: false
   attr :selected, :boolean, default: false
+  attr :readonly, :boolean, default: false
+  attr :on_click, :string, default: "select_player"
 
   def player_card(assigns) do
     ~H"""
@@ -67,12 +69,12 @@ defmodule TennisTrackerWeb.BoardComponents do
         "flex items-center justify-between px-2 py-1.5 rounded text-sm cursor-pointer select-none",
         "bg-base-100 hover:bg-base-300 transition-colors",
         @selected && "ring-2 ring-primary",
-        @has_violation && "border border-warning"
+        !@readonly && @has_violation && "border border-warning"
       ]}
-      draggable="true"
-      phx-hook="DraggableCard"
-      data-player-id={@player.id}
-      phx-click="select_player"
+      draggable={if @readonly, do: nil, else: "true"}
+      phx-hook={if @readonly, do: nil, else: "DraggableCard"}
+      data-player-id={if @readonly, do: nil, else: @player.id}
+      phx-click={@on_click}
       phx-value-player_id={@player.id}
     >
       <span class="truncate">{@player.name}</span>
@@ -83,7 +85,7 @@ defmodule TennisTrackerWeb.BoardComponents do
         <span :if={is_nil(@player.ntrp_rating)} class="text-xs text-info" title="No rating">
           ?
         </span>
-        <span :if={@has_violation} class="text-warning">
+        <span :if={!@readonly && @has_violation} class="text-warning">
           <.icon name="hero-exclamation-triangle" class="size-3.5" />
           <span class="sr-only">Rating issue</span>
         </span>
@@ -94,13 +96,14 @@ defmodule TennisTrackerWeb.BoardComponents do
 
   attr :player, :map, required: true
   attr :current_team, :string, default: nil
+  attr :on_close, :any, required: true
   slot :actions
 
   def player_detail_modal(assigns) do
     ~H"""
     <.modal
       title={@player.name}
-      on_close={JS.push("deselect_player")}
+      on_close={@on_close}
       max_width="sm:max-w-sm"
       position={:bottom}
     >

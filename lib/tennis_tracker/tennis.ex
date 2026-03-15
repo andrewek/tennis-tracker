@@ -166,6 +166,24 @@ defmodule TennisTracker.Tennis do
     end
   end
 
+  @doc """
+  Loads a real (non-pseudo) team by ID with its team type and roster of players.
+  Returns {:ok, team} on success, or {:error, :not_found} if the team doesn't
+  exist or is a pseudo-team.
+  """
+  def get_team_with_roster(id) do
+    case Ash.get(Team, id, domain: __MODULE__) do
+      {:ok, team} when team.is_pseudo ->
+        {:error, :not_found}
+
+      {:ok, team} ->
+        Ash.load(team, [:team_type, memberships: [:player]], domain: __MODULE__)
+
+      {:error, _} ->
+        {:error, :not_found}
+    end
+  end
+
   resources do
     resource TennisTracker.Tennis.Player do
       define(:list_players, action: :read)

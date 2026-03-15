@@ -27,6 +27,11 @@ In no particular order. Crossed out when done.
 1. ~I'd like to get AshAdmin working~
 1. I'd also like to get the AshAI plugin working
 1. It's likely that we'll need some notion of "Organization"
+1. Re-architect the PubSub structure into something more elegant. Currently the
+   roster planner subscribes to a context-level topic (`roster:team_type_id:season_year`)
+   which works for the planner but doesn't extend cleanly to other views (e.g., the
+   team show page). We need a design that lets any view subscribe to relevant
+   roster/player changes without coupling everything to the planner's topic shape.
 1. We should start thinking about team match schedules.
 1. There should be an easy way to "copy" a previous year's team into this
    year's team for a given season.

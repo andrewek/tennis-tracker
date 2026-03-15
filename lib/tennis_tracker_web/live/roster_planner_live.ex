@@ -549,12 +549,20 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 violations={violations}
               >
                 <:header_actions>
+                  <.link
+                    navigate={~p"/teams/#{team.id}"}
+                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
+                    aria-label="View team page"
+                  >
+                    <.icon name="hero-arrow-top-right-on-square" class="size-3.5" />
+                    <span class="sr-only">View team page</span>
+                  </.link>
                   <button
                     :if={is_nil(@team_modal)}
                     phx-click="open_team_modal"
                     phx-value-mode="edit"
                     phx-value-team_id={team.id}
-                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
+                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
                     aria-label="Rename team"
                   >
                     <.icon name="hero-pencil-square" class="size-3.5" />
@@ -616,6 +624,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             :if={@selection}
             player={@selection.player}
             current_team={@selection.team}
+            on_close={JS.push("deselect_player")}
           >
             <:actions>
               <button
