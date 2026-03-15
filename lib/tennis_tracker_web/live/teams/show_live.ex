@@ -103,14 +103,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       <div class="mb-8">
         <h1 class="text-4xl font-bold tracking-tight">{@team.name}</h1>
         <p class="mt-1 text-base-content/60">
-          {@team.team_type.name}
-          <span :if={@team.team_type.age_group}>
-            · {format_age_group(@team.team_type.age_group)}
-          </span>
-          <span :if={@team.team_type.ntrp_level}>
-            · {@team.team_type.ntrp_level}
-          </span>
-          · {@team.season_year}
+          {@team.team_type.name} · {@team.season_year}
         </p>
       </div>
 

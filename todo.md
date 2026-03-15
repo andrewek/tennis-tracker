@@ -20,7 +20,15 @@ In no particular order. Crossed out when done.
    which works for the planner but doesn't extend cleanly to other views (e.g., the
    team show page). We need a design that lets any view subscribe to relevant
    roster/player changes without coupling everything to the planner's topic shape.
-1. We should start thinking about team match schedules.
+1. ~We should start thinking about team match schedules.~
+1. Match scheduling: reconsider the upcoming/past split strategy. Currently we
+   compare `match_date` to today-in-the-match's-timezone. A more robust model
+   would be an explicit `completed` boolean (or `status` enum) set by the captain,
+   since tennis matches don't always end on the scheduled date and implicit
+   time-based completion can be surprising.
+1. Allow "archiving" a Location rather than deleting it, so historical matches
+   that reference it remain valid. Deleting a location with associated matches
+   should be prevented at the DB level.
 1. There should be an easy way to "copy" a previous year's team into this
    year's team for a given season.
 1. What makes sense in terms of lineup scheduling? We have slightly different
