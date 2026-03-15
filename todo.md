@@ -2,32 +2,20 @@
 
 In no particular order. Crossed out when done.
 
-1. ~It's hard to drag/drop when the available players list is very long. Let's
-   make the team lists capped to screen height and scrollable.~
 1. Configure with ngrok so we can demonstrate locally without needing to deploy
-1. ~On the player show page, show all team memberships for that player~
-1. ~On the roster planner page, when clicking a player, provide a link (that
-   opens in a new tab) to that player's show page.~
 1. When I update a player (name, age group, NTRP rating), that change should
    propagate across all pages that would have that player visible (e.g., the
    roster planner, team show page, etc.). This might mean that a player will
    appear or disappear from dynamically applied filters.
-1. ~Install the Usage Rules package and configure it properly~
 1. Figure out how to actually use Tidewave; what's the point of entry? What
    tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
    to be able to interact with it, or do I have to _just_ interact with it in the
    browser?
-1. ~Build out the Teams index and show pages. We'll use Ash calculations and
-   aggregates to display data.~
 1. Introduce a test factory (e.g. ExMachina) to replace the repetitive inline
    fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
    that are duplicated across test files.
-1. ~We need user accounts and some basic authentication / authorization. Along
-   with this, we'll need to add an email client of some sort for things like
-   password resets.~
 1. A corresponding auth story is something like "Only members of the team can
    see the lineups"
-1. ~I'd like to get AshAdmin working~
 1. I'd also like to get the AshAI plugin working
 1. It's likely that we'll need some notion of "Organization"
 1. Re-architect the PubSub structure into something more elegant. Currently the
@@ -57,3 +45,18 @@ In no particular order. Crossed out when done.
    that organization. It'd be even better if it handled de-duplication, and if it
    let us also send "Hey, go update your stuff!" emails (without needing to create
    an account) to existing players.
+
+## Done
+
+1. ~It's hard to drag/drop when the available players list is very long. Let's
+   make the team lists capped to screen height and scrollable.~
+1. ~On the player show page, show all team memberships for that player~
+1. ~On the roster planner page, when clicking a player, provide a link (that
+   opens in a new tab) to that player's show page.~
+1. ~Install the Usage Rules package and configure it properly~
+1. ~Build out the Teams index and show pages. We'll use Ash calculations and
+   aggregates to display data.~
+1. ~I'd like to get AshAdmin working~
+1. ~We need user accounts and some basic authentication / authorization. Along
+   with this, we'll need to add an email client of some sort for things like
+   password resets.~
