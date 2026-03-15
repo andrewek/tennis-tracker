@@ -19,12 +19,12 @@ In no particular order. Crossed out when done.
    browser?
 1. Build out the Teams index and show pages. We'll use Ash calculations and
    aggregates to display data.
-1. We need user accounts and some basic authentication / authorization. Along
+1. ~We need user accounts and some basic authentication / authorization. Along
    with this, we'll need to add an email client of some sort for things like
-   password resets.
+   password resets.~
 1. A corresponding auth story is something like "Only members of the team can
    see the lineups"
-1. I'd like to get AshAdmin working
+1. ~I'd like to get AshAdmin working~
 1. I'd also like to get the AshAI plugin working
 1. It's likely that we'll need some notion of "Organization"
 1. We should start thinking about team match schedules.
