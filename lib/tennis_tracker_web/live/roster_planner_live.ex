@@ -27,6 +27,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     |> assign(:selected_player_id, nil)
     |> assign(:selected_player, nil)
     |> assign(:team_modal, nil)
+    |> assign(:show_season_rules, false)
     |> ok()
   end
 
@@ -95,6 +96,18 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   def handle_event("hide_create_form", _params, socket) do
     socket
     |> assign(:show_create_form, false)
+    |> noreply()
+  end
+
+  def handle_event("show_season_rules", _params, socket) do
+    socket
+    |> assign(:show_season_rules, true)
+    |> noreply()
+  end
+
+  def handle_event("hide_season_rules", _params, socket) do
+    socket
+    |> assign(:show_season_rules, false)
     |> noreply()
   end
 
@@ -373,6 +386,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         <span :if={@context} class="text-base-content/50 text-sm">
           {@context.team_type.name} · {@context.season_year}
         </span>
+        <button
+          :if={@context}
+          phx-click="show_season_rules"
+          class="btn btn-xs btn-ghost btn-circle text-base-content/50 hover:text-base-content"
+          aria-label="View season rules"
+        >
+          <.icon name="hero-information-circle" class="size-4" />
+        </button>
       </div>
 
       <%!-- Context selector (shown when no context loaded) --%>
@@ -690,6 +711,64 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                   </button>
                 </div>
             <% end %>
+          </div>
+        </div>
+        <%!-- Season rules info modal --%>
+        <div
+          :if={@show_season_rules}
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          phx-click="hide_season_rules"
+        >
+          <div
+            class="bg-base-100 rounded-2xl w-full max-w-xs p-6 shadow-xl"
+            phx-click-away="hide_season_rules"
+          >
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-semibold text-lg">Season Rules</h3>
+              <button phx-click="hide_season_rules" class="btn btn-xs btn-ghost btn-circle">
+                <.icon name="hero-x-mark" class="size-4" />
+              </button>
+            </div>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">NTRP range</dt>
+                <dd class="font-medium">
+                  <%= cond do %>
+                    <% @context.team_type.allowed_ntrp_levels == [] -> %>
+                      N/A
+                    <% true -> %>
+                      {Enum.min(@context.team_type.allowed_ntrp_levels)} – {Enum.max(@context.team_type.allowed_ntrp_levels)}
+                  <% end %>
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">On-level minimum</dt>
+                <dd class="font-medium">
+                  <%= if @context.season_rules && @context.season_rules.on_level_min_pct do %>
+                    {Decimal.mult(@context.season_rules.on_level_min_pct, 100) |> Decimal.round(0)}%
+                  <% else %>
+                    N/A
+                  <% end %>
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">Roster size</dt>
+                <dd class="font-medium">
+                  <%= cond do %>
+                    <% @context.season_rules &&
+                        @context.season_rules.min_roster &&
+                        @context.season_rules.max_roster -> %>
+                      {@context.season_rules.min_roster} – {@context.season_rules.max_roster}
+                    <% @context.season_rules && @context.season_rules.min_roster -> %>
+                      {@context.season_rules.min_roster}+ players
+                    <% @context.season_rules && @context.season_rules.max_roster -> %>
+                      Up to {@context.season_rules.max_roster} players
+                    <% true -> %>
+                      N/A
+                  <% end %>
+                </dd>
+              </div>
+            </dl>
           </div>
         </div>
       </div>
