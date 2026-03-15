@@ -15,9 +15,9 @@ The home page at `/` SHALL display a responsive grid of card-style navigation li
 - **WHEN** the user clicks the "Roster Planner" card
 - **THEN** the user SHALL be navigated to `/roster-planner`
 
-#### Scenario: Teams card has no active destination
-- **WHEN** the Teams card is rendered
-- **THEN** it SHALL be rendered as a non-functional link (e.g., `href="#"` or no navigation occurs)
+#### Scenario: Teams card links to /teams
+- **WHEN** the user clicks the "Teams" card
+- **THEN** the user SHALL be navigated to `/teams`
 
 #### Scenario: Winter Tennis card has no active destination
 - **WHEN** the Winter Tennis card is rendered
