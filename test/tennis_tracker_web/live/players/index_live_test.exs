@@ -7,23 +7,10 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     {:ok, conn: log_in_user(conn)}
   end
 
-  alias TennisTracker.Tennis
-
-  defp create_player(attrs) do
-    defaults = %{
-      name: "Player",
-      eligible_18_plus: true,
-      eligible_40_plus: false,
-      eligible_55_plus: false
-    }
-
-    Tennis.create_player!(Map.merge(defaults, attrs))
-  end
-
   describe "\"No rating\" filter" do
     test "unrated players appear when no filter is active", %{conn: conn} do
-      create_player(%{name: "Rated", ntrp_rating: "3.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, _view, html} = live(conn, ~p"/players")
 
@@ -32,8 +19,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "checking \"No rating\" shows only unrated players", %{conn: conn} do
-      create_player(%{name: "Rated", ntrp_rating: "3.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, view, _html} = live(conn, ~p"/players")
 
@@ -44,9 +31,9 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "combining \"No rating\" with a rated value shows both", %{conn: conn} do
-      create_player(%{name: "Rated35", ntrp_rating: "3.5"})
-      create_player(%{name: "Rated40", ntrp_rating: "4.0"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated35", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Rated40", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, view, _html} = live(conn, ~p"/players")
 
@@ -59,8 +46,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "clear filters removes \"No rating\" selection", %{conn: conn} do
-      create_player(%{name: "Rated", ntrp_rating: "3.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, view, _html} = live(conn, ~p"/players")
 
@@ -74,8 +61,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
 
   describe "NTRP sort direction toggle" do
     test "default sort is descending (higher NTRP first)", %{conn: conn} do
-      create_player(%{name: "LowRated", ntrp_rating: "2.5"})
-      create_player(%{name: "HighRated", ntrp_rating: "5.0"})
+      Factory.player(name: "LowRated", ntrp_rating: Decimal.new("2.5"))
+      Factory.player(name: "HighRated", ntrp_rating: Decimal.new("5.0"))
 
       {:ok, _view, html} = live(conn, ~p"/players")
 
@@ -86,8 +73,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "toggling sort switches to ascending (lower NTRP first)", %{conn: conn} do
-      create_player(%{name: "LowRated", ntrp_rating: "2.5"})
-      create_player(%{name: "HighRated", ntrp_rating: "5.0"})
+      Factory.player(name: "LowRated", ntrp_rating: Decimal.new("2.5"))
+      Factory.player(name: "HighRated", ntrp_rating: Decimal.new("5.0"))
 
       {:ok, view, _html} = live(conn, ~p"/players")
 
@@ -100,8 +87,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "toggling sort twice returns to descending", %{conn: conn} do
-      create_player(%{name: "LowRated", ntrp_rating: "2.5"})
-      create_player(%{name: "HighRated", ntrp_rating: "5.0"})
+      Factory.player(name: "LowRated", ntrp_rating: Decimal.new("2.5"))
+      Factory.player(name: "HighRated", ntrp_rating: Decimal.new("5.0"))
 
       {:ok, view, _html} = live(conn, ~p"/players")
 
@@ -117,8 +104,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     test "unrated players appear below all rated players in default descending sort", %{
       conn: conn
     } do
-      create_player(%{name: "HighRated", ntrp_rating: "5.0"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "HighRated", ntrp_rating: Decimal.new("5.0"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, _view, html} = live(conn, ~p"/players")
 
@@ -129,8 +116,8 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
     end
 
     test "unrated players appear above all rated players when sort is ascending", %{conn: conn} do
-      create_player(%{name: "LowRated", ntrp_rating: "2.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "LowRated", ntrp_rating: Decimal.new("2.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       {:ok, view, _html} = live(conn, ~p"/players")
 

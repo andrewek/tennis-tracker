@@ -24,6 +24,8 @@ defmodule TennisTrackerWeb.ConnCase do
 
       use TennisTrackerWeb, :verified_routes
 
+      alias TennisTracker.Factory
+
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest

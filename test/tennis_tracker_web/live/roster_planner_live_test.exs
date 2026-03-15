@@ -10,73 +10,34 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
   alias TennisTracker.Tennis
 
   # ---------------------------------------------------------------------------
-  # Fixtures
-  # ---------------------------------------------------------------------------
-
-  defp create_team_type(attrs \\ %{}) do
-    defaults = %{
-      name: "18+ 3.5",
-      age_group: "18_plus",
-      ntrp_level: Decimal.new("3.5"),
-      allowed_ntrp_levels: [Decimal.new("3.0"), Decimal.new("3.5")]
-    }
-
-    Tennis.create_team_type!(Map.merge(defaults, attrs))
-  end
-
-  defp create_season_rules(team_type, attrs) do
-    defaults = %{
-      team_type_id: team_type.id,
-      season_year: 2026,
-      min_roster: 4,
-      max_roster: 10,
-      on_level_min_pct: Decimal.new("0.60")
-    }
-
-    Tennis.create_season_rules!(Map.merge(defaults, attrs))
-  end
-
-  defp create_player(attrs) do
-    defaults = %{name: "Test Player", eligible_18_plus: true}
-    Tennis.create_player!(Map.merge(defaults, attrs))
-  end
-
-  # ---------------------------------------------------------------------------
   # 7.3 — Board loads for a valid context
   # ---------------------------------------------------------------------------
 
   describe "board loads" do
     test "context selector is shown at /roster-planner", %{conn: conn} do
-      create_team_type()
+      Factory.team_type()
       {:ok, _view, html} = live(conn, ~p"/roster-planner")
       assert html =~ "Select a planning session"
     end
 
     test "board loads for a valid team_type_id and season_year", %{conn: conn} do
-      tt = create_team_type()
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type()
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
       assert html =~ "Unassigned"
       assert html =~ "Not Participating"
     end
 
     test "board shows team type name in subtitle", %{conn: conn} do
-      tt =
-        create_team_type(%{
-          name: "40+ 4.0",
-          age_group: "40_plus",
-          ntrp_level: Decimal.new("4.0"),
-          allowed_ntrp_levels: [Decimal.new("3.5"), Decimal.new("4.0")]
-        })
-
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type(traits: [:_40], name: "40+ 4.0")
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
       assert html =~ "40+ 4.0"
     end
 
     test "unassigned players appear in the Unassigned column", %{conn: conn} do
-      tt = create_team_type()
-      create_player(%{name: "Alice Player"})
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-      assert html =~ "Alice Player"
+      tt = Factory.team_type()
+      player = Factory.player(name: "Alice Player")
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
+      assert html =~ player.name
     end
   end
 
@@ -86,47 +47,31 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "moving players" do
     test "moving player to a team removes them from Unassigned", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Bob Smith"})
+      tt = Factory.team_type()
+      player = Factory.player(name: "Bob Smith")
+      team = Factory.team(team_type: tt, name: "Team Alpha")
 
-      Tennis.create_team!(%{
-        name: "Team Alpha",
-        team_type_id: tt.id,
-        season_year: 2026,
-        is_pseudo: false
-      })
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-      {:ok, teams} = Tennis.list_teams_for_context(tt.id, 2026)
-      real_team = Enum.find(teams, &(not &1.is_pseudo))
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       html =
         render_click(view, "move_player", %{
           "player_id" => player.id,
-          "target_id" => real_team.id
+          "target_id" => team.id
         })
 
       assert html =~ "Team Alpha"
-      # player card should now be in team column, not unassigned
-      assert has_element?(view, "#col-#{real_team.id} #player-#{player.id}")
+      assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
     test "moving player to Unassigned removes their membership", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Carol Player"})
+      tt = Factory.team_type()
+      player = Factory.player(name: "Carol Player")
+      team = Factory.team(team_type: tt, name: "Team B")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team B",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       render_click(view, "move_player", %{
         "player_id" => player.id,
@@ -138,11 +83,12 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     end
 
     test "moving player to Not Participating places them in that column", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Dave Player"})
+      tt = Factory.team_type()
+      player = Factory.player(name: "Dave Player")
+      year = Date.utc_today().year
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-      {:ok, pseudo} = Tennis.ensure_pseudo_team(tt.id, 2026)
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{year}")
+      {:ok, pseudo} = Tennis.ensure_pseudo_team(tt.id, year)
 
       render_click(view, "move_player", %{
         "player_id" => player.id,
@@ -160,9 +106,9 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "player detail modal" do
     test "clicking a player card shows the player detail modal", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Modal Player"})
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type()
+      player = Factory.player(name: "Modal Player")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       render_click(view, "select_player", %{"player_id" => player.id})
 
@@ -170,21 +116,21 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     end
 
     test "player detail modal shows the player's name", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Named Player"})
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type()
+      player = Factory.player(name: "Named Player")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       render_click(view, "select_player", %{"player_id" => player.id})
 
-      assert has_element?(view, "h3", "Named Player")
+      assert has_element?(view, "h3", player.name)
     end
 
     test "player detail modal contains a View profile link to the player's show page", %{
       conn: conn
     } do
-      tt = create_team_type()
-      player = create_player(%{name: "Profile Player"})
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type()
+      player = Factory.player(name: "Profile Player")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       render_click(view, "select_player", %{"player_id" => player.id})
 
@@ -192,9 +138,9 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     end
 
     test "firing deselect_player closes the modal", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Deselect Player"})
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      tt = Factory.team_type()
+      player = Factory.player(name: "Deselect Player")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       render_click(view, "select_player", %{"player_id" => player.id})
       assert has_element?(view, "a[href='/players/#{player.id}']")
@@ -204,18 +150,11 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     end
 
     test "firing move_player closes the modal", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Move Player"})
+      tt = Factory.team_type()
+      player = Factory.player(name: "Move Player")
+      team = Factory.team(team_type: tt, name: "Team Modal")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team Modal",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       render_click(view, "select_player", %{"player_id" => player.id})
       assert has_element?(view, "a[href='/players/#{player.id}']")
@@ -235,87 +174,51 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "health indicators" do
     test "warning shown when team is below minimum roster size", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
+      Factory.season_rules(team_type: tt, min_roster: 4, max_roster: 10)
+      player = Factory.player(name: "Eve Player", ntrp_rating: Decimal.new("3.5"))
+      team = Factory.team(team_type: tt, name: "Small Team")
 
-      create_season_rules(tt, %{
-        min_roster: 4,
-        max_roster: 10,
-        on_level_min_pct: Decimal.new("0.60")
-      })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      player = create_player(%{name: "Eve Player", ntrp_rating: Decimal.new("3.5")})
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Small Team",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
-
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-
-      # 1 player, min is 4 — should show a below_min warning
       assert html =~ "minimum"
     end
 
     test "warning icon shown for player with invalid NTRP on this team", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
       # 4.5 is not in allowed_ntrp_levels for a 3.5 team
-      player = create_player(%{name: "Frank Player", ntrp_rating: Decimal.new("4.5")})
+      player = Factory.player(name: "Frank Player", ntrp_rating: Decimal.new("4.5"))
+      team = Factory.team(team_type: tt, name: "Team C")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team C",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-
-      # Player card should have the warning indicator when NTRP is invalid
       assert has_element?(view, "#player-#{player.id} span.sr-only", "Rating issue")
     end
 
     test "caution shown for unrated player on a team", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Grace Player"})
+      tt = Factory.team_type()
+      player = Factory.player(traits: [:unrated], name: "Grace Player")
+      team = Factory.team(team_type: tt, name: "Team D")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team D",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       assert html =~ "?"
     end
 
     test "no rule violations shown when no season rules exist", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Henry Player", ntrp_rating: Decimal.new("3.5")})
+      tt = Factory.team_type()
+      player = Factory.player(name: "Henry Player", ntrp_rating: Decimal.new("3.5"))
+      team = Factory.team(team_type: tt, name: "Team E")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team E",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, _view, html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       refute html =~ "minimum"
       refute html =~ "maximum"
@@ -329,77 +232,48 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "eligibility filtering" do
     test "eligible player with matching NTRP appears in Unassigned", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
+      player = Factory.player(name: "Alex Eligible", ntrp_rating: Decimal.new("3.5"))
 
-      player =
-        create_player(%{
-          name: "Alex Eligible",
-          ntrp_rating: Decimal.new("3.5"),
-          eligible_18_plus: true
-        })
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
     test "over-rated player is excluded from Unassigned", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
       # 4.0 is not in allowed_ntrp_levels [3.0, 3.5] for this team type
-      player =
-        create_player(%{
-          name: "Zara Overrated",
-          ntrp_rating: Decimal.new("4.0"),
-          eligible_18_plus: true
-        })
+      player = Factory.player(name: "Zara Overrated", ntrp_rating: Decimal.new("4.0"))
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
     test "under-rated player is excluded from Unassigned", %{conn: conn} do
-      tt =
-        create_team_type(%{
-          name: "18+ 4.0",
-          age_group: "18_plus",
-          ntrp_level: Decimal.new("4.0"),
-          allowed_ntrp_levels: [Decimal.new("3.5"), Decimal.new("4.0")]
-        })
-
+      tt = Factory.team_type(traits: [:_40], name: "18+ 4.0")
       # 3.0 is below the 4.0 team's allowed levels
-      player =
-        create_player(%{
-          name: "Ben Underrated",
-          ntrp_rating: Decimal.new("3.0"),
-          eligible_18_plus: true
-        })
+      player = Factory.player(name: "Ben Underrated", ntrp_rating: Decimal.new("3.0"))
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
     test "nil-rated age-eligible player appears in Unassigned", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Cam Unrated", ntrp_rating: nil, eligible_18_plus: true})
+      tt = Factory.team_type()
+      player = Factory.player(traits: [:unrated], name: "Cam Unrated")
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
     test "age-ineligible player is excluded from Unassigned", %{conn: conn} do
-      tt = create_team_type()
-      # eligible_18_plus: false means they can't play on 18+ teams
-      player =
-        create_player(%{
-          name: "Dana Ineligible",
-          ntrp_rating: Decimal.new("3.5"),
-          eligible_18_plus: false
-        })
+      tt = Factory.team_type()
+      player = Factory.player(traits: [:ineligible], name: "Dana Ineligible")
 
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
     end
@@ -407,26 +281,14 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     test "ineligible player already assigned to a team still appears in their team column", %{
       conn: conn
     } do
-      tt = create_team_type()
+      tt = Factory.team_type()
       # 4.5 is not in allowed_ntrp_levels for this 3.5 team type
-      player =
-        create_player(%{
-          name: "Eve Assigned",
-          ntrp_rating: Decimal.new("4.5"),
-          eligible_18_plus: true
-        })
+      player = Factory.player(name: "Eve Assigned", ntrp_rating: Decimal.new("4.5"))
+      team = Factory.team(team_type: tt, name: "Team Ineligible")
 
-      team =
-        Tennis.create_team!(%{
-          name: "Team Ineligible",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
@@ -439,26 +301,13 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "delete team" do
     test "deleting a team returns its players to Unassigned", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
+      player = Factory.player(name: "Frank Deleted", ntrp_rating: Decimal.new("3.5"))
+      team = Factory.team(team_type: tt, name: "Doomed Team")
 
-      player =
-        create_player(%{
-          name: "Frank Deleted",
-          ntrp_rating: Decimal.new("3.5"),
-          eligible_18_plus: true
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      team =
-        Tennis.create_team!(%{
-          name: "Doomed Team",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
-
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
 
@@ -471,26 +320,13 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
     end
 
     test "cancelling delete leaves the team intact", %{conn: conn} do
-      tt = create_team_type()
+      tt = Factory.team_type()
+      player = Factory.player(name: "Grace Survives", ntrp_rating: Decimal.new("3.5"))
+      team = Factory.team(team_type: tt, name: "Surviving Team")
 
-      player =
-        create_player(%{
-          name: "Grace Survives",
-          ntrp_rating: Decimal.new("3.5"),
-          eligible_18_plus: true
-        })
+      Tennis.assign_player(player.id, team.id, tt.id, team.season_year)
 
-      team =
-        Tennis.create_team!(%{
-          name: "Surviving Team",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
-
-      Tennis.assign_player(player.id, team.id, tt.id, 2026)
-
-      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       render_click(view, "open_team_modal", %{"mode" => "delete", "team_id" => team.id})
       render_click(view, "close_team_modal", %{})
@@ -505,20 +341,13 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
   describe "PubSub real-time sync" do
     test "a move made in one session is reflected in another", %{conn: conn} do
-      tt = create_team_type()
-      player = create_player(%{name: "Ivan Player"})
-
-      team =
-        Tennis.create_team!(%{
-          name: "Team F",
-          team_type_id: tt.id,
-          season_year: 2026,
-          is_pseudo: false
-        })
+      tt = Factory.team_type()
+      player = Factory.player(name: "Ivan Player")
+      team = Factory.team(team_type: tt, name: "Team F")
 
       # Two separate LiveView connections to the same board
-      {:ok, view1, _} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
-      {:ok, view2, _} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
+      {:ok, view1, _} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
+      {:ok, view2, _} = live(conn, ~p"/roster-planner/#{tt.id}/#{team.season_year}")
 
       # Move player in view1
       render_click(view1, "move_player", %{
@@ -530,7 +359,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       # view2 should reflect the change
       html2 = render(view2)
       assert has_element?(view2, "#col-#{team.id} #player-#{player.id}")
-      assert html2 =~ "Ivan Player"
+      assert html2 =~ player.name
     end
   end
 end

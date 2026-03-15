@@ -19,6 +19,7 @@ defmodule TennisTracker.DataCase do
   using do
     quote do
       alias TennisTracker.Repo
+      alias TennisTracker.Factory
 
       import Ecto
       import Ecto.Changeset

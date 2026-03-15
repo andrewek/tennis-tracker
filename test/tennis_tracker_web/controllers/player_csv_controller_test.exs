@@ -1,19 +1,6 @@
 defmodule TennisTrackerWeb.PlayerCSVControllerTest do
   use TennisTrackerWeb.ConnCase, async: true
 
-  alias TennisTracker.Tennis
-
-  defp create_player(attrs) do
-    defaults = %{
-      name: "Player",
-      eligible_18_plus: true,
-      eligible_40_plus: false,
-      eligible_55_plus: false
-    }
-
-    Tennis.create_player!(Map.merge(defaults, attrs))
-  end
-
   defp parse_csv(body) do
     [header | rows] = String.split(String.trim(body), "\n")
     headers = String.split(header, ",")
@@ -47,8 +34,8 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
     end
 
     test "returns all players when no filters", %{conn: conn} do
-      create_player(%{name: "Alice", ntrp_rating: "3.5"})
-      create_player(%{name: "Bob", ntrp_rating: "4.0"})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("4.0"))
 
       conn = get(conn, ~p"/players/export.csv")
       rows = parse_csv(conn.resp_body)
@@ -59,7 +46,7 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
     end
 
     test "returns only header row when no players match filters", %{conn: conn} do
-      create_player(%{name: "Alice", ntrp_rating: "3.5"})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"))
 
       conn = get(conn, ~p"/players/export.csv?ntrp=4.0")
       rows = parse_csv(conn.resp_body)
@@ -68,9 +55,9 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
     end
 
     test "filters by NTRP and bracket", %{conn: conn} do
-      create_player(%{name: "Alice", ntrp_rating: "3.5", eligible_55_plus: true})
-      create_player(%{name: "Bob", ntrp_rating: "4.0", eligible_55_plus: true})
-      create_player(%{name: "Carol", ntrp_rating: "3.5", eligible_55_plus: false})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"), eligible_55_plus: true)
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("4.0"), eligible_55_plus: true)
+      Factory.player(name: "Carol", ntrp_rating: Decimal.new("3.5"))
 
       conn = get(conn, ~p"/players/export.csv?ntrp=3.5,4.0&bracket=55")
       rows = parse_csv(conn.resp_body)
@@ -82,9 +69,9 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
     end
 
     test "rows are sorted by name ascending", %{conn: conn} do
-      create_player(%{name: "Zelda"})
-      create_player(%{name: "Alice"})
-      create_player(%{name: "Mike"})
+      Factory.player(name: "Zelda")
+      Factory.player(name: "Alice")
+      Factory.player(name: "Mike")
 
       conn = get(conn, ~p"/players/export.csv")
       rows = parse_csv(conn.resp_body)

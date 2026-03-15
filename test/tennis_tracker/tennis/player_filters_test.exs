@@ -1,19 +1,7 @@
 defmodule TennisTracker.Tennis.PlayerFiltersTest do
   use TennisTracker.DataCase, async: true
 
-  alias TennisTracker.Tennis
   alias TennisTracker.Tennis.PlayerFilters
-
-  defp create_player(attrs) do
-    defaults = %{
-      name: "Player",
-      eligible_18_plus: true,
-      eligible_40_plus: false,
-      eligible_55_plus: false
-    }
-
-    Tennis.create_player!(Map.merge(defaults, attrs))
-  end
 
   describe "parse_list_param/1" do
     test "returns [] for nil" do
@@ -35,8 +23,8 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
 
   describe "fetch_players/3" do
     test "returns all players when no filters" do
-      create_player(%{name: "Alice", ntrp_rating: "3.5"})
-      create_player(%{name: "Bob", ntrp_rating: "4.0"})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("4.0"))
 
       players = PlayerFilters.fetch_players("", [], [])
       names = Enum.map(players, & &1.name)
@@ -46,8 +34,8 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "filters by name (case-insensitive partial match)" do
-      create_player(%{name: "Alice Smith"})
-      create_player(%{name: "Bob Jones"})
+      Factory.player(name: "Alice Smith")
+      Factory.player(name: "Bob Jones")
 
       players = PlayerFilters.fetch_players("smith", [], [])
       assert length(players) == 1
@@ -55,9 +43,9 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "filters by NTRP rating" do
-      create_player(%{name: "Alice", ntrp_rating: "3.5"})
-      create_player(%{name: "Bob", ntrp_rating: "4.0"})
-      create_player(%{name: "Carol", ntrp_rating: "4.5"})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(name: "Carol", ntrp_rating: Decimal.new("4.5"))
 
       players = PlayerFilters.fetch_players("", ["3.5", "4.0"], [])
       names = Enum.map(players, & &1.name)
@@ -68,8 +56,8 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "filters by age bracket (55+)" do
-      create_player(%{name: "Alice", eligible_55_plus: true})
-      create_player(%{name: "Bob", eligible_55_plus: false})
+      Factory.player(name: "Alice", traits: [:eligible_55_plus])
+      Factory.player(name: "Bob")
 
       players = PlayerFilters.fetch_players("", [], ["55"])
       assert length(players) == 1
@@ -77,9 +65,9 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "filters by combined NTRP and bracket" do
-      create_player(%{name: "Alice", ntrp_rating: "3.5", eligible_55_plus: true})
-      create_player(%{name: "Bob", ntrp_rating: "4.0", eligible_55_plus: true})
-      create_player(%{name: "Carol", ntrp_rating: "3.5", eligible_55_plus: false})
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("3.5"), eligible_55_plus: true)
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("4.0"), eligible_55_plus: true)
+      Factory.player(name: "Carol", ntrp_rating: Decimal.new("3.5"))
 
       players = PlayerFilters.fetch_players("", ["3.5", "4.0"], ["55"])
       names = Enum.map(players, & &1.name)
@@ -90,11 +78,11 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "returns players sorted by NTRP descending then name ascending, unrated last" do
-      create_player(%{name: "Zelda", ntrp_rating: "3.5"})
-      create_player(%{name: "Alice", ntrp_rating: "4.0"})
-      create_player(%{name: "Mike", ntrp_rating: "4.0"})
-      create_player(%{name: "Bob", ntrp_rating: "3.0"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Zelda", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(name: "Mike", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("3.0"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       players = PlayerFilters.fetch_players("", [], [])
       names = Enum.map(players, & &1.name)
@@ -103,10 +91,10 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "returns players sorted by NTRP ascending then name ascending, unrated first" do
-      create_player(%{name: "Zelda", ntrp_rating: "3.5"})
-      create_player(%{name: "Alice", ntrp_rating: "4.0"})
-      create_player(%{name: "Bob", ntrp_rating: "3.0"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Zelda", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Alice", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(name: "Bob", ntrp_rating: Decimal.new("3.0"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       players = PlayerFilters.fetch_players("", [], [], :asc_nils_first)
       names = Enum.map(players, & &1.name)
@@ -115,8 +103,8 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "filters to only unrated players when ntrp_filter is [\"none\"]" do
-      create_player(%{name: "Rated", ntrp_rating: "3.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       players = PlayerFilters.fetch_players("", ["none"], [])
       names = Enum.map(players, & &1.name)
@@ -125,9 +113,9 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "includes unrated players alongside rated when \"none\" is combined with rated values" do
-      create_player(%{name: "Rated35", ntrp_rating: "3.5"})
-      create_player(%{name: "Rated40", ntrp_rating: "4.0"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated35", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(name: "Rated40", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       players = PlayerFilters.fetch_players("", ["3.5", "none"], [])
       names = Enum.map(players, & &1.name)
@@ -138,8 +126,8 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
     end
 
     test "excludes unrated players when only rated NTRP values are selected" do
-      create_player(%{name: "Rated", ntrp_rating: "3.5"})
-      create_player(%{name: "Unrated"})
+      Factory.player(name: "Rated", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(traits: [:unrated], name: "Unrated")
 
       players = PlayerFilters.fetch_players("", ["3.5"], [])
       names = Enum.map(players, & &1.name)
