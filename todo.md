@@ -11,9 +11,6 @@ In no particular order. Crossed out when done.
    tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
    to be able to interact with it, or do I have to _just_ interact with it in the
    browser?
-1. Introduce a test factory (e.g. ExMachina) to replace the repetitive inline
-   fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
-   that are duplicated across test files.
 1. A corresponding auth story is something like "Only members of the team can
    see the lineups"
 1. I'd also like to get the AshAI plugin working
@@ -60,3 +57,6 @@ In no particular order. Crossed out when done.
 1. ~We need user accounts and some basic authentication / authorization. Along
    with this, we'll need to add an email client of some sort for things like
    password resets.~
+1. ~Introduce a test factory (e.g. ExMachina) to replace the repetitive inline
+   fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
+   that are duplicated across test files.~
