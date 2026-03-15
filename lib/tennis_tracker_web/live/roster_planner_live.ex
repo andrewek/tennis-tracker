@@ -23,9 +23,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     |> assign(:context, nil)
     |> assign(:board, nil)
     |> assign(:season_year_input, "2026")
-    |> assign(:selected_team_type_id, nil)
-    |> assign(:selected_player, nil)
-    |> assign(:selected_player_team, nil)
+    |> assign(:selection, nil)
     |> assign(:team_modal, nil)
     |> assign(:show_season_rules, false)
     |> ok()
@@ -116,20 +114,16 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("select_player", %{"player_id" => player_id}, socket) do
-    board = socket.assigns.board
-    player = find_player_in_board(board, player_id)
-    team = find_player_team(board, player_id)
+    {player, team} = find_player_with_team(socket.assigns.board, player_id)
 
     socket
-    |> assign(:selected_player, player)
-    |> assign(:selected_player_team, team)
+    |> assign(:selection, %{player: player, team: team})
     |> noreply()
   end
 
   def handle_event("deselect_player", _params, socket) do
     socket
-    |> assign(:selected_player, nil)
-    |> assign(:selected_player_team, nil)
+    |> assign(:selection, nil)
     |> noreply()
   end
 
@@ -146,8 +140,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
     socket
-    |> assign(:selected_player, nil)
-    |> assign(:selected_player_team, nil)
+    |> assign(:selection, nil)
     |> noreply()
   end
 
@@ -160,8 +153,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
     socket
-    |> assign(:selected_player, nil)
-    |> assign(:selected_player_team, nil)
+    |> assign(:selection, nil)
     |> noreply()
   end
 
@@ -235,18 +227,18 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ctx = socket.assigns.context
     modal = socket.assigns.team_modal
 
-    extra_params =
+    params =
       if modal.mode == :create do
-        %{
+        Map.merge(params, %{
           "team_type_id" => ctx.team_type_id,
           "season_year" => ctx.season_year,
           "is_pseudo" => false
-        }
+        })
       else
-        %{}
+        params
       end
 
-    case Form.submit(modal.form.source, params: Map.merge(params, extra_params)) do
+    case Form.submit(modal.form.source, params: params) do
       {:ok, _team} ->
         socket
         |> assign(:team_modal, nil)
@@ -264,16 +256,12 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ctx = socket.assigns.context
 
     team =
-      socket.assigns.board.real_teams
-      |> Enum.find(&(&1.team.id == team_id))
-      |> then(fn
+      case Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id)) do
         nil -> nil
         entry -> entry.team
-      end)
+      end
 
-    if team do
-      Tennis.delete_team(team)
-    end
+    if team, do: Tennis.delete_team(team)
 
     socket
     |> assign(:team_modal, nil)
@@ -303,29 +291,23 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   defp topic(team_type_id, season_year), do: "roster:#{team_type_id}:#{season_year}"
 
-  defp find_player_in_board(board, player_id) do
-    all_players =
-      board.unassigned ++
-        board.not_participating ++
-        Enum.flat_map(board.real_teams, & &1.players)
-
-    Enum.find(all_players, &(&1.id == player_id))
-  end
-
-  defp find_player_team(board, player_id) do
+  defp find_player_with_team(board, player_id) do
     cond do
-      Enum.any?(board.unassigned, &(&1.id == player_id)) ->
-        "Unassigned"
+      player = Enum.find(board.unassigned, &(&1.id == player_id)) ->
+        {player, "Unassigned"}
 
-      Enum.any?(board.not_participating, &(&1.id == player_id)) ->
-        "Not Participating"
+      player = Enum.find(board.not_participating, &(&1.id == player_id)) ->
+        {player, "Not Participating"}
 
       true ->
         case Enum.find(board.real_teams, fn %{players: players} ->
                Enum.any?(players, &(&1.id == player_id))
              end) do
-          %{team: team} -> team.name
-          nil -> nil
+          %{team: team, players: players} ->
+            {Enum.find(players, &(&1.id == player_id)), team.name}
+
+          nil ->
+            {nil, nil}
         end
     end
   end
@@ -393,6 +375,41 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   end
 
   # ---------------------------------------------------------------------------
+  # Private components
+  # ---------------------------------------------------------------------------
+
+  attr :form, :map, required: true
+  attr :submit_label, :string, required: true
+  attr :placeholder, :string, default: nil
+
+  defp team_name_form(assigns) do
+    ~H"""
+    <.form for={@form} phx-change="validate_team_form" phx-submit="submit_team_form">
+      <div class="mb-4">
+        <label class="label py-0 mb-1">
+          <span class="label-text">Team Name</span>
+        </label>
+        <input
+          type="text"
+          name={@form[:name].name}
+          value={Phoenix.HTML.Form.input_value(@form, :name)}
+          placeholder={@placeholder}
+          autofocus
+          class={["input input-bordered w-full", @form[:name].errors != [] && "input-error"]}
+        />
+        <p :for={error <- @form[:name].errors} class="text-error text-xs mt-1">
+          {elem(error, 0)}
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary flex-1">{@submit_label}</button>
+        <button type="button" phx-click="close_team_modal" class="btn btn-ghost">Cancel</button>
+      </div>
+    </.form>
+    """
+  end
+
+  # ---------------------------------------------------------------------------
   # Render
   # ---------------------------------------------------------------------------
 
@@ -400,372 +417,324 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     ~H"""
     <Layouts.full_bleed flash={@flash} current_user={@current_user}>
       <div class="h-full flex flex-col">
-      <%!-- Page title bar --%>
-      <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
-        <span class="font-bold text-lg">Roster Planner</span>
-        <span :if={@context} class="text-base-content/50 text-sm">
-          {@context.team_type.name} · {@context.season_year}
-        </span>
-        <button
-          :if={@context}
-          phx-click="show_season_rules"
-          class="btn btn-xs btn-ghost btn-circle text-base-content/50 hover:text-base-content"
-          aria-label="View season rules"
-        >
-          <.icon name="hero-information-circle" class="size-4" />
-        </button>
-      </div>
-
-      <%!-- Context selector (shown when no context loaded) --%>
-      <div :if={is_nil(@context)} class="px-4">
-        <p class="text-base-content/60 text-sm mb-6">
-          Select a planning session to continue, or start a new one.
-        </p>
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <%!-- Existing context cards --%>
-          <.link
-            :for={ctx <- @planning_contexts}
-            navigate={~p"/roster-planner/#{ctx.team_type_id}/#{ctx.season_year}"}
-            class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
+        <%!-- Page title bar --%>
+        <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
+          <span class="font-bold text-lg">Roster Planner</span>
+          <span :if={@context} class="text-base-content/50 text-sm">
+            {@context.team_type.name} · {@context.season_year}
+          </span>
+          <button
+            :if={@context}
+            phx-click="show_season_rules"
+            class="btn btn-xs btn-ghost btn-circle text-base-content/50 hover:text-base-content"
+            aria-label="View season rules"
           >
-            <div class="card-body p-4">
-              <p class="font-semibold text-sm">{ctx.team_type.name}</p>
-              <p class="text-xs text-base-content/50">{ctx.season_year}</p>
-            </div>
-          </.link>
-
-          <%!-- New session card — collapsed --%>
-          <div
-            :if={not @show_create_form}
-            phx-click="show_create_form"
-            class="card border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer"
-          >
-            <div class="card-body p-4 items-center justify-center text-center">
-              <span class="text-2xl text-base-content/30 leading-none">+</span>
-              <p class="text-xs text-base-content/50 mt-1">New session</p>
-            </div>
-          </div>
-
-          <%!-- New session card — expanded with form --%>
-          <div
-            :if={@show_create_form}
-            class="card bg-base-200 border-2 border-primary col-span-2"
-          >
-            <div class="card-body p-4">
-              <p class="font-semibold text-sm mb-3">New Planning Session</p>
-              <form phx-submit="select_context" class="space-y-3">
-                <div>
-                  <label class="label py-0 mb-1">
-                    <span class="label-text text-xs">Team Type</span>
-                  </label>
-                  <select name="team_type_id" class="select select-bordered select-sm w-full" required>
-                    <option value="">Select...</option>
-                    <%= for tt <- @team_types do %>
-                      <option value={tt.id}>{tt.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div>
-                  <label class="label py-0 mb-1">
-                    <span class="label-text text-xs">Season Year</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="season_year"
-                    value={@season_year_input}
-                    min="2020"
-                    max="2040"
-                    class="input input-bordered input-sm w-full"
-                    required
-                  />
-                </div>
-                <div class="flex gap-2 pt-1">
-                  <button type="submit" class="btn btn-primary btn-sm flex-1">Open</button>
-                  <button type="button" phx-click="hide_create_form" class="btn btn-ghost btn-sm">
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Planning board --%>
-      <div :if={@board} class="flex-1 min-h-0 flex flex-col">
-        <%!-- Board toolbar --%>
-        <div class="flex items-center gap-6 mb-4 px-4 flex-shrink-0">
-          <.link navigate={~p"/roster-planner"} class="btn btn-sm btn-ghost">
-            <.icon name="hero-arrow-left" class="size-4" /> Change context
-          </.link>
+            <.icon name="hero-information-circle" class="size-4" />
+          </button>
         </div>
 
-        <%!-- Board columns --%>
-        <div class="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-4 px-4 items-stretch">
-          <%!-- Unassigned column --%>
-          <.board_column
-            id="col-unassigned"
-            title="Unassigned"
-            count={length(@board.unassigned)}
-            target_id="unassigned"
-            violations={[]}
-          >
-            <.player_card
-              :for={player <- @board.unassigned}
-              player={player}
-              has_violation={false}
-              selected={@selected_player != nil && @selected_player.id == player.id}
-            />
-          </.board_column>
-
-          <%!-- Real team columns --%>
-          <%= for %{team: team, players: players, team_violations: violations, player_violation_ids: violation_ids} <- @board.real_teams do %>
-            <.board_column
-              id={"col-#{team.id}"}
-              title={team.name}
-              count={length(players)}
-              target_id={team.id}
-              violations={violations}
+        <%!-- Context selector (shown when no context loaded) --%>
+        <div :if={is_nil(@context)} class="px-4">
+          <p class="text-base-content/60 text-sm mb-6">
+            Select a planning session to continue, or start a new one.
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <%!-- Existing context cards --%>
+            <.link
+              :for={ctx <- @planning_contexts}
+              navigate={~p"/roster-planner/#{ctx.team_type_id}/#{ctx.season_year}"}
+              class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
             >
-              <:header_actions>
-                <button
-                  :if={is_nil(@team_modal)}
-                  phx-click="open_team_modal"
-                  phx-value-mode="edit"
-                  phx-value-team_id={team.id}
-                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
-                  aria-label="Rename team"
-                >
-                  <.icon name="hero-pencil-square" class="size-3.5" />
-                  <span class="sr-only">Rename team</span>
-                </button>
-                <button
-                  :if={is_nil(@team_modal)}
-                  phx-click="open_team_modal"
-                  phx-value-mode="delete"
-                  phx-value-team_id={team.id}
-                  class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
-                  aria-label="Delete team"
-                >
-                  <.icon name="hero-trash" class="size-3.5" />
-                  <span class="sr-only">Delete team</span>
-                </button>
-              </:header_actions>
+              <div class="card-body p-4">
+                <p class="font-semibold text-sm">{ctx.team_type.name}</p>
+                <p class="text-xs text-base-content/50">{ctx.season_year}</p>
+              </div>
+            </.link>
+
+            <%!-- New session card — collapsed --%>
+            <div
+              :if={not @show_create_form}
+              phx-click="show_create_form"
+              class="card border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer"
+            >
+              <div class="card-body p-4 items-center justify-center text-center">
+                <span class="text-2xl text-base-content/30 leading-none">+</span>
+                <p class="text-xs text-base-content/50 mt-1">New session</p>
+              </div>
+            </div>
+
+            <%!-- New session card — expanded with form --%>
+            <div
+              :if={@show_create_form}
+              class="card bg-base-200 border-2 border-primary col-span-2"
+            >
+              <div class="card-body p-4">
+                <p class="font-semibold text-sm mb-3">New Planning Session</p>
+                <form phx-submit="select_context" class="space-y-3">
+                  <div>
+                    <label class="label py-0 mb-1">
+                      <span class="label-text text-xs">Team Type</span>
+                    </label>
+                    <select
+                      name="team_type_id"
+                      class="select select-bordered select-sm w-full"
+                      required
+                    >
+                      <option value="">Select...</option>
+                      <%= for tt <- @team_types do %>
+                        <option value={tt.id}>{tt.name}</option>
+                      <% end %>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="label py-0 mb-1">
+                      <span class="label-text text-xs">Season Year</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="season_year"
+                      value={@season_year_input}
+                      min="2020"
+                      max="2040"
+                      class="input input-bordered input-sm w-full"
+                      required
+                    />
+                  </div>
+                  <div class="flex gap-2 pt-1">
+                    <button type="submit" class="btn btn-primary btn-sm flex-1">Open</button>
+                    <button type="button" phx-click="hide_create_form" class="btn btn-ghost btn-sm">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Planning board --%>
+        <div :if={@board} class="flex-1 min-h-0 flex flex-col">
+          <%!-- Board toolbar --%>
+          <div class="flex items-center gap-6 mb-4 px-4 flex-shrink-0">
+            <.link navigate={~p"/roster-planner"} class="btn btn-sm btn-ghost">
+              <.icon name="hero-arrow-left" class="size-4" /> Change context
+            </.link>
+          </div>
+
+          <%!-- Board columns --%>
+          <div class="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-4 px-4 items-stretch">
+            <%!-- Unassigned column --%>
+            <.board_column
+              id="col-unassigned"
+              title="Unassigned"
+              count={length(@board.unassigned)}
+              target_id="unassigned"
+              violations={[]}
+            >
               <.player_card
-                :for={player <- players}
+                :for={player <- @board.unassigned}
                 player={player}
-                has_violation={MapSet.member?(violation_ids, player.id)}
-                selected={@selected_player != nil && @selected_player.id == player.id}
+                has_violation={false}
+                selected={@selection != nil && @selection.player.id == player.id}
               />
             </.board_column>
-          <% end %>
 
-          <%!-- Not Participating column --%>
-          <.board_column
-            id={"col-#{@board.pseudo_team.id}"}
-            title="Not Participating"
-            count={length(@board.not_participating)}
-            target_id={@board.pseudo_team.id}
-            violations={[]}
-          >
-            <.player_card
-              :for={player <- @board.not_participating}
-              player={player}
-              has_violation={false}
-              selected={@selected_player != nil && @selected_player.id == player.id}
-            />
-          </.board_column>
+            <%!-- Real team columns --%>
+            <%= for %{team: team, players: players, team_violations: violations, player_violation_ids: violation_ids} <- @board.real_teams do %>
+              <.board_column
+                id={"col-#{team.id}"}
+                title={team.name}
+                count={length(players)}
+                target_id={team.id}
+                violations={violations}
+              >
+                <:header_actions>
+                  <button
+                    :if={is_nil(@team_modal)}
+                    phx-click="open_team_modal"
+                    phx-value-mode="edit"
+                    phx-value-team_id={team.id}
+                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
+                    aria-label="Rename team"
+                  >
+                    <.icon name="hero-pencil-square" class="size-3.5" />
+                    <span class="sr-only">Rename team</span>
+                  </button>
+                  <button
+                    :if={is_nil(@team_modal)}
+                    phx-click="open_team_modal"
+                    phx-value-mode="delete"
+                    phx-value-team_id={team.id}
+                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
+                    aria-label="Delete team"
+                  >
+                    <.icon name="hero-trash" class="size-3.5" />
+                    <span class="sr-only">Delete team</span>
+                  </button>
+                </:header_actions>
+                <.player_card
+                  :for={player <- players}
+                  player={player}
+                  has_violation={MapSet.member?(violation_ids, player.id)}
+                  selected={@selection != nil && @selection.player.id == player.id}
+                />
+              </.board_column>
+            <% end %>
 
-          <%!-- New Team button --%>
-          <div
-            id="col-new-team"
-            phx-click="open_team_modal"
-            phx-value-mode="create"
-            class="flex-shrink-0 w-56 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer rounded-lg"
-          >
-            <div class="flex flex-col items-center justify-center text-center h-20">
-              <span class="text-2xl text-base-content/30 leading-none">+</span>
-              <p class="text-xs text-base-content/50 mt-1">New team</p>
+            <%!-- Not Participating column --%>
+            <.board_column
+              id={"col-#{@board.pseudo_team.id}"}
+              title="Not Participating"
+              count={length(@board.not_participating)}
+              target_id={@board.pseudo_team.id}
+              violations={[]}
+            >
+              <.player_card
+                :for={player <- @board.not_participating}
+                player={player}
+                has_violation={false}
+                selected={@selection != nil && @selection.player.id == player.id}
+              />
+            </.board_column>
+
+            <%!-- New Team button --%>
+            <div
+              id="col-new-team"
+              phx-click="open_team_modal"
+              phx-value-mode="create"
+              class="flex-shrink-0 w-56 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer rounded-lg"
+            >
+              <div class="flex flex-col items-center justify-center text-center h-20">
+                <span class="text-2xl text-base-content/30 leading-none">+</span>
+                <p class="text-xs text-base-content/50 mt-1">New team</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <%!-- Mobile: destination picker modal --%>
-        <.player_detail_modal :if={@selected_player} player={@selected_player} current_team={@selected_player_team}>
-          <:actions>
-            <button
-              phx-click="move_player"
-              phx-value-player_id={@selected_player.id}
-              phx-value-target_id="unassigned"
-              class="btn btn-outline btn-sm w-full"
-            >
-              Unassigned
-            </button>
-            <button
-              :for={%{team: team} <- @board.real_teams}
-              phx-click="move_player"
-              phx-value-player_id={@selected_player.id}
-              phx-value-target_id={team.id}
-              class="btn btn-primary btn-sm w-full"
-            >
-              {team.name}
-            </button>
-            <button
-              phx-click="move_player"
-              phx-value-player_id={@selected_player.id}
-              phx-value-target_id={@board.pseudo_team.id}
-              class="btn btn-outline btn-secondary btn-sm w-full"
-            >
-              Not Participating
-            </button>
-          </:actions>
-        </.player_detail_modal>
+          <%!-- Mobile: destination picker modal --%>
+          <.player_detail_modal
+            :if={@selection}
+            player={@selection.player}
+            current_team={@selection.team}
+          >
+            <:actions>
+              <button
+                phx-click="move_player"
+                phx-value-player_id={@selection.player.id}
+                phx-value-target_id="unassigned"
+                class="btn btn-outline btn-sm w-full"
+              >
+                Unassigned
+              </button>
+              <button
+                :for={%{team: team} <- @board.real_teams}
+                phx-click="move_player"
+                phx-value-player_id={@selection.player.id}
+                phx-value-target_id={team.id}
+                class="btn btn-primary btn-sm w-full"
+              >
+                {team.name}
+              </button>
+              <button
+                phx-click="move_player"
+                phx-value-player_id={@selection.player.id}
+                phx-value-target_id={@board.pseudo_team.id}
+                class="btn btn-outline btn-secondary btn-sm w-full"
+              >
+                Not Participating
+              </button>
+            </:actions>
+          </.player_detail_modal>
 
-        <%!-- Team modal (create / edit / delete) --%>
-        <.modal
-          :if={@team_modal}
-          title={case @team_modal.mode do
-            :create -> "New Team"
-            :edit -> "Rename Team"
-            :delete -> "Delete Team"
-          end}
-          on_close={JS.push("close_team_modal")}
-        >
-          <%= cond do %>
-            <% @team_modal.mode == :create -> %>
-              <.form
-                for={@team_modal.form}
-                phx-change="validate_team_form"
-                phx-submit="submit_team_form"
-              >
-                <div class="mb-4">
-                  <label class="label py-0 mb-1">
-                    <span class="label-text">Team Name</span>
-                  </label>
-                  <input
-                    type="text"
-                    name={@team_modal.form[:name].name}
-                    value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
-                    placeholder="e.g. Team Alpha"
-                    autofocus
-                    class={[
-                      "input input-bordered w-full",
-                      @team_modal.form[:name].errors != [] && "input-error"
-                    ]}
-                  />
-                  <p
-                    :for={error <- @team_modal.form[:name].errors}
-                    class="text-error text-xs mt-1"
-                  >
-                    {elem(error, 0)}
-                  </p>
-                </div>
+          <%!-- Team modal (create / edit / delete) --%>
+          <.modal
+            :if={@team_modal}
+            title={
+              case @team_modal.mode do
+                :create -> "New Team"
+                :edit -> "Rename Team"
+                :delete -> "Delete Team"
+              end
+            }
+            on_close={JS.push("close_team_modal")}
+          >
+            <%= cond do %>
+              <% @team_modal.mode == :create -> %>
+                <.team_name_form
+                  form={@team_modal.form}
+                  submit_label="Create"
+                  placeholder="e.g. Team Alpha"
+                />
+              <% @team_modal.mode == :edit -> %>
+                <.team_name_form form={@team_modal.form} submit_label="Save" />
+              <% @team_modal.mode == :delete -> %>
+                <p class="text-sm text-base-content/70 mb-6">
+                  Delete <strong>{@team_modal.team.name}</strong>? All player assignments will be removed and those players will return to Unassigned. This cannot be undone.
+                </p>
                 <div class="flex gap-2">
-                  <button type="submit" class="btn btn-primary flex-1">Create</button>
-                  <button type="button" phx-click="close_team_modal" class="btn btn-ghost">
-                    Cancel
-                  </button>
-                </div>
-              </.form>
-            <% @team_modal.mode == :edit -> %>
-              <.form
-                for={@team_modal.form}
-                phx-change="validate_team_form"
-                phx-submit="submit_team_form"
-              >
-                <div class="mb-4">
-                  <label class="label py-0 mb-1">
-                    <span class="label-text">Team Name</span>
-                  </label>
-                  <input
-                    type="text"
-                    name={@team_modal.form[:name].name}
-                    value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
-                    autofocus
-                    class={[
-                      "input input-bordered w-full",
-                      @team_modal.form[:name].errors != [] && "input-error"
-                    ]}
-                  />
-                  <p
-                    :for={error <- @team_modal.form[:name].errors}
-                    class="text-error text-xs mt-1"
+                  <button
+                    phx-click="confirm_delete_team"
+                    phx-value-team_id={@team_modal.team.id}
+                    class="btn btn-error flex-1"
                   >
-                    {elem(error, 0)}
-                  </p>
-                </div>
-                <div class="flex gap-2">
-                  <button type="submit" class="btn btn-primary flex-1">Save</button>
-                  <button type="button" phx-click="close_team_modal" class="btn btn-ghost">
-                    Cancel
+                    Delete
                   </button>
+                  <button phx-click="close_team_modal" class="btn btn-ghost">Cancel</button>
                 </div>
-              </.form>
-            <% @team_modal.mode == :delete -> %>
-              <p class="text-sm text-base-content/70 mb-6">
-                Delete <strong>{@team_modal.team.name}</strong>? All player assignments will be removed and those players will return to Unassigned. This cannot be undone.
-              </p>
-              <div class="flex gap-2">
-                <button
-                  phx-click="confirm_delete_team"
-                  phx-value-team_id={@team_modal.team.id}
-                  class="btn btn-error flex-1"
-                >
-                  Delete
-                </button>
-                <button phx-click="close_team_modal" class="btn btn-ghost">Cancel</button>
+            <% end %>
+          </.modal>
+
+          <%!-- Season rules info modal --%>
+          <.modal
+            :if={@show_season_rules}
+            title="Season Rules"
+            on_close={JS.push("hide_season_rules")}
+            max_width="max-w-xs"
+          >
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">NTRP range</dt>
+                <dd class="font-medium">
+                  <%= cond do %>
+                    <% @context.team_type.allowed_ntrp_levels == [] -> %>
+                      N/A
+                    <% true -> %>
+                      {Enum.min(@context.team_type.allowed_ntrp_levels)} – {Enum.max(
+                        @context.team_type.allowed_ntrp_levels
+                      )}
+                  <% end %>
+                </dd>
               </div>
-          <% end %>
-        </.modal>
-        <%!-- Season rules info modal --%>
-        <.modal
-          :if={@show_season_rules}
-          title="Season Rules"
-          on_close={JS.push("hide_season_rules")}
-          max_width="max-w-xs"
-        >
-          <dl class="space-y-3 text-sm">
-            <div class="flex justify-between">
-              <dt class="text-base-content/60">NTRP range</dt>
-              <dd class="font-medium">
-                <%= cond do %>
-                  <% @context.team_type.allowed_ntrp_levels == [] -> %>
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">On-level minimum</dt>
+                <dd class="font-medium">
+                  <%= if @context.season_rules && @context.season_rules.on_level_min_pct do %>
+                    {Decimal.mult(@context.season_rules.on_level_min_pct, 100) |> Decimal.round(0)}%
+                  <% else %>
                     N/A
-                  <% true -> %>
-                    {Enum.min(@context.team_type.allowed_ntrp_levels)} – {Enum.max(@context.team_type.allowed_ntrp_levels)}
-                <% end %>
-              </dd>
-            </div>
-            <div class="flex justify-between">
-              <dt class="text-base-content/60">On-level minimum</dt>
-              <dd class="font-medium">
-                <%= if @context.season_rules && @context.season_rules.on_level_min_pct do %>
-                  {Decimal.mult(@context.season_rules.on_level_min_pct, 100) |> Decimal.round(0)}%
-                <% else %>
-                  N/A
-                <% end %>
-              </dd>
-            </div>
-            <div class="flex justify-between">
-              <dt class="text-base-content/60">Roster size</dt>
-              <dd class="font-medium">
-                <%= cond do %>
-                  <% @context.season_rules &&
+                  <% end %>
+                </dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-base-content/60">Roster size</dt>
+                <dd class="font-medium">
+                  <%= cond do %>
+                    <% @context.season_rules &&
                       @context.season_rules.min_roster &&
                       @context.season_rules.max_roster -> %>
-                    {@context.season_rules.min_roster} – {@context.season_rules.max_roster}
-                  <% @context.season_rules && @context.season_rules.min_roster -> %>
-                    {@context.season_rules.min_roster}+ players
-                  <% @context.season_rules && @context.season_rules.max_roster -> %>
-                    Up to {@context.season_rules.max_roster} players
-                  <% true -> %>
-                    N/A
-                <% end %>
-              </dd>
-            </div>
-          </dl>
-        </.modal>
-      </div>
+                      {@context.season_rules.min_roster} – {@context.season_rules.max_roster}
+                    <% @context.season_rules && @context.season_rules.min_roster -> %>
+                      {@context.season_rules.min_roster}+ players
+                    <% @context.season_rules && @context.season_rules.max_roster -> %>
+                      Up to {@context.season_rules.max_roster} players
+                    <% true -> %>
+                      N/A
+                  <% end %>
+                </dd>
+              </div>
+            </dl>
+          </.modal>
+        </div>
       </div>
     </Layouts.full_bleed>
     """

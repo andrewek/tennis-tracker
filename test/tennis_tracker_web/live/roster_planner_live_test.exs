@@ -166,7 +166,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       render_click(view, "select_player", %{"player_id" => player.id})
 
-      assert has_element?(view, "[data-player-modal]")
+      assert has_element?(view, "a[href='/players/#{player.id}']")
     end
 
     test "player detail modal shows the player's name", %{conn: conn} do
@@ -176,7 +176,7 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
 
       render_click(view, "select_player", %{"player_id" => player.id})
 
-      assert has_element?(view, "[data-player-modal]", "Named Player")
+      assert has_element?(view, "h3", "Named Player")
     end
 
     test "player detail modal contains a View profile link to the player's show page", %{
@@ -197,10 +197,10 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
 
       render_click(view, "select_player", %{"player_id" => player.id})
-      assert has_element?(view, "[data-player-modal]")
+      assert has_element?(view, "a[href='/players/#{player.id}']")
 
       render_click(view, "deselect_player", %{})
-      refute has_element?(view, "[data-player-modal]")
+      refute has_element?(view, "a[href='/players/#{player.id}']")
     end
 
     test "firing move_player closes the modal", %{conn: conn} do
@@ -218,14 +218,14 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       {:ok, view, _html} = live(conn, ~p"/roster-planner/#{tt.id}/2026")
 
       render_click(view, "select_player", %{"player_id" => player.id})
-      assert has_element?(view, "[data-player-modal]")
+      assert has_element?(view, "a[href='/players/#{player.id}']")
 
       render_click(view, "move_player", %{
         "player_id" => player.id,
         "target_id" => team.id
       })
 
-      refute has_element?(view, "[data-player-modal]")
+      refute has_element?(view, "a[href='/players/#{player.id}']")
     end
   end
 
