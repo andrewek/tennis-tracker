@@ -306,6 +306,68 @@ defmodule TennisTrackerWeb.CoreComponents do
   end
 
   @doc """
+  Renders a modal dialog with a title bar and close button.
+
+  ## Examples
+
+      <.modal title="Confirm Delete" on_close={JS.push("close_modal")}>
+        <p>Are you sure?</p>
+      </.modal>
+
+      <.modal title="Player" on_close={JS.push("deselect")} max_width="sm:max-w-sm" position={:bottom}>
+        <:subtitle>NTRP: 3.5</:subtitle>
+        ...
+      </.modal>
+  """
+  attr :title, :string, required: true
+  attr :on_close, :any, required: true, doc: "JS command to execute when the modal is dismissed"
+  attr :max_width, :string, default: "max-w-sm", doc: "Tailwind max-width class for the dialog"
+  attr :position, :atom, values: [:center, :bottom], default: :center
+
+  slot :subtitle
+  slot :inner_block, required: true
+
+  def modal(assigns) do
+    ~H"""
+    <div
+      class={[
+        "fixed inset-0 z-50 flex justify-center bg-black/40",
+        @position == :center && "items-center",
+        @position == :bottom && "items-end sm:items-center"
+      ]}
+      phx-click={@on_close}
+    >
+      <div
+        class={[
+          "bg-base-100 w-full p-6 shadow-xl",
+          @max_width,
+          @position == :center && "rounded-2xl",
+          @position == :bottom && "rounded-t-2xl sm:rounded-2xl"
+        ]}
+        phx-click-away={@on_close}
+      >
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="font-semibold text-lg">{@title}</h3>
+            <p :if={@subtitle != []} class="text-sm text-base-content/60 mt-0.5">
+              {render_slot(@subtitle)}
+            </p>
+          </div>
+          <button
+            phx-click={@on_close}
+            class="btn btn-xs btn-ghost btn-circle ml-2"
+            aria-label="Close"
+          >
+            <.icon name="hero-x-mark" class="size-4" />
+          </button>
+        </div>
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a header with title.
   """
   slot :inner_block, required: true

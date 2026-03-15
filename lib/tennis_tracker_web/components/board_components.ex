@@ -93,48 +93,30 @@ defmodule TennisTrackerWeb.BoardComponents do
   end
 
   attr :player, :map, required: true
+  attr :current_team, :string, default: nil
   slot :actions
 
   def player_detail_modal(assigns) do
     ~H"""
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
-      phx-click="deselect_player"
-      data-player-modal
+    <.modal
+      title={@player.name}
+      on_close={JS.push("deselect_player")}
+      max_width="sm:max-w-sm"
+      position={:bottom}
     >
-      <div
-        class="bg-base-100 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 shadow-xl"
-        phx-click-away="deselect_player"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <p class="font-semibold">{@player.name}</p>
-            <p :if={@player.ntrp_rating} class="text-sm text-base-content/60">
-              NTRP: {@player.ntrp_rating}
-            </p>
-          </div>
-          <button
-            phx-click="deselect_player"
-            class="btn btn-ghost btn-xs btn-circle"
-            aria-label="Close"
-          >
-            <.icon name="hero-x-mark" class="size-4" />
-          </button>
-        </div>
-        <div class="mb-3">
-          <.link navigate={~p"/players/#{@player.id}"} class="btn btn-ghost btn-sm w-full">
-            View profile
-          </.link>
-        </div>
-        <div :if={@actions != []} class="space-y-2">
-          {render_slot(@actions)}
-        </div>
-        <div class="divider my-2"></div>
-        <button phx-click="deselect_player" class="btn btn-ghost btn-sm w-full">
-          Cancel
-        </button>
+      <:subtitle :if={@player.ntrp_rating}>NTRP: {@player.ntrp_rating}</:subtitle>
+      <p :if={@current_team} class="text-xs text-base-content/50 mb-3">
+        Currently: {@current_team}
+      </p>
+      <div class="mb-3">
+        <.link navigate={~p"/players/#{@player.id}"} class="btn btn-ghost btn-sm w-full">
+          View profile
+        </.link>
       </div>
-    </div>
+      <div :if={@actions != []} class="space-y-2">
+        {render_slot(@actions)}
+      </div>
+    </.modal>
     """
   end
 end

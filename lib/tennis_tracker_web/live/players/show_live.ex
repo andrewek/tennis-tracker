@@ -7,6 +7,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
     socket
     |> assign(:player, nil)
     |> assign(:memberships, [])
+    |> assign(:show_delete_modal, false)
     |> ok()
   end
 
@@ -18,6 +19,14 @@ defmodule TennisTrackerWeb.Players.ShowLive do
     |> assign(:player, player)
     |> assign(:memberships, memberships)
     |> noreply()
+  end
+
+  def handle_event("show_delete_modal", _params, socket) do
+    socket |> assign(:show_delete_modal, true) |> noreply()
+  end
+
+  def handle_event("hide_delete_modal", _params, socket) do
+    socket |> assign(:show_delete_modal, false) |> noreply()
   end
 
   def handle_event("delete", _params, socket) do
@@ -46,14 +55,22 @@ defmodule TennisTrackerWeb.Players.ShowLive do
 
       <div class="flex gap-3 mb-6">
         <.button navigate={~p"/players/#{@player.id}/edit"}>Edit</.button>
-        <.link
-          phx-click="delete"
-          data-confirm="Delete this player?"
-          class="btn btn-error btn-soft"
-        >
-          Delete
-        </.link>
+        <button phx-click="show_delete_modal" class="btn btn-error btn-soft">Delete</button>
       </div>
+
+      <.modal
+        :if={@show_delete_modal}
+        title="Delete Player"
+        on_close={JS.push("hide_delete_modal")}
+      >
+        <p class="text-sm text-base-content/70 mb-6">
+          Delete <strong>{@player.name}</strong>? This cannot be undone.
+        </p>
+        <div class="flex gap-2">
+          <button phx-click="delete" class="btn btn-error flex-1">Delete</button>
+          <button phx-click="hide_delete_modal" class="btn btn-ghost">Cancel</button>
+        </div>
+      </.modal>
 
       <.list>
         <:item title="Email">{@player.email || "—"}</:item>

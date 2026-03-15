@@ -24,8 +24,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     |> assign(:board, nil)
     |> assign(:season_year_input, "2026")
     |> assign(:selected_team_type_id, nil)
-    |> assign(:selected_player_id, nil)
     |> assign(:selected_player, nil)
+    |> assign(:selected_player_team, nil)
     |> assign(:team_modal, nil)
     |> assign(:show_season_rules, false)
     |> ok()
@@ -116,18 +116,20 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("select_player", %{"player_id" => player_id}, socket) do
-    player = find_player_in_board(socket.assigns.board, player_id)
+    board = socket.assigns.board
+    player = find_player_in_board(board, player_id)
+    team = find_player_team(board, player_id)
 
     socket
-    |> assign(:selected_player_id, player_id)
     |> assign(:selected_player, player)
+    |> assign(:selected_player_team, team)
     |> noreply()
   end
 
   def handle_event("deselect_player", _params, socket) do
     socket
-    |> assign(:selected_player_id, nil)
     |> assign(:selected_player, nil)
+    |> assign(:selected_player_team, nil)
     |> noreply()
   end
 
@@ -144,8 +146,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
     socket
-    |> assign(:selected_player_id, nil)
     |> assign(:selected_player, nil)
+    |> assign(:selected_player_team, nil)
     |> noreply()
   end
 
@@ -158,8 +160,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
     # Board reload is driven by the PubSub notification from the Ash action
     socket
-    |> assign(:selected_player_id, nil)
     |> assign(:selected_player, nil)
+    |> assign(:selected_player_team, nil)
     |> noreply()
   end
 
@@ -308,6 +310,24 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         Enum.flat_map(board.real_teams, & &1.players)
 
     Enum.find(all_players, &(&1.id == player_id))
+  end
+
+  defp find_player_team(board, player_id) do
+    cond do
+      Enum.any?(board.unassigned, &(&1.id == player_id)) ->
+        "Unassigned"
+
+      Enum.any?(board.not_participating, &(&1.id == player_id)) ->
+        "Not Participating"
+
+      true ->
+        case Enum.find(board.real_teams, fn %{players: players} ->
+               Enum.any?(players, &(&1.id == player_id))
+             end) do
+          %{team: team} -> team.name
+          nil -> nil
+        end
+    end
   end
 
   defp reload_board(socket, ctx) do
@@ -494,7 +514,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               :for={player <- @board.unassigned}
               player={player}
               has_violation={false}
-              selected={@selected_player_id == player.id}
+              selected={@selected_player != nil && @selected_player.id == player.id}
             />
           </.board_column>
 
@@ -535,7 +555,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 :for={player <- players}
                 player={player}
                 has_violation={MapSet.member?(violation_ids, player.id)}
-                selected={@selected_player_id == player.id}
+                selected={@selected_player != nil && @selected_player.id == player.id}
               />
             </.board_column>
           <% end %>
@@ -552,7 +572,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               :for={player <- @board.not_participating}
               player={player}
               has_violation={false}
-              selected={@selected_player_id == player.id}
+              selected={@selected_player != nil && @selected_player.id == player.id}
             />
           </.board_column>
 
@@ -571,11 +591,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         </div>
 
         <%!-- Mobile: destination picker modal --%>
-        <.player_detail_modal :if={@selected_player_id} player={@selected_player}>
+        <.player_detail_modal :if={@selected_player} player={@selected_player} current_team={@selected_player_team}>
           <:actions>
             <button
               phx-click="move_player"
-              phx-value-player_id={@selected_player_id}
+              phx-value-player_id={@selected_player.id}
               phx-value-target_id="unassigned"
               class="btn btn-outline btn-sm w-full"
             >
@@ -584,7 +604,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             <button
               :for={%{team: team} <- @board.real_teams}
               phx-click="move_player"
-              phx-value-player_id={@selected_player_id}
+              phx-value-player_id={@selected_player.id}
               phx-value-target_id={team.id}
               class="btn btn-primary btn-sm w-full"
             >
@@ -592,7 +612,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             </button>
             <button
               phx-click="move_player"
-              phx-value-player_id={@selected_player_id}
+              phx-value-player_id={@selected_player.id}
               phx-value-target_id={@board.pseudo_team.id}
               class="btn btn-outline btn-secondary btn-sm w-full"
             >
@@ -602,175 +622,149 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         </.player_detail_modal>
 
         <%!-- Team modal (create / edit / delete) --%>
-        <div
+        <.modal
           :if={@team_modal}
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          title={case @team_modal.mode do
+            :create -> "New Team"
+            :edit -> "Rename Team"
+            :delete -> "Delete Team"
+          end}
+          on_close={JS.push("close_team_modal")}
         >
-          <div
-            class="bg-base-100 rounded-2xl w-full max-w-sm p-6 shadow-xl"
-            phx-click-away="close_team_modal"
-          >
-            <%= cond do %>
-              <% @team_modal.mode == :create -> %>
-                <h3 class="font-semibold text-lg mb-4">New Team</h3>
-                <.form
-                  for={@team_modal.form}
-                  phx-change="validate_team_form"
-                  phx-submit="submit_team_form"
-                >
-                  <div class="mb-4">
-                    <label class="label py-0 mb-1">
-                      <span class="label-text">Team Name</span>
-                    </label>
-                    <input
-                      type="text"
-                      name={@team_modal.form[:name].name}
-                      value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
-                      placeholder="e.g. Team Alpha"
-                      autofocus
-                      class={[
-                        "input input-bordered w-full",
-                        @team_modal.form[:name].errors != [] && "input-error"
-                      ]}
-                    />
-                    <p
-                      :for={error <- @team_modal.form[:name].errors}
-                      class="text-error text-xs mt-1"
-                    >
-                      {elem(error, 0)}
-                    </p>
-                  </div>
-                  <div class="flex gap-2">
-                    <button type="submit" class="btn btn-primary flex-1">Create</button>
-                    <button
-                      type="button"
-                      phx-click="close_team_modal"
-                      class="btn btn-ghost"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </.form>
-              <% @team_modal.mode == :edit -> %>
-                <h3 class="font-semibold text-lg mb-4">Rename Team</h3>
-                <.form
-                  for={@team_modal.form}
-                  phx-change="validate_team_form"
-                  phx-submit="submit_team_form"
-                >
-                  <div class="mb-4">
-                    <label class="label py-0 mb-1">
-                      <span class="label-text">Team Name</span>
-                    </label>
-                    <input
-                      type="text"
-                      name={@team_modal.form[:name].name}
-                      value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
-                      autofocus
-                      class={[
-                        "input input-bordered w-full",
-                        @team_modal.form[:name].errors != [] && "input-error"
-                      ]}
-                    />
-                    <p
-                      :for={error <- @team_modal.form[:name].errors}
-                      class="text-error text-xs mt-1"
-                    >
-                      {elem(error, 0)}
-                    </p>
-                  </div>
-                  <div class="flex gap-2">
-                    <button type="submit" class="btn btn-primary flex-1">Save</button>
-                    <button
-                      type="button"
-                      phx-click="close_team_modal"
-                      class="btn btn-ghost"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </.form>
-              <% @team_modal.mode == :delete -> %>
-                <h3 class="font-semibold text-lg mb-2">Delete Team</h3>
-                <p class="text-sm text-base-content/70 mb-6">
-                  Delete <strong>{@team_modal.team.name}</strong>? All player assignments will be removed and those players will return to Unassigned. This cannot be undone.
-                </p>
+          <%= cond do %>
+            <% @team_modal.mode == :create -> %>
+              <.form
+                for={@team_modal.form}
+                phx-change="validate_team_form"
+                phx-submit="submit_team_form"
+              >
+                <div class="mb-4">
+                  <label class="label py-0 mb-1">
+                    <span class="label-text">Team Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    name={@team_modal.form[:name].name}
+                    value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
+                    placeholder="e.g. Team Alpha"
+                    autofocus
+                    class={[
+                      "input input-bordered w-full",
+                      @team_modal.form[:name].errors != [] && "input-error"
+                    ]}
+                  />
+                  <p
+                    :for={error <- @team_modal.form[:name].errors}
+                    class="text-error text-xs mt-1"
+                  >
+                    {elem(error, 0)}
+                  </p>
+                </div>
                 <div class="flex gap-2">
-                  <button
-                    phx-click="confirm_delete_team"
-                    phx-value-team_id={@team_modal.team.id}
-                    class="btn btn-error flex-1"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    phx-click="close_team_modal"
-                    class="btn btn-ghost"
-                  >
+                  <button type="submit" class="btn btn-primary flex-1">Create</button>
+                  <button type="button" phx-click="close_team_modal" class="btn btn-ghost">
                     Cancel
                   </button>
                 </div>
-            <% end %>
-          </div>
-        </div>
+              </.form>
+            <% @team_modal.mode == :edit -> %>
+              <.form
+                for={@team_modal.form}
+                phx-change="validate_team_form"
+                phx-submit="submit_team_form"
+              >
+                <div class="mb-4">
+                  <label class="label py-0 mb-1">
+                    <span class="label-text">Team Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    name={@team_modal.form[:name].name}
+                    value={Phoenix.HTML.Form.input_value(@team_modal.form, :name)}
+                    autofocus
+                    class={[
+                      "input input-bordered w-full",
+                      @team_modal.form[:name].errors != [] && "input-error"
+                    ]}
+                  />
+                  <p
+                    :for={error <- @team_modal.form[:name].errors}
+                    class="text-error text-xs mt-1"
+                  >
+                    {elem(error, 0)}
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <button type="submit" class="btn btn-primary flex-1">Save</button>
+                  <button type="button" phx-click="close_team_modal" class="btn btn-ghost">
+                    Cancel
+                  </button>
+                </div>
+              </.form>
+            <% @team_modal.mode == :delete -> %>
+              <p class="text-sm text-base-content/70 mb-6">
+                Delete <strong>{@team_modal.team.name}</strong>? All player assignments will be removed and those players will return to Unassigned. This cannot be undone.
+              </p>
+              <div class="flex gap-2">
+                <button
+                  phx-click="confirm_delete_team"
+                  phx-value-team_id={@team_modal.team.id}
+                  class="btn btn-error flex-1"
+                >
+                  Delete
+                </button>
+                <button phx-click="close_team_modal" class="btn btn-ghost">Cancel</button>
+              </div>
+          <% end %>
+        </.modal>
         <%!-- Season rules info modal --%>
-        <div
+        <.modal
           :if={@show_season_rules}
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          phx-click="hide_season_rules"
+          title="Season Rules"
+          on_close={JS.push("hide_season_rules")}
+          max_width="max-w-xs"
         >
-          <div
-            class="bg-base-100 rounded-2xl w-full max-w-xs p-6 shadow-xl"
-            phx-click-away="hide_season_rules"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="font-semibold text-lg">Season Rules</h3>
-              <button phx-click="hide_season_rules" class="btn btn-xs btn-ghost btn-circle">
-                <.icon name="hero-x-mark" class="size-4" />
-              </button>
-            </div>
-            <dl class="space-y-3 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-base-content/60">NTRP range</dt>
-                <dd class="font-medium">
-                  <%= cond do %>
-                    <% @context.team_type.allowed_ntrp_levels == [] -> %>
-                      N/A
-                    <% true -> %>
-                      {Enum.min(@context.team_type.allowed_ntrp_levels)} – {Enum.max(@context.team_type.allowed_ntrp_levels)}
-                  <% end %>
-                </dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-base-content/60">On-level minimum</dt>
-                <dd class="font-medium">
-                  <%= if @context.season_rules && @context.season_rules.on_level_min_pct do %>
-                    {Decimal.mult(@context.season_rules.on_level_min_pct, 100) |> Decimal.round(0)}%
-                  <% else %>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <dt class="text-base-content/60">NTRP range</dt>
+              <dd class="font-medium">
+                <%= cond do %>
+                  <% @context.team_type.allowed_ntrp_levels == [] -> %>
                     N/A
-                  <% end %>
-                </dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-base-content/60">Roster size</dt>
-                <dd class="font-medium">
-                  <%= cond do %>
-                    <% @context.season_rules &&
-                        @context.season_rules.min_roster &&
-                        @context.season_rules.max_roster -> %>
-                      {@context.season_rules.min_roster} – {@context.season_rules.max_roster}
-                    <% @context.season_rules && @context.season_rules.min_roster -> %>
-                      {@context.season_rules.min_roster}+ players
-                    <% @context.season_rules && @context.season_rules.max_roster -> %>
-                      Up to {@context.season_rules.max_roster} players
-                    <% true -> %>
-                      N/A
-                  <% end %>
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </div>
+                  <% true -> %>
+                    {Enum.min(@context.team_type.allowed_ntrp_levels)} – {Enum.max(@context.team_type.allowed_ntrp_levels)}
+                <% end %>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-base-content/60">On-level minimum</dt>
+              <dd class="font-medium">
+                <%= if @context.season_rules && @context.season_rules.on_level_min_pct do %>
+                  {Decimal.mult(@context.season_rules.on_level_min_pct, 100) |> Decimal.round(0)}%
+                <% else %>
+                  N/A
+                <% end %>
+              </dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-base-content/60">Roster size</dt>
+              <dd class="font-medium">
+                <%= cond do %>
+                  <% @context.season_rules &&
+                      @context.season_rules.min_roster &&
+                      @context.season_rules.max_roster -> %>
+                    {@context.season_rules.min_roster} – {@context.season_rules.max_roster}
+                  <% @context.season_rules && @context.season_rules.min_roster -> %>
+                    {@context.season_rules.min_roster}+ players
+                  <% @context.season_rules && @context.season_rules.max_roster -> %>
+                    Up to {@context.season_rules.max_roster} players
+                  <% true -> %>
+                    N/A
+                <% end %>
+              </dd>
+            </div>
+          </dl>
+        </.modal>
       </div>
       </div>
     </Layouts.full_bleed>
