@@ -2,8 +2,8 @@
 
 In no particular order. Crossed out when done.
 
-1. It's hard to drag/drop when the available players list is very long. Let's
-   make the team lists capped to screen height and scrollable.
+1. ~It's hard to drag/drop when the available players list is very long. Let's
+   make the team lists capped to screen height and scrollable.~
 1. Configure with ngrok so we can demonstrate locally without needing to deploy
 1. ~On the player show page, show all team memberships for that player~
 1. ~On the roster planner page, when clicking a player, provide a link (that

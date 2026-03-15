@@ -62,11 +62,60 @@ defmodule TennisTrackerWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <main class="px-4 py-6 sm:px-6 lg:px-8">
       <div class={["mx-auto space-y-4", not @fluid && "max-w-2xl"]}>
         {render_slot(@inner_block)}
       </div>
     </main>
+
+    <.flash_group flash={@flash} />
+    """
+  end
+
+  @doc """
+  Full-bleed layout that fills the viewport height.
+
+  Use this for board-style pages that need to constrain their content to the
+  window height and handle internal scrolling themselves.
+
+  ## Examples
+
+      <Layouts.full_bleed flash={@flash}>
+        <div class="h-full flex flex-col">...</div>
+      </Layouts.full_bleed>
+
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_user, :map, default: nil, doc: "the currently authenticated user"
+  slot :inner_block, required: true
+
+  def full_bleed(assigns) do
+    ~H"""
+    <div class="h-dvh flex flex-col">
+      <header class="navbar px-4 sm:px-6 lg:px-8 flex-shrink-0">
+        <div class="flex-1">
+          <.link navigate={~p"/"} class="text-lg font-bold">Tennis Tracker</.link>
+        </div>
+        <div class="flex-none">
+          <ul class="flex flex-row px-1 space-x-4 items-center">
+            <%= if @current_user do %>
+              <li>
+                <.link href={~p"/sign-out"} class="btn btn-ghost">
+                  Sign out
+                </.link>
+              </li>
+            <% end %>
+            <li>
+              <.theme_toggle />
+            </li>
+          </ul>
+        </div>
+      </header>
+
+      <main class="flex-1 min-h-0 overflow-hidden">
+        {render_slot(@inner_block)}
+      </main>
+    </div>
 
     <.flash_group flash={@flash} />
     """

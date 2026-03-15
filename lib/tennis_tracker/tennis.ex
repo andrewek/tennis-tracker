@@ -27,7 +27,7 @@ defmodule TennisTracker.Tennis do
   """
   def get_season_rules_for_context(team_type_id, season_year) do
     SeasonRules
-    |> Ash.Query.filter(team_type_id == ^team_type_id and season_year == ^season_year)
+    |> Ash.Query.for_read(:for_context, %{team_type_id: team_type_id, season_year: season_year})
     |> Ash.read_one(domain: __MODULE__)
   end
 

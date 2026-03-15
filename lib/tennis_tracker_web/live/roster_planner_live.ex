@@ -365,16 +365,18 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} fluid={true} current_user={@current_user}>
-      <.header>
-        Roster Planner
-        <:subtitle :if={@context}>
+    <Layouts.full_bleed flash={@flash} current_user={@current_user}>
+      <div class="h-full flex flex-col">
+      <%!-- Page title bar --%>
+      <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
+        <span class="font-bold text-lg">Roster Planner</span>
+        <span :if={@context} class="text-base-content/50 text-sm">
           {@context.team_type.name} · {@context.season_year}
-        </:subtitle>
-      </.header>
+        </span>
+      </div>
 
       <%!-- Context selector (shown when no context loaded) --%>
-      <div :if={is_nil(@context)} class="mt-6">
+      <div :if={is_nil(@context)} class="px-4">
         <p class="text-base-content/60 text-sm mb-6">
           Select a planning session to continue, or start a new one.
         </p>
@@ -449,16 +451,16 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       </div>
 
       <%!-- Planning board --%>
-      <div :if={@board} class="mt-4">
+      <div :if={@board} class="flex-1 min-h-0 flex flex-col">
         <%!-- Board toolbar --%>
-        <div class="flex items-center gap-6 mb-4">
+        <div class="flex items-center gap-6 mb-4 px-4 flex-shrink-0">
           <.link navigate={~p"/roster-planner"} class="btn btn-sm btn-ghost">
             <.icon name="hero-arrow-left" class="size-4" /> Change context
           </.link>
         </div>
 
         <%!-- Board columns --%>
-        <div class="flex gap-3 overflow-x-auto pb-4 items-start">
+        <div class="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-4 px-4 items-stretch">
           <%!-- Unassigned column --%>
           <.board_column
             id="col-unassigned"
@@ -517,19 +519,6 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             </.board_column>
           <% end %>
 
-          <%!-- New Team button --%>
-          <div
-            id="col-new-team"
-            phx-click="open_team_modal"
-            phx-value-mode="create"
-            class="flex-shrink-0 w-56 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer rounded-lg"
-          >
-            <div class="flex flex-col items-center justify-center text-center h-20">
-              <span class="text-2xl text-base-content/30 leading-none">+</span>
-              <p class="text-xs text-base-content/50 mt-1">New team</p>
-            </div>
-          </div>
-
           <%!-- Not Participating column --%>
           <.board_column
             id={"col-#{@board.pseudo_team.id}"}
@@ -545,6 +534,19 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               selected={@selected_player_id == player.id}
             />
           </.board_column>
+
+          <%!-- New Team button --%>
+          <div
+            id="col-new-team"
+            phx-click="open_team_modal"
+            phx-value-mode="create"
+            class="flex-shrink-0 w-56 border-2 border-dashed border-base-300 hover:border-primary transition-colors cursor-pointer rounded-lg"
+          >
+            <div class="flex flex-col items-center justify-center text-center h-20">
+              <span class="text-2xl text-base-content/30 leading-none">+</span>
+              <p class="text-xs text-base-content/50 mt-1">New team</p>
+            </div>
+          </div>
         </div>
 
         <%!-- Mobile: destination picker modal --%>
@@ -691,7 +693,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           </div>
         </div>
       </div>
-    </Layouts.app>
+      </div>
+    </Layouts.full_bleed>
     """
   end
 end

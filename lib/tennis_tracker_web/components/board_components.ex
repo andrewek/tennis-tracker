@@ -18,7 +18,7 @@ defmodule TennisTrackerWeb.BoardComponents do
     ~H"""
     <div
       id={@id}
-      class="flex-shrink-0 w-56 bg-base-200 rounded-lg p-2"
+      class="flex-shrink-0 w-56 bg-base-200 rounded-lg p-2 flex flex-col"
       phx-hook="DropZone"
       data-target-id={@target_id}
     >
@@ -48,7 +48,7 @@ defmodule TennisTrackerWeb.BoardComponents do
       </div>
 
       <%!-- Player cards drop zone --%>
-      <div class="space-y-1 min-h-8">
+      <div class="flex-1 overflow-y-auto min-h-0 space-y-1">
         {render_slot(@inner_block)}
       </div>
     </div>

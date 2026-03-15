@@ -274,6 +274,52 @@ team_types_by_name = Map.new(all_team_types, &{&1.name, &1})
 IO.puts("Seeded #{length(seeded_team_types)} team types (skipped any already present).")
 
 # ==============================================================================
+# SeasonRules for season 2025 — reasonable USTA defaults
+# Safe to run multiple times — skips rules that already exist.
+# ==============================================================================
+
+season_rules_2025 = [
+  %{name: "18+ 3.0", min_roster: 8, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 3.5", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 4.0", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "18+ 4.5", min_roster: 10, max_roster: 18, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 3.0", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 3.5", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 4.0", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")},
+  %{name: "40+ 4.5", min_roster: 8, max_roster: 15, on_level_min_pct: Decimal.new("0.60")}
+]
+
+require Ash.Query
+
+existing_2025_type_ids =
+  TennisTracker.Tennis.SeasonRules
+  |> Ash.Query.filter(season_year == 2025)
+  |> Ash.read!(domain: Tennis)
+  |> Enum.map(& &1.team_type_id)
+  |> MapSet.new()
+
+seeded_rules =
+  season_rules_2025
+  |> Enum.reject(fn %{name: name} ->
+    team_type = Map.get(team_types_by_name, name)
+    team_type && MapSet.member?(existing_2025_type_ids, team_type.id)
+  end)
+  |> Enum.each(fn %{name: name} = attrs ->
+    team_type = Map.fetch!(team_types_by_name, name)
+
+    {:ok, _} =
+      Tennis.create_season_rules(%{
+        team_type_id: team_type.id,
+        season_year: 2025,
+        min_roster: attrs.min_roster,
+        max_roster: attrs.max_roster,
+        on_level_min_pct: attrs.on_level_min_pct
+      })
+  end)
+
+IO.puts("Seeded SeasonRules for 2025 (skipped any already present).")
+
+# ==============================================================================
 # SeasonRules for season 2026 — reasonable USTA defaults
 # Safe to run multiple times — skips rules that already exist.
 # ==============================================================================
