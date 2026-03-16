@@ -20,7 +20,6 @@ In no particular order. Crossed out when done.
    which works for the planner but doesn't extend cleanly to other views (e.g., the
    team show page). We need a design that lets any view subscribe to relevant
    roster/player changes without coupling everything to the planner's topic shape.
-1. ~We should start thinking about team match schedules.~
 1. Match scheduling: reconsider the upcoming/past split strategy. Currently we
    compare `match_date` to today-in-the-match's-timezone. A more robust model
    would be an explicit `completed` boolean (or `status` enum) set by the captain,
@@ -73,3 +72,4 @@ In no particular order. Crossed out when done.
 1. ~Introduce a test factory (e.g. ExMachina) to replace the repetitive inline
    fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
    that are duplicated across test files.~
+1. ~We should start thinking about team match schedules.~
