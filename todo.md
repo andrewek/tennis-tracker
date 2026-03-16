@@ -33,9 +33,9 @@ In no particular order. Crossed out when done.
 1. What makes sense in terms of lineup scheduling? We have slightly different
    use cases for various USTA matches, and a different use case for something
    like Winter Tennis.
-1. Team update page: update the team name, update the team's default timezone,
+1. ~Team update page: update the team name, update the team's default timezone,
    and delete the team. (Currently deletion is only possible via the roster
-   planner board; name editing also only lives there.)
+   planner board; name editing also only lives there.)~
 1. A team can be marked as archived, which would keep it from showing up in
    the /teams list by default. There will still be a way to see archived teams.
 1. At some point we need to figure out how to deploy. We also probably need a
