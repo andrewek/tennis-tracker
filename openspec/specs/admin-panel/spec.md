@@ -20,7 +20,7 @@ The admin panel SHALL expose all resources across the `TennisTracker.Accounts` a
 
 #### Scenario: All resources visible in admin panel
 - **WHEN** an admin user navigates to `/admin`
-- **THEN** links or sections for User, Player, TeamType, Team, TeamMembership, and SeasonRules SHALL be present
+- **THEN** links or sections for User, Player, TeamType, Team, TeamMembership, SeasonRules, and Location SHALL be present
 
 ### Requirement: Admin panel supports full CRUD for Player, Team, and User
 The admin panel SHALL allow creating, reading, updating, and destroying records for `Player`, `Team`, and `User`.
@@ -51,6 +51,25 @@ The admin panel SHALL allow creating, reading, updating, and destroying `TeamTyp
 #### Scenario: Admin can destroy a SeasonRules record from the panel
 - **WHEN** an admin deletes a SeasonRules record in the admin panel
 - **THEN** the SeasonRules record SHALL be removed
+
+### Requirement: Admin panel supports full CRUD for Location
+The admin panel SHALL allow creating, reading, updating, and destroying `Location` records.
+
+#### Scenario: Admin can create a Location from the panel
+- **WHEN** an admin submits a valid new location form in the admin panel
+- **THEN** a Location record SHALL be created
+
+#### Scenario: Admin can read Location records from the panel
+- **WHEN** an admin navigates to the Location section in the admin panel
+- **THEN** existing Location records SHALL be listed
+
+#### Scenario: Admin can update a Location from the panel
+- **WHEN** an admin edits and saves a Location record in the admin panel
+- **THEN** the Location record SHALL be updated
+
+#### Scenario: Admin can destroy a Location from the panel
+- **WHEN** an admin deletes a Location record in the admin panel
+- **THEN** the Location record SHALL be removed
 
 ### Requirement: Admin panel restricts TeamMembership to read and destroy only
 The admin panel SHALL allow reading and destroying `TeamMembership` records. Creating and updating TeamMembership records SHALL NOT be available through the admin panel.

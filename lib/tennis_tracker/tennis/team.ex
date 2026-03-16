@@ -58,6 +58,7 @@ defmodule TennisTracker.Tennis.Team do
     end
 
     has_many :memberships, TennisTracker.Tennis.TeamMembership
+    has_many :matches, TennisTracker.Tennis.Match
   end
 
   actions do
@@ -106,5 +107,17 @@ defmodule TennisTracker.Tennis.Team do
     calculate(:team_type_name, :string, expr(team_type.name))
     calculate(:team_type_age_group, :string, expr(team_type.age_group))
     calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
+  end
+
+  aggregates do
+    first :next_match_date, :matches, :match_date do
+      filter(expr(match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)))
+      sort([:match_date, :match_time])
+    end
+
+    first :next_match_time, :matches, :match_time do
+      filter(expr(match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)))
+      sort([:match_date, :match_time])
+    end
   end
 end

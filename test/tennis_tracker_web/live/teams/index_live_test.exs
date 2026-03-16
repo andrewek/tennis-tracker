@@ -25,6 +25,26 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
     Tennis.create_team!(Map.merge(defaults, attrs))
   end
 
+  describe "next match on team card" do
+    test "shows formatted date and time when team has an upcoming match", %{conn: conn} do
+      team = Factory.team(name: "Schedule Team")
+      Factory.match(team: team, match_date: Date.utc_today() |> Date.add(5), match_time: ~T[10:00:00])
+
+      {:ok, _view, html} = live(conn, ~p"/teams")
+
+      refute html =~ "Next match: TBD"
+      assert html =~ "Next match:"
+    end
+
+    test "shows TBD when team has no upcoming matches", %{conn: conn} do
+      Factory.team(name: "No Schedule Team")
+
+      {:ok, _view, html} = live(conn, ~p"/teams")
+
+      assert html =~ "Next match: TBD"
+    end
+  end
+
   describe "with teams" do
     test "renders each team name", %{conn: conn} do
       tt = create_team_type()

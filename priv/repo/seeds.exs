@@ -411,3 +411,42 @@ Enum.each(dev_users, fn %{email: email, password: password, role: role} ->
 end)
 
 IO.puts("Seeded dev users (skipped any already present).")
+
+# ==============================================================================
+# Locations — known local tennis venues
+# Safe to run multiple times — upserts by name (no duplicates created).
+# ==============================================================================
+
+locations = [
+  %{
+    name: "Woods Tennis Center",
+    address: "4701 Happy Hollow Blvd, Omaha, NE 68132",
+    google_maps_url: "https://maps.google.com/?q=Woods+Tennis+Center,+4701+Happy+Hollow+Blvd,+Omaha,+NE+68132"
+  },
+  %{
+    name: "Elmwood Park Tennis Courts",
+    address: "602 S 60th St, Omaha, NE 68106",
+    google_maps_url: "https://maps.google.com/?q=Elmwood+Park+Tennis+Courts,+602+S+60th+St,+Omaha,+NE+68106"
+  },
+  %{
+    name: "Zorinsky Lake Tennis Courts",
+    address: "156th & F St, Omaha, NE 68130",
+    google_maps_url: "https://maps.google.com/?q=Zorinsky+Lake+Tennis+Courts,+156th+%26+F+St,+Omaha,+NE+68130"
+  },
+  %{
+    name: "Genesis Health Club - Westroads",
+    address: "10831 Old Mill Rd, Omaha, NE 68154",
+    google_maps_url: "https://maps.google.com/?q=Genesis+Health+Club+Westroads,+10831+Old+Mill+Rd,+Omaha,+NE+68154"
+  },
+  %{
+    name: "Lifetime Fitness - West Omaha",
+    address: "17802 Burke St, Omaha, NE 68118",
+    google_maps_url: "https://maps.google.com/?q=Lifetime+Fitness+West+Omaha,+17802+Burke+St,+Omaha,+NE+68118"
+  }
+]
+
+Enum.each(locations, fn attrs ->
+  Tennis.create_location!(attrs)
+end)
+
+IO.puts("Seeded #{length(locations)} locations (upserted by name).")

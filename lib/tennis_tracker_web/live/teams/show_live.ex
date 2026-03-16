@@ -4,40 +4,18 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   import TennisTrackerWeb.BoardComponents
 
   alias TennisTracker.Tennis
-
-  @placeholder_matches [
-    %{
-      date: ~D[2025-04-05],
-      time: ~T[10:00:00],
-      day_of_week: "Saturday",
-      location: "Woods Tennis Center",
-      home_or_away: :home,
-      opponent: "Ronhovde"
-    },
-    %{
-      date: ~D[2025-04-12],
-      time: ~T[09:00:00],
-      day_of_week: "Saturday",
-      location: "Genesis Westroads",
-      home_or_away: :away,
-      opponent: "Timan"
-    },
-    %{
-      date: ~D[2025-04-19],
-      time: ~T[10:00:00],
-      day_of_week: "Saturday",
-      location: "Woods Tennis Center",
-      home_or_away: :home,
-      opponent: "Stiles"
-    }
-  ]
+  alias TennisTracker.Tennis.Match
 
   def mount(_params, _session, socket) do
     socket
     |> assign(:team, nil)
     |> assign(:players, [])
-    |> assign(:matches, @placeholder_matches)
     |> assign(:selected_player, nil)
+    |> assign(:show_match_form, false)
+    |> assign(:form, nil)
+    |> assign(:locations, [])
+    |> stream(:upcoming_matches, [])
+    |> stream(:past_matches, [])
     |> ok()
   end
 
@@ -45,10 +23,14 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     case Tennis.get_team_with_roster(id) do
       {:ok, team} ->
         players = team.memberships |> Enum.map(& &1.player) |> Enum.sort_by(& &1.name)
+        upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
+        past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
 
         socket
         |> assign(:team, team)
         |> assign(:players, players)
+        |> stream(:upcoming_matches, upcoming, reset: true)
+        |> stream(:past_matches, past, reset: true)
         |> noreply()
 
       {:error, _} ->
@@ -68,10 +50,53 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     socket |> assign(:selected_player, nil) |> noreply()
   end
 
-  defp format_age_group("18_plus"), do: "18+"
-  defp format_age_group("40_plus"), do: "40+"
-  defp format_age_group("55_plus"), do: "55+"
-  defp format_age_group(other), do: other
+  def handle_event("open_match_form", _params, socket) do
+    form =
+      AshPhoenix.Form.for_create(Match, :create,
+        domain: Tennis,
+        forms: [auto?: true]
+      )
+      |> to_form()
+
+    locations = Tennis.list_locations!()
+
+    socket
+    |> assign(:show_match_form, true)
+    |> assign(:form, form)
+    |> assign(:locations, locations)
+    |> noreply()
+  end
+
+  def handle_event("close_match_form", _params, socket) do
+    socket |> assign(:show_match_form, false) |> assign(:form, nil) |> noreply()
+  end
+
+  def handle_event("validate_match", %{"form" => params}, socket) do
+    form = AshPhoenix.Form.validate(socket.assigns.form, params)
+    socket |> assign(:form, form) |> noreply()
+  end
+
+  def handle_event("save_match", %{"form" => params}, socket) do
+    team = socket.assigns.team
+    params_with_team = Map.put(params, "team_id", team.id)
+
+    case AshPhoenix.Form.submit(socket.assigns.form, params: params_with_team) do
+      {:ok, _match} ->
+        upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
+        past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+
+        socket
+        |> assign(:show_match_form, false)
+        |> assign(:form, nil)
+        |> stream(:upcoming_matches, upcoming, reset: true)
+        |> stream(:past_matches, past, reset: true)
+        |> put_flash(:info, "Match added.")
+        |> noreply()
+
+      {:error, form} ->
+        socket |> assign(:form, form) |> noreply()
+    end
+  end
 
   defp format_match_time(%Time{hour: h, minute: m}) do
     {hour, ampm} =
@@ -84,11 +109,11 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   end
 
   defp format_match_date(%Date{} = date) do
-    Calendar.strftime(date, "%b %-d")
+    Calendar.strftime(date, "%a, %b %-d")
   end
 
-  defp format_opponent(:home, opponent), do: "HOME v. #{opponent}"
-  defp format_opponent(:away, opponent), do: "AWAY v. #{opponent}"
+  defp format_home_or_away(:home, opponent), do: "HOME v. #{opponent}"
+  defp format_home_or_away(:away, opponent), do: "AWAY v. #{opponent}"
 
   def render(assigns) do
     ~H"""
@@ -131,18 +156,79 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         </div>
 
         <%!-- Match schedule card --%>
-        <div class="bg-base-200 rounded-lg p-4 w-full max-w-sm">
-          <h2 class="font-semibold mb-3">Match Schedule</h2>
-          <div class="space-y-3">
-            <div :for={match <- @matches} class="bg-base-100 rounded px-3 py-2 text-sm">
-              <p class="font-medium">
-                {format_opponent(match.home_or_away, match.opponent)}
+        <div class="bg-base-200 rounded-lg p-4 w-full max-w-md">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Upcoming Matches</h2>
+            <button class="btn btn-xs btn-ghost" phx-click="open_match_form">
+              <.icon name="hero-plus" class="size-3 inline" /> Add Match
+            </button>
+          </div>
+
+          <div id="upcoming-matches" phx-update="stream" class="space-y-3">
+            <div
+              :for={{dom_id, match} <- @streams.upcoming_matches}
+              id={dom_id}
+              class="bg-base-100 rounded px-3 py-2 text-sm"
+            >
+              <.link navigate={~p"/matches/#{match.id}"} class="hover:underline">
+                <p class="font-medium">
+                  {format_home_or_away(match.home_or_away, match.opponent)}
+                </p>
+              </.link>
+              <p class="text-base-content/60">
+                {format_match_date(match.match_date)} · {format_match_time(match.match_time)}
               </p>
               <p class="text-base-content/60">
-                {match.day_of_week}, {format_match_date(match.date)} · {format_match_time(match.time)}
+                <%= if match.location do %>
+                  {match.location.name}
+                <% else %>
+                  Location TBD
+                <% end %>
               </p>
-              <p class="text-base-content/60">{match.location}</p>
             </div>
+          </div>
+
+          <p
+            :if={@streams.upcoming_matches.inserts == []}
+            class="text-sm text-base-content/50"
+          >
+            No upcoming matches scheduled.
+          </p>
+
+          <%!-- Past matches --%>
+          <div class="mt-6">
+            <h2 class="font-semibold mb-3">Past Matches</h2>
+
+            <div id="past-matches" phx-update="stream" class="space-y-3">
+              <div
+                :for={{dom_id, match} <- @streams.past_matches}
+                id={dom_id}
+                class="bg-base-100 rounded px-3 py-2 text-sm opacity-70"
+              >
+                <.link navigate={~p"/matches/#{match.id}"} class="hover:underline">
+                  <p class="font-medium">
+                    {format_home_or_away(match.home_or_away, match.opponent)}
+                  </p>
+                </.link>
+                <p class="text-base-content/60">
+                  {format_match_date(match.match_date)} · {format_match_time(match.match_time)}
+                </p>
+                <p class="text-base-content/60">
+                  <%= if match.location do %>
+                    {match.location.name}
+                  <% else %>
+                    Location TBD
+                  <% end %>
+                </p>
+              </div>
+            </div>
+
+            <p
+              :if={@streams.past_matches.inserts == []}
+              class="text-sm text-base-content/50"
+            >
+              No past matches.
+            </p>
           </div>
         </div>
       </div>
@@ -154,6 +240,40 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         current_team={@team.name}
         on_close={JS.push("close_player_modal")}
       />
+
+      <%!-- Add Match modal --%>
+      <.modal
+        :if={@show_match_form}
+        title="Add Match"
+        on_close={JS.push("close_match_form")}
+        max_width="max-w-lg"
+      >
+        <.form for={@form} phx-change="validate_match" phx-submit="save_match">
+          <.input field={@form[:opponent]} type="text" label="Opponent" />
+          <.input
+            field={@form[:home_or_away]}
+            type="select"
+            label="Home or Away"
+            options={[{"Home", "home"}, {"Away", "away"}]}
+            prompt="Select..."
+          />
+          <.input field={@form[:match_date]} type="date" label="Match Date" />
+          <.input field={@form[:match_time]} type="time" label="Match Time" />
+          <.input
+            field={@form[:location_id]}
+            type="select"
+            label="Location"
+            options={Enum.map(@locations, &{&1.name, &1.id})}
+            prompt="Location TBD"
+          />
+          <div class="mt-4 flex gap-2 justify-end">
+            <button type="button" class="btn btn-ghost btn-sm" phx-click="close_match_form">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Match</button>
+          </div>
+        </.form>
+      </.modal>
     </Layouts.app>
     """
   end

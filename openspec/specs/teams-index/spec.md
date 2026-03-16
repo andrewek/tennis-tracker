@@ -29,14 +29,16 @@ The `:list_real` read action on the Team resource SHALL return only non-pseudo t
 - **WHEN** the `:list_real` action is called with teams spanning multiple season years, age groups, and NTRP levels
 - **THEN** teams are sorted by season year desc, then age group asc (nils last), then NTRP level desc (nils last), then name asc
 
-### Requirement: Each team card shows name, subtitle, and placeholder next match
-Each card SHALL display the team name as a heading, a subtitle in the format `{team_type_name} · {age_group} · {ntrp_level} · {season_year}` (omitting nil fields), and the placeholder text "Next match: TBD". Each card SHALL be a navigable link to `/teams/:id`.
+### Requirement: Each team card shows name, subtitle, and next upcoming match
+Each card SHALL display the team name as a heading, a subtitle in the format `{team_type_name} · {age_group} · {ntrp_level} · {season_year}` (omitting nil fields), and the date and time of the team's next upcoming match. If no upcoming match exists, the card SHALL display "Next match: TBD". Each card SHALL be a navigable link to `/teams/:id`.
 
-#### Scenario: Card displays team information
-- **WHEN** the page loads
-- **THEN** each card shows the team name
-- **THEN** each card shows a subtitle with team type name, age group, NTRP level, and season year
-- **THEN** each card shows "Next match: TBD"
+#### Scenario: Card displays next upcoming match date and time
+- **WHEN** the page loads and a team has at least one upcoming match
+- **THEN** the card shows the date and time of the earliest upcoming match
+
+#### Scenario: Card displays TBD when no upcoming matches
+- **WHEN** the page loads and a team has no upcoming matches
+- **THEN** the card shows "Next match: TBD"
 
 #### Scenario: Card links to team show page
 - **WHEN** a user clicks a team card

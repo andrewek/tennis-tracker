@@ -12,12 +12,27 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
   end
 
   def handle_params(_params, _url, socket) do
-    teams = Tennis.list_real_teams!(load: [:team_type_name])
+    teams = Tennis.list_real_teams!(load: [:team_type_name, :next_match_date, :next_match_time])
 
     socket
     |> assign(:team_count, length(teams))
     |> stream(:teams, teams, reset: true)
     |> noreply()
+  end
+
+  defp format_next_match(nil, _time), do: "Next match: TBD"
+
+  defp format_next_match(date, time) do
+    "Next match: #{Calendar.strftime(date, "%a, %b %-d")} · #{format_time(time)}"
+  end
+
+  defp format_time(%Time{hour: h, minute: m}) do
+    {hour, ampm} =
+      if h >= 12,
+        do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
+        else: {if(h == 0, do: 12, else: h), "AM"}
+
+    "#{hour}:#{m |> Integer.to_string() |> String.pad_leading(2, "0")} #{ampm}"
   end
 
   def render(assigns) do
@@ -46,7 +61,9 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
                 <p class="text-sm text-base-content/60">
                   {team.team_type_name} · {team.season_year}
                 </p>
-                <p class="text-xs text-base-content/40">Next match: TBD</p>
+                <p class="text-xs text-base-content/40">
+                  {format_next_match(team.next_match_date, team.next_match_time)}
+                </p>
               </div>
             </div>
           </.link>

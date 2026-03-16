@@ -149,4 +149,45 @@ defmodule TennisTracker.Factory do
     {:ok, membership} = Tennis.assign_player(p.id, t.id, t.team_type_id, t.season_year)
     membership
   end
+
+  # ---------------------------------------------------------------------------
+  # Location
+  # ---------------------------------------------------------------------------
+
+  def location(opts \\ []) do
+    n = System.unique_integer([:positive])
+
+    base = %{
+      name: "Location #{n}",
+      address: "#{n} Tennis Ave, Omaha, NE 68101",
+      google_maps_url: nil
+    }
+
+    attrs = Map.merge(base, Map.new(opts))
+    Tennis.create_location!(attrs)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Match
+  # ---------------------------------------------------------------------------
+
+  def match(opts \\ []) do
+    {t, opts} = Keyword.pop(opts, :team)
+    {loc, opts} = Keyword.pop(opts, :location)
+    t = t || team()
+
+    base = %{
+      match_date: Date.utc_today() |> Date.add(7),
+      match_time: ~T[10:00:00],
+      timezone: "America/Chicago",
+      duration_minutes: 90,
+      opponent: "Opponent Team",
+      home_or_away: :home,
+      team_id: t.id,
+      location_id: loc && loc.id
+    }
+
+    attrs = Map.merge(base, Map.new(opts))
+    Tennis.create_match!(attrs)
+  end
 end
