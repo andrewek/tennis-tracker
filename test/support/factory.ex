@@ -177,8 +177,8 @@ defmodule TennisTracker.Factory do
     t = t || team()
 
     base = %{
-      match_date: Date.utc_today() |> Date.add(7),
-      match_time: ~T[10:00:00],
+      match_start_datetime:
+        DateTime.utc_now() |> DateTime.add(7, :day) |> DateTime.truncate(:second),
       timezone: "America/Chicago",
       duration_minutes: 90,
       opponent: "Opponent Team",

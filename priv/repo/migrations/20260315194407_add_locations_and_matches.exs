@@ -31,7 +31,8 @@ defmodule TennisTracker.Repo.Migrations.AddLocationsAndMatches do
             name: "matches_team_id_fkey",
             type: :uuid,
             prefix: "public"
-          ), null: false
+          ),
+          null: false
 
       add :location_id, :uuid
     end

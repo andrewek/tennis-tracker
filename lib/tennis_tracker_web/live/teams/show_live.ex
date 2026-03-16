@@ -14,6 +14,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     |> assign(:show_match_form, false)
     |> assign(:form, nil)
     |> assign(:locations, [])
+    |> assign(:team_timezone, "America/Chicago")
     |> stream(:upcoming_matches, [])
     |> stream(:past_matches, [])
     |> ok()
@@ -59,11 +60,14 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       |> to_form()
 
     locations = Tennis.list_locations!()
+    team = socket.assigns.team
+    team_timezone = (team && team.default_timezone) || "America/Chicago"
 
     socket
     |> assign(:show_match_form, true)
     |> assign(:form, form)
     |> assign(:locations, locations)
+    |> assign(:team_timezone, team_timezone)
     |> noreply()
   end
 
@@ -72,44 +76,101 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   end
 
   def handle_event("validate_match", %{"form" => params}, socket) do
+    timezone = socket.assigns.team_timezone
+    date_str = params["match_date"]
+    time_str = params["match_time"]
+
+    params =
+      case build_match_datetime_params(date_str, time_str, timezone) do
+        {:ok, utc_dt} ->
+          params
+          |> Map.put("match_start_datetime", DateTime.to_iso8601(utc_dt))
+          |> Map.put("timezone", timezone)
+
+        {:error, _} ->
+          params
+      end
+
     form = AshPhoenix.Form.validate(socket.assigns.form, params)
     socket |> assign(:form, form) |> noreply()
   end
 
   def handle_event("save_match", %{"form" => params}, socket) do
     team = socket.assigns.team
-    params_with_team = Map.put(params, "team_id", team.id)
+    timezone = socket.assigns.team_timezone
+    date_str = params["match_date"]
+    time_str = params["match_time"]
 
-    case AshPhoenix.Form.submit(socket.assigns.form, params: params_with_team) do
-      {:ok, _match} ->
-        upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-        past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
-
+    case build_match_datetime_params(date_str, time_str, timezone) do
+      {:error, _} ->
         socket
-        |> assign(:show_match_form, false)
-        |> assign(:form, nil)
-        |> stream(:upcoming_matches, upcoming, reset: true)
-        |> stream(:past_matches, past, reset: true)
-        |> put_flash(:info, "Match added.")
+        |> put_flash(:error, "Date or time is invalid — please check the values you entered")
         |> noreply()
 
-      {:error, form} ->
-        socket |> assign(:form, form) |> noreply()
+      {:ok, utc_dt} ->
+        params_with_datetime =
+          params
+          |> Map.put("match_start_datetime", DateTime.to_iso8601(utc_dt))
+          |> Map.put("timezone", timezone)
+          |> Map.put("team_id", team.id)
+
+        case AshPhoenix.Form.submit(socket.assigns.form, params: params_with_datetime) do
+          {:ok, _match} ->
+            upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
+            past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+
+            socket
+            |> assign(:show_match_form, false)
+            |> assign(:form, nil)
+            |> stream(:upcoming_matches, upcoming, reset: true)
+            |> stream(:past_matches, past, reset: true)
+            |> put_flash(:info, "Match added.")
+            |> noreply()
+
+          {:error, form} ->
+            socket |> assign(:form, form) |> noreply()
+        end
     end
   end
 
-  defp format_match_time(%Time{hour: h, minute: m}) do
+  defp build_match_datetime_params(date_str, time_str, timezone) do
+    with {:ok, date} <- Date.from_iso8601(date_str || ""),
+         {:ok, time} <- Time.from_iso8601("#{time_str || ""}:00"),
+         {:ok, naive} <- NaiveDateTime.new(date, time),
+         result <- DateTime.from_naive(naive, timezone) do
+      case result do
+        {:ok, dt} ->
+          {:ok, DateTime.shift_zone!(dt, "Etc/UTC")}
+
+        {:ambiguous, _first, second} ->
+          {:ok, DateTime.shift_zone!(second, "Etc/UTC")}
+
+        {:gap, _before, after_gap} ->
+          {:ok, DateTime.shift_zone!(after_gap, "Etc/UTC")}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp format_match_datetime(%DateTime{} = utc_dt, timezone) do
+    tz = timezone || "America/Chicago"
+    local = DateTime.shift_zone!(utc_dt, tz)
+    date_str = Calendar.strftime(local, "%a, %b %-d")
+
+    %DateTime{hour: h, minute: m} = local
+
     {hour, ampm} =
       if h >= 12,
         do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
         else: {if(h == 0, do: 12, else: h), "AM"}
 
     minute_str = m |> Integer.to_string() |> String.pad_leading(2, "0")
-    "#{hour}:#{minute_str} #{ampm}"
-  end
-
-  defp format_match_date(%Date{} = date) do
-    Calendar.strftime(date, "%a, %b %-d")
+    time_str = "#{hour}:#{minute_str} #{ampm}"
+    {date_str, time_str}
   end
 
   defp format_home_or_away(:home, opponent), do: "HOME v. #{opponent}"
@@ -176,7 +237,9 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
                 </p>
               </.link>
               <p class="text-base-content/60">
-                {format_match_date(match.match_date)} · {format_match_time(match.match_time)}
+                <% {date_str, time_str} =
+                  format_match_datetime(match.match_start_datetime, match.timezone) %>
+                {date_str} · {time_str}
               </p>
               <p class="text-base-content/60">
                 <%= if match.location do %>
@@ -211,7 +274,9 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
                   </p>
                 </.link>
                 <p class="text-base-content/60">
-                  {format_match_date(match.match_date)} · {format_match_time(match.match_time)}
+                  <% {date_str, time_str} =
+                    format_match_datetime(match.match_start_datetime, match.timezone) %>
+                  {date_str} · {time_str}
                 </p>
                 <p class="text-base-content/60">
                   <%= if match.location do %>

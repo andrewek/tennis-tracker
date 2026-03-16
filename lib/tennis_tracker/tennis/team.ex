@@ -48,6 +48,12 @@ defmodule TennisTracker.Tennis.Team do
       default(false)
     end
 
+    attribute :default_timezone, :string do
+      allow_nil?(true)
+      public?(true)
+      default("America/Chicago")
+    end
+
     timestamps()
   end
 
@@ -86,7 +92,7 @@ defmodule TennisTracker.Tennis.Team do
 
     update :update do
       primary?(true)
-      accept([:name])
+      accept([:name, :default_timezone])
     end
 
     destroy :destroy do
@@ -110,14 +116,9 @@ defmodule TennisTracker.Tennis.Team do
   end
 
   aggregates do
-    first :next_match_date, :matches, :match_date do
-      filter(expr(match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)))
-      sort([:match_date, :match_time])
-    end
-
-    first :next_match_time, :matches, :match_time do
-      filter(expr(match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)))
-      sort([:match_date, :match_time])
+    first :next_match_start_datetime, :matches, :match_start_datetime do
+      filter(expr(match_start_datetime >= fragment("NOW()")))
+      sort(match_start_datetime: :asc)
     end
   end
 end

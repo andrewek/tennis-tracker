@@ -31,18 +31,21 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
     end
   end
 
-  defp format_match_time(%Time{hour: h, minute: m}) do
+  defp format_match_datetime(%DateTime{} = utc_dt, timezone) do
+    tz = timezone || "America/Chicago"
+    local = DateTime.shift_zone!(utc_dt, tz)
+    date_str = Calendar.strftime(local, "%A, %B %-d, %Y")
+
+    %DateTime{hour: h, minute: m} = local
+
     {hour, ampm} =
       if h >= 12,
         do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
         else: {if(h == 0, do: 12, else: h), "AM"}
 
     minute_str = m |> Integer.to_string() |> String.pad_leading(2, "0")
-    "#{hour}:#{minute_str} #{ampm}"
-  end
-
-  defp format_match_date(%Date{} = date) do
-    Calendar.strftime(date, "%A, %B %-d, %Y")
+    time_str = "#{hour}:#{minute_str} #{ampm}"
+    {date_str, time_str}
   end
 
   def render(assigns) do
@@ -75,9 +78,11 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
         <div class="bg-base-200 rounded-lg p-5 space-y-4">
           <div>
             <p class="text-xs text-base-content/50 uppercase tracking-wide mb-1">Date & Time</p>
-            <p class="font-medium">{format_match_date(@match.match_date)}</p>
+            <% {date_str, time_str} =
+              format_match_datetime(@match.match_start_datetime, @match.timezone) %>
+            <p class="font-medium">{date_str}</p>
             <p class="text-base-content/70">
-              {format_match_time(@match.match_time)} ({@match.timezone})
+              {time_str} ({@match.timezone})
             </p>
           </div>
 

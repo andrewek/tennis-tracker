@@ -9,7 +9,7 @@ defmodule TennisTracker.Tennis.Match do
     repo(TennisTracker.Repo)
 
     custom_indexes do
-      index([:team_id, :match_date])
+      index([:team_id, :match_start_datetime])
     end
   end
 
@@ -19,20 +19,15 @@ defmodule TennisTracker.Tennis.Match do
   attributes do
     uuid_v7_primary_key(:id)
 
-    attribute :match_date, :date do
-      allow_nil?(false)
-      public?(true)
-    end
-
-    attribute :match_time, :time do
-      allow_nil?(false)
-      public?(true)
-    end
-
     attribute :timezone, :string do
       allow_nil?(false)
       public?(true)
       default("America/Chicago")
+    end
+
+    attribute :match_start_datetime, :utc_datetime do
+      allow_nil?(false)
+      public?(true)
     end
 
     attribute :duration_minutes, :integer do
@@ -77,12 +72,12 @@ defmodule TennisTracker.Tennis.Match do
       filter(
         expr(
           team_id == ^arg(:team_id) and
-            match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)
+            match_start_datetime >= fragment("NOW()")
         )
       )
 
       prepare(fn query, _ ->
-        Ash.Query.sort(query, [:match_date, :match_time])
+        Ash.Query.sort(query, match_start_datetime: :asc)
       end)
     end
 
@@ -92,13 +87,13 @@ defmodule TennisTracker.Tennis.Match do
       filter(
         expr(
           team_id == ^arg(:team_id) and
-            match_date >= fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)
+            match_start_datetime >= fragment("NOW()")
         )
       )
 
       prepare(fn query, _ ->
         query
-        |> Ash.Query.sort([:match_date, :match_time])
+        |> Ash.Query.sort(match_start_datetime: :asc)
         |> Ash.Query.limit(1)
       end)
     end
@@ -109,18 +104,27 @@ defmodule TennisTracker.Tennis.Match do
       filter(
         expr(
           team_id == ^arg(:team_id) and
-            match_date < fragment("CAST(NOW() AT TIME ZONE ? AS DATE)", timezone)
+            match_start_datetime < fragment("NOW()")
         )
       )
 
       prepare(fn query, _ ->
-        Ash.Query.sort(query, match_date: :desc, match_time: :desc)
+        Ash.Query.sort(query, match_start_datetime: :desc)
       end)
     end
 
     create :create do
       primary?(true)
-      accept([:match_date, :match_time, :timezone, :duration_minutes, :opponent, :home_or_away, :team_id, :location_id])
+
+      accept([
+        :match_start_datetime,
+        :timezone,
+        :duration_minutes,
+        :opponent,
+        :home_or_away,
+        :team_id,
+        :location_id
+      ])
     end
   end
 end

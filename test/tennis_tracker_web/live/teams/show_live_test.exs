@@ -29,11 +29,11 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
   describe "team with matches" do
     test "renders upcoming and past matches in separate sections", %{conn: conn} do
       team = Factory.team()
-      today = Date.utc_today()
+      now = DateTime.utc_now()
       location = Factory.location(name: "Test Court")
 
-      Factory.match(team: team, opponent: "Past Opponent", match_date: Date.add(today, -3), home_or_away: :away)
-      Factory.match(team: team, opponent: "Future Opponent", match_date: Date.add(today, 5), location: location, home_or_away: :home)
+      Factory.match(team: team, opponent: "Past Opponent", match_start_datetime: DateTime.add(now, -3, :day) |> DateTime.truncate(:second), home_or_away: :away)
+      Factory.match(team: team, opponent: "Future Opponent", match_start_datetime: DateTime.add(now, 5, :day) |> DateTime.truncate(:second), location: location, home_or_away: :home)
 
       {:ok, _view, html} = live(conn, ~p"/teams/#{team.id}")
 

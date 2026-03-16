@@ -77,7 +77,8 @@ defmodule TennisTracker.MixProject do
       {:ash, "~> 3.0"},
       {:ash_postgres, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
-      {:nimble_csv, "~> 1.2"}
+      {:nimble_csv, "~> 1.2"},
+      {:tzdata, "~> 1.1"}
     ]
   end
 

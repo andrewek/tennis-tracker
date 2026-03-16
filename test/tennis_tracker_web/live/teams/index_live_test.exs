@@ -28,7 +28,11 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
   describe "next match on team card" do
     test "shows formatted date and time when team has an upcoming match", %{conn: conn} do
       team = Factory.team(name: "Schedule Team")
-      Factory.match(team: team, match_date: Date.utc_today() |> Date.add(5), match_time: ~T[10:00:00])
+      Factory.match(
+        team: team,
+        match_start_datetime:
+          DateTime.utc_now() |> DateTime.add(5, :day) |> DateTime.truncate(:second)
+      )
 
       {:ok, _view, html} = live(conn, ~p"/teams")
 

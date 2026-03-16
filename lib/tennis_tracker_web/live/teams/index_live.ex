@@ -12,7 +12,10 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
   end
 
   def handle_params(_params, _url, socket) do
-    teams = Tennis.list_real_teams!(load: [:team_type_name, :next_match_date, :next_match_time])
+    teams =
+      Tennis.list_real_teams!(
+        load: [:team_type_name, :next_match_start_datetime, :default_timezone]
+      )
 
     socket
     |> assign(:team_count, length(teams))
@@ -20,13 +23,17 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
     |> noreply()
   end
 
-  defp format_next_match(nil, _time), do: "Next match: TBD"
+  defp format_next_match(nil, _timezone), do: "Next match: TBD"
 
-  defp format_next_match(date, time) do
-    "Next match: #{Calendar.strftime(date, "%a, %b %-d")} · #{format_time(time)}"
+  defp format_next_match(%DateTime{} = utc_dt, timezone) do
+    tz = timezone || "America/Chicago"
+    local = DateTime.shift_zone!(utc_dt, tz)
+    date_str = Calendar.strftime(local, "%a, %b %-d")
+    time_str = format_time(local)
+    "Next match: #{date_str} · #{time_str}"
   end
 
-  defp format_time(%Time{hour: h, minute: m}) do
+  defp format_time(%DateTime{hour: h, minute: m}) do
     {hour, ampm} =
       if h >= 12,
         do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
@@ -62,7 +69,7 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
                   {team.team_type_name} · {team.season_year}
                 </p>
                 <p class="text-xs text-base-content/40">
-                  {format_next_match(team.next_match_date, team.next_match_time)}
+                  {format_next_match(team.next_match_start_datetime, team.default_timezone)}
                 </p>
               </div>
             </div>

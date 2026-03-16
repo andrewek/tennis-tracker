@@ -31,8 +31,7 @@ defmodule TennisTracker.Tennis.MatchTest do
     test "returns error for missing opponent", %{team: team} do
       result =
         Tennis.create_match(%{
-          match_date: Date.utc_today(),
-          match_time: ~T[10:00:00],
+          match_start_datetime: DateTime.utc_now(),
           home_or_away: :home,
           team_id: team.id
         })
@@ -43,8 +42,7 @@ defmodule TennisTracker.Tennis.MatchTest do
     test "returns error for missing team_id" do
       result =
         Tennis.create_match(%{
-          match_date: Date.utc_today(),
-          match_time: ~T[10:00:00],
+          match_start_datetime: DateTime.utc_now(),
           opponent: "Someone",
           home_or_away: :home
         })
@@ -54,14 +52,44 @@ defmodule TennisTracker.Tennis.MatchTest do
   end
 
   describe "list_upcoming_matches_for_team/1" do
-    test "returns only future matches sorted ascending by date then time", %{team: team} do
-      today = Date.utc_today()
+    test "returns only future matches sorted ascending by datetime", %{team: team} do
+      now = DateTime.utc_now()
 
-      _past1 = Factory.match(team: team, match_date: Date.add(today, -7), match_time: ~T[10:00:00], opponent: "Past A")
-      _past2 = Factory.match(team: team, match_date: Date.add(today, -1), match_time: ~T[09:00:00], opponent: "Past B")
-      future1 = Factory.match(team: team, match_date: Date.add(today, 1), match_time: ~T[09:00:00], opponent: "Future A")
-      future2 = Factory.match(team: team, match_date: Date.add(today, 7), match_time: ~T[10:00:00], opponent: "Future B")
-      future3 = Factory.match(team: team, match_date: Date.add(today, 1), match_time: ~T[14:00:00], opponent: "Future C")
+      _past1 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, -7, :day) |> DateTime.truncate(:second),
+          opponent: "Past A"
+        )
+
+      _past2 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, -1, :day) |> DateTime.truncate(:second),
+          opponent: "Past B"
+        )
+
+      future1 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, 1, :day) |> DateTime.truncate(:second),
+          opponent: "Future A"
+        )
+
+      future2 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second),
+          opponent: "Future B"
+        )
+
+      future3 =
+        Factory.match(
+          team: team,
+          match_start_datetime:
+            DateTime.add(now, 1, :day) |> DateTime.add(5, :hour) |> DateTime.truncate(:second),
+          opponent: "Future C"
+        )
 
       results = Tennis.list_upcoming_matches_for_team!(team.id)
       ids = Enum.map(results, & &1.id)
@@ -71,19 +99,43 @@ defmodule TennisTracker.Tennis.MatchTest do
       assert future3.id in ids
       refute Enum.any?(results, &(&1.opponent in ["Past A", "Past B"]))
 
-      # sorted: future1 (day+1 09:00), future3 (day+1 14:00), future2 (day+7 10:00)
+      # sorted: future1 (now+1d), future3 (now+1d+5h), future2 (now+7d)
       assert ids == [future1.id, future3.id, future2.id]
     end
   end
 
   describe "list_past_matches_for_team/1" do
-    test "returns only past matches sorted descending by date then time", %{team: team} do
-      today = Date.utc_today()
+    test "returns only past matches sorted descending by datetime", %{team: team} do
+      now = DateTime.utc_now()
 
-      past1 = Factory.match(team: team, match_date: Date.add(today, -7), match_time: ~T[10:00:00], opponent: "Past A")
-      past2 = Factory.match(team: team, match_date: Date.add(today, -1), match_time: ~T[09:00:00], opponent: "Past B")
-      past3 = Factory.match(team: team, match_date: Date.add(today, -1), match_time: ~T[14:00:00], opponent: "Past C")
-      _future = Factory.match(team: team, match_date: Date.add(today, 7), match_time: ~T[10:00:00], opponent: "Future")
+      past1 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, -7, :day) |> DateTime.truncate(:second),
+          opponent: "Past A"
+        )
+
+      past2 =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, -1, :day) |> DateTime.truncate(:second),
+          opponent: "Past B"
+        )
+
+      past3 =
+        Factory.match(
+          team: team,
+          match_start_datetime:
+            DateTime.add(now, -1, :day) |> DateTime.add(5, :hour) |> DateTime.truncate(:second),
+          opponent: "Past C"
+        )
+
+      _future =
+        Factory.match(
+          team: team,
+          match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second),
+          opponent: "Future"
+        )
 
       results = Tennis.list_past_matches_for_team!(team.id)
       ids = Enum.map(results, & &1.id)
@@ -93,7 +145,7 @@ defmodule TennisTracker.Tennis.MatchTest do
       assert past3.id in ids
       refute Enum.any?(results, &(&1.opponent == "Future"))
 
-      # sorted desc: past3 (day-1 14:00), past2 (day-1 09:00), past1 (day-7 10:00)
+      # sorted desc: past3 (now-1d+5h), past2 (now-1d), past1 (now-7d)
       assert ids == [past3.id, past2.id, past1.id]
     end
   end
