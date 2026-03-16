@@ -192,6 +192,8 @@ defmodule TennisTracker.Tennis do
 
     resource TennisTracker.Tennis.Match do
       define(:create_match, action: :create)
+      define(:update_match, action: :update)
+      define(:destroy_match, action: :destroy)
       define(:list_upcoming_matches_for_team, action: :list_upcoming_matches_for_team, args: [:team_id])
       define(:list_past_matches_for_team, action: :list_past_matches_for_team, args: [:team_id])
       define(:get_next_upcoming_match_for_team, action: :next_upcoming_match_for_team, args: [:team_id])

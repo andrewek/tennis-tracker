@@ -126,5 +126,22 @@ defmodule TennisTracker.Tennis.Match do
         :location_id
       ])
     end
+
+    update :update do
+      primary?(true)
+
+      accept([
+        :match_start_datetime,
+        :timezone,
+        :duration_minutes,
+        :opponent,
+        :home_or_away,
+        :location_id
+      ])
+    end
+
+    destroy :destroy do
+      primary?(true)
+    end
   end
 end

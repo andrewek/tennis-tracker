@@ -54,45 +54,14 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
     end
   end
 
-  describe "match creation form" do
-    test "submitting valid form adds match to upcoming", %{conn: conn} do
-      team = Factory.team()
-      today = Date.utc_today()
-      future_date = Date.add(today, 10)
-
-      {:ok, view, _html} = live(conn, ~p"/teams/#{team.id}")
-
-      view |> element("button", "Add Match") |> render_click()
-
-      assert has_element?(view, "form")
-
-      view
-      |> form("form", %{
-        "form" => %{
-          "opponent" => "New Rival",
-          "home_or_away" => "home",
-          "match_date" => Date.to_iso8601(future_date),
-          "match_time" => "10:00"
-        }
-      })
-      |> render_submit()
-
-      html = render(view)
-      assert html =~ "New Rival"
-    end
-
-    test "invalid form submission shows errors", %{conn: conn} do
+  describe "edit team link and read-only state" do
+    test "shows Edit Team link and no Add Match button", %{conn: conn} do
       team = Factory.team()
 
-      {:ok, view, _html} = live(conn, ~p"/teams/#{team.id}")
+      {:ok, _view, html} = live(conn, ~p"/teams/#{team.id}")
 
-      view |> element("button", "Add Match") |> render_click()
-
-      view
-      |> form("form", %{"form" => %{"opponent" => "", "home_or_away" => ""}})
-      |> render_submit()
-
-      assert has_element?(view, "form")
+      assert html =~ "Edit Team"
+      refute html =~ "Add Match"
     end
   end
 

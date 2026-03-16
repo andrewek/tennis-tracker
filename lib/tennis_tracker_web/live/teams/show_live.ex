@@ -2,19 +2,15 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
   use TennisTrackerWeb, :live_view
 
   import TennisTrackerWeb.BoardComponents
+  import TennisTrackerWeb.MatchHelpers
 
   alias TennisTracker.Tennis
-  alias TennisTracker.Tennis.Match
 
   def mount(_params, _session, socket) do
     socket
     |> assign(:team, nil)
     |> assign(:players, [])
     |> assign(:selected_player, nil)
-    |> assign(:show_match_form, false)
-    |> assign(:form, nil)
-    |> assign(:locations, [])
-    |> assign(:team_timezone, "America/Chicago")
     |> stream(:upcoming_matches, [])
     |> stream(:past_matches, [])
     |> ok()
@@ -51,128 +47,6 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     socket |> assign(:selected_player, nil) |> noreply()
   end
 
-  def handle_event("open_match_form", _params, socket) do
-    form =
-      AshPhoenix.Form.for_create(Match, :create,
-        domain: Tennis,
-        forms: [auto?: true]
-      )
-      |> to_form()
-
-    locations = Tennis.list_locations!()
-    team = socket.assigns.team
-    team_timezone = (team && team.default_timezone) || "America/Chicago"
-
-    socket
-    |> assign(:show_match_form, true)
-    |> assign(:form, form)
-    |> assign(:locations, locations)
-    |> assign(:team_timezone, team_timezone)
-    |> noreply()
-  end
-
-  def handle_event("close_match_form", _params, socket) do
-    socket |> assign(:show_match_form, false) |> assign(:form, nil) |> noreply()
-  end
-
-  def handle_event("validate_match", %{"form" => params}, socket) do
-    timezone = socket.assigns.team_timezone
-    date_str = params["match_date"]
-    time_str = params["match_time"]
-
-    params =
-      case build_match_datetime_params(date_str, time_str, timezone) do
-        {:ok, utc_dt} ->
-          params
-          |> Map.put("match_start_datetime", DateTime.to_iso8601(utc_dt))
-          |> Map.put("timezone", timezone)
-
-        {:error, _} ->
-          params
-      end
-
-    form = AshPhoenix.Form.validate(socket.assigns.form, params)
-    socket |> assign(:form, form) |> noreply()
-  end
-
-  def handle_event("save_match", %{"form" => params}, socket) do
-    team = socket.assigns.team
-    timezone = socket.assigns.team_timezone
-    date_str = params["match_date"]
-    time_str = params["match_time"]
-
-    case build_match_datetime_params(date_str, time_str, timezone) do
-      {:error, _} ->
-        socket
-        |> put_flash(:error, "Date or time is invalid — please check the values you entered")
-        |> noreply()
-
-      {:ok, utc_dt} ->
-        params_with_datetime =
-          params
-          |> Map.put("match_start_datetime", DateTime.to_iso8601(utc_dt))
-          |> Map.put("timezone", timezone)
-          |> Map.put("team_id", team.id)
-
-        case AshPhoenix.Form.submit(socket.assigns.form, params: params_with_datetime) do
-          {:ok, _match} ->
-            upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-            past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
-
-            socket
-            |> assign(:show_match_form, false)
-            |> assign(:form, nil)
-            |> stream(:upcoming_matches, upcoming, reset: true)
-            |> stream(:past_matches, past, reset: true)
-            |> put_flash(:info, "Match added.")
-            |> noreply()
-
-          {:error, form} ->
-            socket |> assign(:form, form) |> noreply()
-        end
-    end
-  end
-
-  defp build_match_datetime_params(date_str, time_str, timezone) do
-    with {:ok, date} <- Date.from_iso8601(date_str || ""),
-         {:ok, time} <- Time.from_iso8601("#{time_str || ""}:00"),
-         {:ok, naive} <- NaiveDateTime.new(date, time),
-         result <- DateTime.from_naive(naive, timezone) do
-      case result do
-        {:ok, dt} ->
-          {:ok, DateTime.shift_zone!(dt, "Etc/UTC")}
-
-        {:ambiguous, _first, second} ->
-          {:ok, DateTime.shift_zone!(second, "Etc/UTC")}
-
-        {:gap, _before, after_gap} ->
-          {:ok, DateTime.shift_zone!(after_gap, "Etc/UTC")}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp format_match_datetime(%DateTime{} = utc_dt, timezone) do
-    tz = timezone || "America/Chicago"
-    local = DateTime.shift_zone!(utc_dt, tz)
-    date_str = Calendar.strftime(local, "%a, %b %-d")
-
-    %DateTime{hour: h, minute: m} = local
-
-    {hour, ampm} =
-      if h >= 12,
-        do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
-        else: {if(h == 0, do: 12, else: h), "AM"}
-
-    minute_str = m |> Integer.to_string() |> String.pad_leading(2, "0")
-    time_str = "#{hour}:#{minute_str} #{ampm}"
-    {date_str, time_str}
-  end
-
   defp format_home_or_away(:home, opponent), do: "HOME v. #{opponent}"
   defp format_home_or_away(:away, opponent), do: "AWAY v. #{opponent}"
 
@@ -186,11 +60,16 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       </div>
 
       <%!-- Team header --%>
-      <div class="mb-8">
-        <h1 class="text-4xl font-bold tracking-tight">{@team.name}</h1>
-        <p class="mt-1 text-base-content/60">
-          {@team.team_type.name} · {@team.season_year}
-        </p>
+      <div class="mb-8 flex items-start justify-between">
+        <div>
+          <h1 class="text-4xl font-bold tracking-tight">{@team.name}</h1>
+          <p class="mt-1 text-base-content/60">
+            {@team.team_type.name} · {@team.season_year}
+          </p>
+        </div>
+        <.link navigate={~p"/teams/#{@team.id}/edit"} class="btn btn-sm btn-ghost">
+          Edit Team
+        </.link>
       </div>
 
       <%!-- Roster + schedule: flex wrap so each column only takes the space it needs --%>
@@ -220,9 +99,6 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         <div class="bg-base-200 rounded-lg p-4 w-full max-w-md">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-semibold">Upcoming Matches</h2>
-            <button class="btn btn-xs btn-ghost" phx-click="open_match_form">
-              <.icon name="hero-plus" class="size-3 inline" /> Add Match
-            </button>
           </div>
 
           <div id="upcoming-matches" phx-update="stream" class="space-y-3">
@@ -306,39 +182,6 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         on_close={JS.push("close_player_modal")}
       />
 
-      <%!-- Add Match modal --%>
-      <.modal
-        :if={@show_match_form}
-        title="Add Match"
-        on_close={JS.push("close_match_form")}
-        max_width="max-w-lg"
-      >
-        <.form for={@form} phx-change="validate_match" phx-submit="save_match">
-          <.input field={@form[:opponent]} type="text" label="Opponent" />
-          <.input
-            field={@form[:home_or_away]}
-            type="select"
-            label="Home or Away"
-            options={[{"Home", "home"}, {"Away", "away"}]}
-            prompt="Select..."
-          />
-          <.input field={@form[:match_date]} type="date" label="Match Date" />
-          <.input field={@form[:match_time]} type="time" label="Match Time" />
-          <.input
-            field={@form[:location_id]}
-            type="select"
-            label="Location"
-            options={Enum.map(@locations, &{&1.name, &1.id})}
-            prompt="Location TBD"
-          />
-          <div class="mt-4 flex gap-2 justify-end">
-            <button type="button" class="btn btn-ghost btn-sm" phx-click="close_match_form">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary btn-sm">Save Match</button>
-          </div>
-        </.form>
-      </.modal>
     </Layouts.app>
     """
   end

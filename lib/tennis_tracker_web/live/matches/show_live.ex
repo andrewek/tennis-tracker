@@ -1,6 +1,8 @@
 defmodule TennisTrackerWeb.Matches.ShowLive do
   use TennisTrackerWeb, :live_view
 
+  import TennisTrackerWeb.MatchHelpers
+
   alias TennisTracker.Tennis
 
   def mount(_params, _session, socket) do
@@ -31,23 +33,6 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
     end
   end
 
-  defp format_match_datetime(%DateTime{} = utc_dt, timezone) do
-    tz = timezone || "America/Chicago"
-    local = DateTime.shift_zone!(utc_dt, tz)
-    date_str = Calendar.strftime(local, "%A, %B %-d, %Y")
-
-    %DateTime{hour: h, minute: m} = local
-
-    {hour, ampm} =
-      if h >= 12,
-        do: {rem(h, 12) |> then(&if(&1 == 0, do: 12, else: &1)), "PM"},
-        else: {if(h == 0, do: 12, else: h), "AM"}
-
-    minute_str = m |> Integer.to_string() |> String.pad_leading(2, "0")
-    time_str = "#{hour}:#{minute_str} #{ampm}"
-    {date_str, time_str}
-  end
-
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
@@ -74,6 +59,12 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
             {@match.team.name}
           </.link>
         </p>
+
+        <div class="mb-4">
+          <.link navigate={~p"/matches/#{@match.id}/edit"} class="btn btn-sm btn-ghost">
+            Edit Match
+          </.link>
+        </div>
 
         <div class="bg-base-200 rounded-lg p-5 space-y-4">
           <div>

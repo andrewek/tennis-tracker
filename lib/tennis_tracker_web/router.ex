@@ -37,8 +37,10 @@ defmodule TennisTrackerWeb.Router do
 
       live "/teams", Teams.IndexLive, :index
       live "/teams/:id", Teams.ShowLive, :show
+      live "/teams/:id/edit", Teams.EditLive, :edit
 
       live "/matches/:id", Matches.ShowLive, :show
+      live "/matches/:id/edit", Matches.EditLive, :edit
 
       live "/roster-planner", RosterPlannerLive, :index
       live "/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board

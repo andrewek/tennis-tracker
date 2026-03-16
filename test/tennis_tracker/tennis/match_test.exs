@@ -104,6 +104,37 @@ defmodule TennisTracker.Tennis.MatchTest do
     end
   end
 
+  describe "update" do
+    test "updates allowed fields", %{team: team} do
+      match = Factory.match(team: team, opponent: "Old Rival", home_or_away: :home)
+      location = Factory.location()
+
+      {:ok, updated} =
+        Tennis.update_match(match, %{
+          opponent: "New Rival",
+          home_or_away: :away,
+          location_id: location.id
+        })
+
+      assert updated.opponent == "New Rival"
+      assert updated.home_or_away == :away
+      assert updated.location_id == location.id
+    end
+
+    test "returns error for blank opponent", %{team: team} do
+      match = Factory.match(team: team)
+      assert {:error, _} = Tennis.update_match(match, %{opponent: ""})
+    end
+  end
+
+  describe "destroy" do
+    test "deletes the match", %{team: team} do
+      match = Factory.match(team: team)
+      assert :ok = Tennis.destroy_match(match)
+      assert {:error, _} = Ash.get(Tennis.Match, match.id, domain: Tennis)
+    end
+  end
+
   describe "list_past_matches_for_team/1" do
     test "returns only past matches sorted descending by datetime", %{team: team} do
       now = DateTime.utc_now()
