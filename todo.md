@@ -28,6 +28,13 @@ In no particular order. Crossed out when done.
 1. Allow "archiving" a Location rather than deleting it, so historical matches
    that reference it remain valid. Deleting a location with associated matches
    should be prevented at the DB level.
+1. Group owners need UI pages to create, edit, and update Location records
+   (currently only accessible via AshAdmin). Build `/:group_slug/locations`
+   index and `/:group_slug/locations/new` / `/:group_slug/locations/:id/edit`
+   pages.
+1. Group owners need UI pages to create, edit, and update SeasonRules records
+   (currently only accessible via AshAdmin). Build `/:group_slug/seasons`
+   index and create/edit forms.
 1. There should be an easy way to "copy" a previous year's team into this
    year's team for a given season.
 1. What makes sense in terms of lineup scheduling? We have slightly different
@@ -38,6 +45,23 @@ In no particular order. Crossed out when done.
    planner board; name editing also only lives there.)~
 1. A team can be marked as archived, which would keep it from showing up in
    the /teams list by default. There will still be a way to see archived teams.
+1. Explore merging TeamRole (User → Team) and TeamMembership (Player → Team)
+   once Player records can optionally link to User accounts. Today these are
+   parallel tracks; eventually a player with an account should be able to derive
+   their team access from their TeamMembership rather than needing a separate
+   TeamRole record. Consider what "merge" actually means: a unified participation
+   record, or just an authorization policy that checks both paths.
+1. Consider adding a "locked" or "read-only" state to a team (separate from
+   archived) that prevents future edits without hiding the team. Needs more
+   exploration: which edit operations should be blocked, who can lock/unlock
+   (captains vs. group owners), and how this interacts with the season
+   finalization flow.
+1. Consider team-level settings for lineup visibility. Current plan: lineups
+   are visible only to captains and :member TeamRole holders for that specific
+   team. A future option would be a per-team toggle: "lineups visible to all
+   group members" vs. "lineups visible only to team participants."
+1. Build an "Assume User Identity" feature for system admins, allowing them
+   to impersonate any user account for debugging and support purposes.
 1. At some point we need to figure out how to deploy. We also probably need a
    CI/CD pipeline. At this time I am leaning toward Fly.io.
 1. We'll need some way to basically "finalize" a planning session. Then teams

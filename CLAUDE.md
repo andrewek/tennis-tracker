@@ -62,6 +62,16 @@ This is a Phoenix 1.8.5 application with PostgreSQL, LiveView, Tailwind CSS v4, 
 - Generate migrations with `mix ash_postgres.generate_migrations --name name` — **never** use `mix ecto.gen.migration`
 - Resource snapshots live in `priv/resource_snapshots/`; do not edit them manually
 
+**Authorization UI convention:** If the current user cannot perform an action, do NOT render the button or link for it. If a user navigates directly to an unauthorized form URL, redirect them in `mount/3` after the role check. Ash policies enforce at the data layer regardless — the UI convention is defense-in-depth plus UX clarity.
+
+**Multitenancy — tenant and actor are both required:** All Tennis domain Ash calls MUST pass BOTH `tenant: group_id` AND `actor: current_user`. A missing tenant is a hard error. A missing actor means policies are silently skipped. Never call Tennis domain functions without both. In LiveViews, these come from `socket.assigns.current_group_id` and `socket.assigns.current_user`.
+
+System admins bypass tenant scoping in the Admin panel. After any change to an Ash
+resource's admin configuration, manually verify that: (1) admin views show data across
+all groups correctly for system admins, and (2) no cross-tenant data is accessible to
+non-admin users. Ash's `bypass` policy is the mechanism — confirm it's present on
+every tenant-scoped resource.
+
 **HTTP:** Use `Req` (already included) — never `:httpoison`, `:tesla`, or `:httpc`.
 
 **Adding new resource fields:**
