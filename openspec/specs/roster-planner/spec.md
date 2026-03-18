@@ -1,5 +1,5 @@
 ### Requirement: User can select a planning context
-The system SHALL provide a way for users to select a planning context (season year + team type) before viewing the planning board. The selection SHALL be surfaced at `/roster-planner`.
+The system SHALL provide a way for users to select a planning context (season year + team type) before viewing the planning board. The selection SHALL be surfaced at `/g/:group_slug/roster-planner`.
 
 #### Scenario: Selecting a context loads the planning board
 - **WHEN** a user selects a season year and team type from the context selector
@@ -7,7 +7,7 @@ The system SHALL provide a way for users to select a planning context (season ye
 
 #### Scenario: Context selector lists available team types
 - **WHEN** the context selector is displayed
-- **THEN** all seeded TeamTypes are listed as options
+- **THEN** all TeamTypes for the current group are listed as options
 
 ### Requirement: Planning board takes full width of the page
 The planning board SHALL use the full available page width (with standard horizontal padding) rather than a constrained content-width layout. This is necessary because the board may contain 5 or more columns simultaneously.
@@ -121,6 +121,22 @@ The system SHALL allow users to add a new team to the current planning context v
 - **THEN** a validation error is shown on the name field
 - **AND** no team is created
 - **AND** the modal remains open
+
+### Requirement: Roster planner write operations require group owner role
+All write operations on the planning board (moving players, creating teams, deleting teams, renaming teams) SHALL require the acting user to hold a `GroupMembership.role == :owner` for the current group, or be a system admin. Group members with role `:member` SHALL have read-only access to the planning board.
+
+#### Scenario: Group owner can move a player on the planning board
+- **WHEN** a user with GroupMembership :owner drags a player to a different column
+- **THEN** the player's TeamMembership is updated
+
+#### Scenario: Group member sees the board but cannot drag players
+- **WHEN** a user with GroupMembership :member views the planning board
+- **THEN** the board is displayed with player cards and columns
+- **AND** drag-and-drop and tap-to-assign interactions are disabled or produce no changes
+
+#### Scenario: Group member cannot create a team from the board
+- **WHEN** a user with GroupMembership :member attempts to create a team via the board
+- **THEN** the action is denied (button hidden or action rejected)
 
 ### Requirement: Planning board state persists across sessions
 The system SHALL persist all roster assignments so that returning to the same planning context shows the same board state as when the user left.
