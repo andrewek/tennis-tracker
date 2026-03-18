@@ -85,6 +85,18 @@ In no particular order. Crossed out when done.
 1. Rework the site layout from the current top-nav to a sidenav. As part of
    this, extract common layout pieces (group nav links, back-links, page header
    wrapper) into reusable components so individual LiveViews stay thin.
+1. The `/g/:group_slug` group home page is currently a placeholder. Replace it
+   with something more useful — ideas include: active roster planning sessions,
+   the next few upcoming matches, and perhaps an activity feed.
+1. Explore a better flash/toast notification implementation. Currently flash messages
+   render inside the layout structure, which can conflict with drawer overlays and
+   fixed-position UI. A proper toast system would float above all content (fixed
+   position, z-index aware) and work correctly regardless of layout nesting.
+1. Rework the Roster Planner page structure. Currently it acts as both an index
+   (selecting a planning context) and a show/board page in one LiveView. Split
+   this into a conventional index page (list/create planning contexts) and a
+   separate board/show page, so both conform to the standard page structure used
+   by the rest of the app (sidenav layout + `<.page_header>` with back link).
 
 ## Done
 
