@@ -2,8 +2,14 @@ defmodule TennisTrackerWeb.AuthController do
   use TennisTrackerWeb, :controller
   use AshAuthentication.Phoenix.Controller
 
+  alias TennisTracker.Groups
+
   def success(conn, activity, user, _token) do
-    return_to = get_session(conn, :return_to) || ~p"/"
+    return_to =
+      case get_session(conn, :return_to) do
+        nil -> post_login_path(user)
+        path -> path
+      end
 
     message =
       case activity do
@@ -15,7 +21,6 @@ defmodule TennisTrackerWeb.AuthController do
     conn
     |> delete_session(:return_to)
     |> store_in_session(user)
-    # If your resource has a different name, update the assign name here (i.e :current_admin)
     |> assign(:current_user, user)
     |> put_flash(:info, message)
     |> redirect(to: return_to)
@@ -51,5 +56,12 @@ defmodule TennisTrackerWeb.AuthController do
     |> clear_session(:tennis_tracker)
     |> put_flash(:info, "You are now signed out")
     |> redirect(to: return_to)
+  end
+
+  defp post_login_path(user) do
+    case Groups.list_groups_for_user(user.id, actor: user) do
+      {:ok, [single_group]} -> ~p"/g/#{single_group.slug}/teams"
+      _ -> ~p"/groups"
+    end
   end
 end

@@ -5,17 +5,19 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
 
   alias TennisTracker.Tennis
 
-  setup %{conn: conn} do
-    {:ok, conn: log_in_user(conn)}
+  setup :setup_group_with_owner
+
+  setup %{conn: conn, user: user} do
+    {:ok, conn: log_in_user(conn, user)}
   end
 
   describe "page load" do
-    test "loads pre-populated with team name and timezone", %{conn: conn} do
-      tt = Factory.team_type()
-      team = Factory.team(team_type: tt, name: "Westroads 3.5")
-      Tennis.update_team!(team, %{default_timezone: "America/Denver"})
+    test "loads pre-populated with team name and timezone", %{conn: conn, group: grp, user: usr} do
+      tt = Factory.team_type(group: grp)
+      team = Factory.team(group: grp, team_type: tt, name: "Westroads 3.5")
+      Tennis.update_team!(team, %{default_timezone: "America/Denver"}, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} = live(conn, ~p"/teams/#{team.id}/edit")
+      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
       assert html =~ "Westroads 3.5"
       assert html =~ "America/Denver"
@@ -23,10 +25,10 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
   end
 
   describe "team settings form" do
-    test "valid name + timezone update saves and shows flash", %{conn: conn} do
-      team = Factory.team(name: "Old Name")
+    test "valid name + timezone update saves and shows flash", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp, name: "Old Name")
 
-      {:ok, view, _html} = live(conn, ~p"/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
       view
       |> form("form[phx-submit='save_team']", %{
@@ -42,10 +44,10 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
       assert html =~ "Team updated"
     end
 
-    test "blank name shows validation error and does not save", %{conn: conn} do
-      team = Factory.team(name: "My Team")
+    test "blank name shows validation error and does not save", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp, name: "My Team")
 
-      {:ok, view, _html} = live(conn, ~p"/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
       view
       |> form("form[phx-submit='save_team']", %{
@@ -60,33 +62,35 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
   end
 
   describe "invalid team IDs" do
-    test "pseudo-team ID redirects to / with flash", %{conn: conn} do
-      tt = Factory.team_type()
-      {:ok, pseudo_team} = Tennis.ensure_pseudo_team(tt.id, Date.utc_today().year)
+    test "pseudo-team ID redirects to / with flash", %{conn: conn, group: grp, user: usr} do
+      tt = Factory.team_type(group: grp)
 
-      {:error, {:live_redirect, %{to: "/", flash: flash}}} =
-        live(conn, ~p"/teams/#{pseudo_team.id}/edit")
+      {:ok, pseudo_team} =
+        Tennis.ensure_pseudo_team(tt.id, Date.utc_today().year, tenant: grp.id, actor: usr)
+
+      {:error, {:live_redirect, %{to: _to, flash: flash}}} =
+        live(conn, ~p"/g/#{grp.slug}/teams/#{pseudo_team.id}/edit")
 
       assert flash["error"] =~ "not found"
     end
 
-    test "non-existent team ID redirects to / with flash", %{conn: conn} do
+    test "non-existent team ID redirects to / with flash", %{conn: conn, group: grp} do
       fake_id = Ecto.UUID.generate()
 
-      {:error, {:live_redirect, %{to: "/", flash: flash}}} =
-        live(conn, ~p"/teams/#{fake_id}/edit")
+      {:error, {:live_redirect, %{to: _to, flash: flash}}} =
+        live(conn, ~p"/g/#{grp.slug}/teams/#{fake_id}/edit")
 
       assert flash["error"] =~ "not found"
     end
   end
 
   describe "add match via modal" do
-    test "adding a match via modal appears in upcoming list with flash", %{conn: conn} do
-      team = Factory.team()
+    test "adding a match via modal appears in upcoming list with flash", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp)
       today = Date.utc_today()
       future_date = Date.add(today, 10)
 
-      {:ok, view, _html} = live(conn, ~p"/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
       view |> element("button", "Add Match") |> render_click()
 
@@ -110,18 +114,19 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
   end
 
   describe "delete match" do
-    test "deleting a match removes it from the list and shows flash", %{conn: conn} do
-      team = Factory.team()
+    test "deleting a match removes it from the list and shows flash", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp)
       now = DateTime.utc_now()
 
       match =
         Factory.match(
+          group: grp,
           team: team,
           opponent: "To Delete",
           match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second)
         )
 
-      {:ok, view, html} = live(conn, ~p"/teams/#{team.id}/edit")
+      {:ok, view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
       assert html =~ "To Delete"
 
       view

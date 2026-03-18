@@ -12,8 +12,17 @@ defmodule TennisTrackerWeb.Players.ShowLive do
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
-    player = Tennis.get_player!(id)
-    memberships = Tennis.list_real_memberships_for_player!(id, load: [:display_label, :team])
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    player = Tennis.get_player!(id, tenant: group_id, actor: current_user)
+
+    memberships =
+      Tennis.list_real_memberships_for_player!(id,
+        tenant: group_id,
+        actor: current_user,
+        load: [:display_label, :team]
+      )
 
     socket
     |> assign(:player, player)
@@ -30,17 +39,29 @@ defmodule TennisTrackerWeb.Players.ShowLive do
   end
 
   def handle_event("delete", _params, socket) do
-    Tennis.destroy_player!(socket.assigns.player)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    group_slug = socket.assigns.current_group.slug
+    Tennis.destroy_player!(socket.assigns.player, tenant: group_id, actor: current_user)
 
     socket
     |> put_flash(:info, "Player deleted.")
-    |> push_navigate(to: ~p"/players")
+    |> push_navigate(to: ~p"/g/#{group_slug}/players")
     |> noreply()
   end
 
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
+      <div class="mb-6">
+        <.link
+          navigate={~p"/g/#{@current_group.slug}/players"}
+          class="text-sm text-base-content/70 hover:text-base-content"
+        >
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Players
+        </.link>
+      </div>
+
       <div class="mb-6">
         <h1 class="text-4xl font-bold tracking-tight">
           {@player.name}
@@ -54,7 +75,9 @@ defmodule TennisTrackerWeb.Players.ShowLive do
       </div>
 
       <div class="flex gap-3 mb-6">
-        <.button navigate={~p"/players/#{@player.id}/edit"}>Edit</.button>
+        <.button navigate={~p"/g/#{@current_group.slug}/players/#{@player.id}/edit"}>
+          Edit
+        </.button>
         <button phx-click="show_delete_modal" class="btn btn-error btn-soft">Delete</button>
       </div>
 
@@ -85,7 +108,10 @@ defmodule TennisTrackerWeb.Players.ShowLive do
           <ul class="space-y-1">
             <%= for membership <- @memberships do %>
               <li class="text-sm">
-                <.link navigate={~p"/teams/#{membership.team.id}"} class="hover:underline">
+                <.link
+                  navigate={~p"/g/#{@current_group.slug}/teams/#{membership.team.id}"}
+                  class="hover:underline"
+                >
                   {membership.display_label}
                 </.link>
               </li>
@@ -94,11 +120,6 @@ defmodule TennisTrackerWeb.Players.ShowLive do
         <% end %>
       </div>
 
-      <div class="mt-6">
-        <.link navigate={~p"/players"} class="text-sm text-base-content/70 hover:text-base-content">
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to players
-        </.link>
-      </div>
     </Layouts.app>
     """
   end

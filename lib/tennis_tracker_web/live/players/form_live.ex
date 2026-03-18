@@ -20,14 +20,28 @@ defmodule TennisTrackerWeb.Players.FormLive do
   end
 
   def handle_params(params, _url, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
     form =
       case socket.assigns.live_action do
         :new ->
-          AshPhoenix.Form.for_create(Player, :create, domain: Tennis) |> to_form()
+          AshPhoenix.Form.for_create(Player, :create,
+            domain: Tennis,
+            actor: current_user,
+            tenant: group_id
+          )
+          |> to_form()
 
         :edit ->
-          player = Tennis.get_player!(params["id"])
-          AshPhoenix.Form.for_update(player, :update, domain: Tennis) |> to_form()
+          player = Tennis.get_player!(params["id"], tenant: group_id, actor: current_user)
+
+          AshPhoenix.Form.for_update(player, :update,
+            domain: Tennis,
+            actor: current_user,
+            tenant: group_id
+          )
+          |> to_form()
       end
 
     socket
@@ -66,7 +80,7 @@ defmodule TennisTrackerWeb.Players.FormLive do
           <.button type="submit" variant="primary">
             {if @live_action == :new, do: "Create Player", else: "Save Changes"}
           </.button>
-          <.button navigate={~p"/players"}>Cancel</.button>
+          <.button navigate={~p"/g/#{@current_group.slug}/players"}>Cancel</.button>
         </div>
       </.form>
     </Layouts.app>
@@ -82,11 +96,13 @@ defmodule TennisTrackerWeb.Players.FormLive do
   end
 
   def handle_event("save", %{"form" => params}, socket) do
+    group_slug = socket.assigns.current_group.slug
+
     case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
       {:ok, player} ->
         socket
         |> put_flash(:info, "Player saved.")
-        |> push_navigate(to: ~p"/players/#{player.id}")
+        |> push_navigate(to: ~p"/g/#{group_slug}/players/#{player.id}")
         |> noreply()
 
       {:error, form} ->

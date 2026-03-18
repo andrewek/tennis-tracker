@@ -2,6 +2,7 @@ defmodule TennisTracker.Tennis.Team do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     notifiers: [Ash.Notifier.PubSub],
     primary_read_warning?: false,
     extensions: [AshAdmin.Resource]
@@ -16,14 +17,32 @@ defmodule TennisTracker.Tennis.Team do
     end
   end
 
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+    end
+
+    policy action_type([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+  end
+
   pub_sub do
     module(Phoenix.PubSub)
     name(TennisTracker.PubSub)
     prefix("roster")
 
-    publish(:create, [:team_type_id, :season_year])
-    publish(:update, [:team_type_id, :season_year])
-    publish(:destroy, [:team_type_id, :season_year])
+    publish(:create, [:group_id, :team_type_id, :season_year])
+    publish(:update, [:group_id, :team_type_id, :season_year])
+    publish(:destroy, [:group_id, :team_type_id, :season_year])
   end
 
   admin do
@@ -54,6 +73,11 @@ defmodule TennisTracker.Tennis.Team do
       default("America/Chicago")
     end
 
+    attribute :group_id, :uuid do
+      allow_nil?(false)
+      public?(true)
+    end
+
     timestamps()
   end
 
@@ -65,6 +89,7 @@ defmodule TennisTracker.Tennis.Team do
 
     has_many :memberships, TennisTracker.Tennis.TeamMembership
     has_many :matches, TennisTracker.Tennis.Match
+    has_many :team_roles, TennisTracker.Tennis.TeamRole
   end
 
   actions do
@@ -87,7 +112,7 @@ defmodule TennisTracker.Tennis.Team do
 
     create :create do
       primary?(true)
-      accept([:name, :season_year, :is_pseudo, :team_type_id])
+      accept([:name, :season_year, :is_pseudo, :team_type_id, :group_id])
     end
 
     update :update do
@@ -97,6 +122,13 @@ defmodule TennisTracker.Tennis.Team do
 
     destroy :destroy do
       primary?(true)
+    end
+  end
+
+  aggregates do
+    first :next_match_start_datetime, :matches, :match_start_datetime do
+      filter(expr(match_start_datetime >= fragment("NOW()")))
+      sort(match_start_datetime: :asc)
     end
   end
 
@@ -115,10 +147,9 @@ defmodule TennisTracker.Tennis.Team do
     calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
   end
 
-  aggregates do
-    first :next_match_start_datetime, :matches, :match_start_datetime do
-      filter(expr(match_start_datetime >= fragment("NOW()")))
-      sort(match_start_datetime: :asc)
-    end
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

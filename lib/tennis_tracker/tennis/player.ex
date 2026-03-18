@@ -2,6 +2,7 @@ defmodule TennisTracker.Tennis.Player do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAdmin.Resource]
 
   postgres do
@@ -10,6 +11,28 @@ defmodule TennisTracker.Tennis.Player do
 
     custom_indexes do
       index([:ntrp_rating, :name])
+    end
+  end
+
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupMemberCheck)
+    end
+
+    policy action_type(:update) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:destroy) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
     end
   end
 
@@ -54,6 +77,11 @@ defmodule TennisTracker.Tennis.Player do
       allow_nil?(false)
     end
 
+    attribute :group_id, :uuid do
+      allow_nil?(false)
+      public?(true)
+    end
+
     timestamps()
   end
 
@@ -76,7 +104,8 @@ defmodule TennisTracker.Tennis.Player do
         :ntrp_rating,
         :eligible_18_plus,
         :eligible_40_plus,
-        :eligible_55_plus
+        :eligible_55_plus,
+        :group_id
       ])
     end
 
@@ -104,5 +133,11 @@ defmodule TennisTracker.Tennis.Player do
       where([present(:ntrp_rating)])
       message("must be a valid NTRP rating (2.5, 3.0, 3.5, 4.0, 4.5, or 5.0)")
     end
+  end
+
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

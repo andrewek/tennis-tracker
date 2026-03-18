@@ -23,7 +23,7 @@ defmodule TennisTrackerWeb.Players.ImportLive do
         Import Players
         <:subtitle>Upload a CSV file to bulk-import tennis players.</:subtitle>
         <:actions>
-          <.link navigate={~p"/players"}>Back to Players</.link>
+          <.link navigate={~p"/g/#{@current_group.slug}/players"}>Back to Players</.link>
         </:actions>
       </.header>
 
@@ -55,17 +55,21 @@ defmodule TennisTrackerWeb.Players.ImportLive do
 
   @impl true
   def handle_event("import", _params, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    group_slug = socket.assigns.current_group.slug
+
     result =
       consume_uploaded_entries(socket, :csv_file, fn %{path: path}, _entry ->
         content = File.read!(path)
-        {:ok, PlayerCsvImport.import_csv(content)}
+        {:ok, PlayerCsvImport.import_csv(content, tenant: group_id, actor: current_user)}
       end)
 
     case result do
       [{:ok, count}] ->
         socket
         |> put_flash(:info, "Imported #{count} player(s).")
-        |> push_navigate(to: ~p"/players")
+        |> push_navigate(to: ~p"/g/#{group_slug}/players")
         |> noreply()
 
       [{:error, :invalid_headers, unknown}] ->

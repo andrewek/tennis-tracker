@@ -12,8 +12,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def mount(_params, _session, socket) do
-    team_types = Tennis.list_team_types!()
-    planning_contexts = Tennis.list_planning_contexts()
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    team_types = Tennis.list_team_types!(tenant: group_id, actor: current_user)
+    planning_contexts = Tennis.list_planning_contexts(tenant: group_id, actor: current_user)
 
     socket
     |> assign(:page_title, "Roster Planner")
@@ -34,18 +37,41 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         _url,
         socket
       ) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
     case Integer.parse(season_year_str) do
       {season_year, ""} ->
-        team_type = Tennis.get_team_type!(team_type_id)
-        {:ok, pseudo_team} = Tennis.ensure_pseudo_team(team_type_id, season_year)
-        topic = topic(team_type_id, season_year)
+        team_type = Tennis.get_team_type!(team_type_id, tenant: group_id, actor: current_user)
+
+        {:ok, pseudo_team} =
+          Tennis.ensure_pseudo_team(team_type_id, season_year,
+            tenant: group_id,
+            actor: current_user
+          )
+
+        topic = topic(group_id, team_type_id, season_year)
 
         if connected?(socket) do
           Phoenix.PubSub.subscribe(TennisTracker.PubSub, topic)
         end
 
-        {:ok, season_rules} = Tennis.get_season_rules_for_context(team_type_id, season_year)
-        board = load_board(team_type_id, season_year, pseudo_team, team_type, season_rules)
+        {:ok, season_rules} =
+          Tennis.get_season_rules_for_context(team_type_id, season_year,
+            tenant: group_id,
+            actor: current_user
+          )
+
+        board =
+          load_board(
+            team_type_id,
+            season_year,
+            pseudo_team,
+            team_type,
+            season_rules,
+            group_id,
+            current_user
+          )
 
         socket
         |> assign(:context, %{
@@ -60,7 +86,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
       _ ->
         socket
-        |> push_navigate(to: ~p"/roster-planner")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/roster-planner")
         |> noreply()
     end
   end
@@ -74,8 +100,10 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("select_context", %{"team_type_id" => ttid, "season_year" => year}, socket) do
+    group_slug = socket.assigns.current_group.slug
+
     socket
-    |> push_navigate(to: ~p"/roster-planner/#{ttid}/#{year}")
+    |> push_navigate(to: ~p"/g/#{group_slug}/roster-planner/#{ttid}/#{year}")
     |> noreply()
   end
 
@@ -137,7 +165,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         socket
       ) do
     ctx = socket.assigns.context
-    Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    Tennis.unassign_player(player_id, ctx.team_type_id, ctx.season_year,
+      tenant: group_id,
+      actor: current_user
+    )
+
     # Board reload is driven by the PubSub notification from the Ash action
     socket
     |> assign(:selection, nil)
@@ -150,7 +185,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         socket
       ) do
     ctx = socket.assigns.context
-    Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    Tennis.assign_player(player_id, target_id, ctx.team_type_id, ctx.season_year,
+      tenant: group_id,
+      actor: current_user
+    )
+
     # Board reload is driven by the PubSub notification from the Ash action
     socket
     |> assign(:selection, nil)
@@ -163,10 +205,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def handle_event("open_team_modal", %{"mode" => "create"}, socket) do
     ctx = socket.assigns.context
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     form =
       Form.for_create(Team, :create,
         domain: Tennis,
+        actor: current_user,
+        tenant: group_id,
         as: "team",
         prepare_source: fn changeset ->
           Ash.Changeset.set_argument(changeset, :team_type_id, ctx.team_type_id)
@@ -184,9 +230,18 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def handle_event("open_team_modal", %{"mode" => "edit", "team_id" => team_id}, socket) do
     entry = Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id))
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     if entry do
-      form = Form.for_update(entry.team, :update, domain: Tennis, as: "team") |> to_form()
+      form =
+        Form.for_update(entry.team, :update,
+          domain: Tennis,
+          actor: current_user,
+          tenant: group_id,
+          as: "team"
+        )
+        |> to_form()
 
       socket
       |> assign(:team_modal, %{mode: :edit, form: form, team: entry.team})
@@ -226,6 +281,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   def handle_event("submit_team_form", %{"team" => params}, socket) do
     ctx = socket.assigns.context
     modal = socket.assigns.team_modal
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     params =
       if modal.mode == :create do
@@ -242,7 +299,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       {:ok, _team} ->
         socket
         |> assign(:team_modal, nil)
-        |> reload_board(ctx)
+        |> reload_board(ctx, group_id, current_user)
         |> noreply()
 
       {:error, form} ->
@@ -254,6 +311,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def handle_event("confirm_delete_team", %{"team_id" => team_id}, socket) do
     ctx = socket.assigns.context
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     team =
       case Enum.find(socket.assigns.board.real_teams, &(&1.team.id == team_id)) do
@@ -261,11 +320,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         entry -> entry.team
       end
 
-    if team, do: Tennis.delete_team(team)
+    if team, do: Tennis.delete_team(team, tenant: group_id, actor: current_user)
 
     socket
     |> assign(:team_modal, nil)
-    |> reload_board(ctx)
+    |> reload_board(ctx, group_id, current_user)
     |> noreply()
   end
 
@@ -275,10 +334,12 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def handle_info(%Ash.Notifier.Notification{}, socket) do
     ctx = socket.assigns.context
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     if ctx do
       socket
-      |> reload_board(ctx)
+      |> reload_board(ctx, group_id, current_user)
       |> noreply()
     else
       socket |> noreply()
@@ -289,7 +350,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # Board helpers
   # ---------------------------------------------------------------------------
 
-  defp topic(team_type_id, season_year), do: "roster:#{team_type_id}:#{season_year}"
+  defp topic(group_id, team_type_id, season_year),
+    do: "roster:#{group_id}:#{team_type_id}:#{season_year}"
 
   defp find_player_with_team(board, player_id) do
     cond do
@@ -312,25 +374,49 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     end
   end
 
-  defp reload_board(socket, ctx) do
+  defp reload_board(socket, ctx, group_id, current_user) do
     board =
       load_board(
         ctx.team_type_id,
         ctx.season_year,
         ctx.pseudo_team,
         ctx.team_type,
-        ctx.season_rules
+        ctx.season_rules,
+        group_id,
+        current_user
       )
 
     assign(socket, :board, board)
   end
 
-  defp load_board(team_type_id, season_year, pseudo_team, team_type, season_rules) do
-    {:ok, all_teams} = Tennis.list_teams_for_context(team_type_id, season_year)
-    {:ok, all_memberships} = Tennis.list_memberships_for_context(team_type_id, season_year)
+  defp load_board(
+         team_type_id,
+         season_year,
+         pseudo_team,
+         team_type,
+         season_rules,
+         group_id,
+         current_user
+       ) do
+    {:ok, all_teams} =
+      Tennis.list_teams_for_context(team_type_id, season_year,
+        tenant: group_id,
+        actor: current_user
+      )
+
+    {:ok, all_memberships} =
+      Tennis.list_memberships_for_context(team_type_id, season_year,
+        tenant: group_id,
+        actor: current_user
+      )
 
     real_teams = Enum.reject(all_teams, & &1.is_pseudo)
-    unassigned = Tennis.list_eligible_unassigned_players(team_type, team_type_id, season_year)
+
+    unassigned =
+      Tennis.list_eligible_unassigned_players(team_type, team_type_id, season_year,
+        tenant: group_id,
+        actor: current_user
+      )
 
     not_participating =
       all_memberships
@@ -419,6 +505,12 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       <div class="h-full flex flex-col">
         <%!-- Page title bar --%>
         <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
+          <.link
+            navigate={~p"/g/#{@current_group.slug}"}
+            class="text-sm text-base-content/70 hover:text-base-content"
+          >
+            <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
+          </.link>
           <span class="font-bold text-lg">Roster Planner</span>
           <span :if={@context} class="text-base-content/50 text-sm">
             {@context.team_type.name} · {@context.season_year}
@@ -442,7 +534,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             <%!-- Existing context cards --%>
             <.link
               :for={ctx <- @planning_contexts}
-              navigate={~p"/roster-planner/#{ctx.team_type_id}/#{ctx.season_year}"}
+              navigate={
+                ~p"/g/#{@current_group.slug}/roster-planner/#{ctx.team_type_id}/#{ctx.season_year}"
+              }
               class="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer"
             >
               <div class="card-body p-4">
@@ -516,7 +610,10 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         <div :if={@board} class="flex-1 min-h-0 flex flex-col">
           <%!-- Board toolbar --%>
           <div class="flex items-center gap-6 mb-4 px-4 flex-shrink-0">
-            <.link navigate={~p"/roster-planner"} class="btn btn-sm btn-ghost">
+            <.link
+              navigate={~p"/g/#{@current_group.slug}/roster-planner"}
+              class="btn btn-sm btn-ghost"
+            >
               <.icon name="hero-arrow-left" class="size-4" /> Change context
             </.link>
           </div>
@@ -536,6 +633,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 player={player}
                 has_violation={false}
                 selected={@selection != nil && @selection.player.id == player.id}
+                readonly={@current_group_role == :member}
               />
             </.board_column>
 
@@ -550,7 +648,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
               >
                 <:header_actions>
                   <.link
-                    navigate={~p"/teams/#{team.id}"}
+                    navigate={~p"/g/#{@current_group.slug}/teams/#{team.id}"}
                     class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
                     aria-label="View team page"
                   >
@@ -558,7 +656,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                     <span class="sr-only">View team page</span>
                   </.link>
                   <button
-                    :if={is_nil(@team_modal)}
+                    :if={is_nil(@team_modal) and @current_group_role in [:owner, :admin]}
                     phx-click="open_team_modal"
                     phx-value-mode="edit"
                     phx-value-team_id={team.id}
@@ -569,7 +667,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                     <span class="sr-only">Rename team</span>
                   </button>
                   <button
-                    :if={is_nil(@team_modal)}
+                    :if={is_nil(@team_modal) and @current_group_role in [:owner, :admin]}
                     phx-click="open_team_modal"
                     phx-value-mode="delete"
                     phx-value-team_id={team.id}
@@ -585,6 +683,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                   player={player}
                   has_violation={MapSet.member?(violation_ids, player.id)}
                   selected={@selection != nil && @selection.player.id == player.id}
+                  readonly={@current_group_role == :member}
                 />
               </.board_column>
             <% end %>
@@ -602,11 +701,13 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 player={player}
                 has_violation={false}
                 selected={@selection != nil && @selection.player.id == player.id}
+                readonly={@current_group_role == :member}
               />
             </.board_column>
 
-            <%!-- New Team button --%>
+            <%!-- New Team button (owners/admins only) --%>
             <div
+              :if={@current_group_role in [:owner, :admin]}
               id="col-new-team"
               phx-click="open_team_modal"
               phx-value-mode="create"
@@ -624,6 +725,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             :if={@selection}
             player={@selection.player}
             current_team={@selection.team}
+            group_slug={@current_group.slug}
             on_close={JS.push("deselect_player")}
           >
             <:actions>

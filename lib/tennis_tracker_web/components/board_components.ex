@@ -96,6 +96,7 @@ defmodule TennisTrackerWeb.BoardComponents do
 
   attr :player, :map, required: true
   attr :current_team, :string, default: nil
+  attr :group_slug, :string, required: true
   attr :on_close, :any, required: true
   slot :actions
 
@@ -112,7 +113,10 @@ defmodule TennisTrackerWeb.BoardComponents do
         Currently: {@current_team}
       </p>
       <div class="mb-3">
-        <.link navigate={~p"/players/#{@player.id}"} class="btn btn-ghost btn-sm w-full">
+        <.link
+          navigate={~p"/g/#{@group_slug}/players/#{@player.id}"}
+          class="btn btn-ghost btn-sm w-full"
+        >
           View profile
         </.link>
       </div>

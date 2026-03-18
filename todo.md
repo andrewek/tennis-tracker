@@ -14,7 +14,7 @@ In no particular order. Crossed out when done.
 1. A corresponding auth story is something like "Only members of the team can
    see the lineups"
 1. I'd also like to get the AshAI plugin working
-1. It's likely that we'll need some notion of "Organization"
+1. ~It's likely that we'll need some notion of "Organization"~
 1. Re-architect the PubSub structure into something more elegant. Currently the
    roster planner subscribes to a context-level topic (`roster:team_type_id:season_year`)
    which works for the planner but doesn't extend cleanly to other views (e.g., the
@@ -79,8 +79,18 @@ In no particular order. Crossed out when done.
    let us also send "Hey, go update your stuff!" emails (without needing to create
    an account) to existing players.
 
+1. Build better seed data given the new multi-tenancy setup: create at least one
+   Group with realistic team types, teams, players, and matches so the app is
+   immediately explorable after `mix ecto.reset`.
+1. Rework the site layout from the current top-nav to a sidenav. As part of
+   this, extract common layout pieces (group nav links, back-links, page header
+   wrapper) into reusable components so individual LiveViews stay thin.
+
 ## Done
 
+1. ~It's likely that we'll need some notion of "Organization" / Groups — implemented
+   as the Group model with slug-based routing and full multitenancy via group_id
+   tenant scoping across all Tennis domain resources.~
 1. ~It's hard to drag/drop when the available players list is very long. Let's
    make the team lists capped to screen height and scrollable.~
 1. ~On the player show page, show all team memberships for that player~

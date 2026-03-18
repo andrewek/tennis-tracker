@@ -16,6 +16,10 @@ defmodule TennisTracker.Accounts.Token do
       description("AshAuthentication can interact with the token resource")
       authorize_if(always())
     end
+
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
   end
 
   attributes do

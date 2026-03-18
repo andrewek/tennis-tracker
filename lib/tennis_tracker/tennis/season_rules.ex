@@ -2,11 +2,30 @@ defmodule TennisTracker.Tennis.SeasonRules do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAdmin.Resource]
 
   postgres do
     table("season_rules")
     repo(TennisTracker.Repo)
+  end
+
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+    end
+
+    policy action_type([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
   end
 
   admin do
@@ -36,6 +55,11 @@ defmodule TennisTracker.Tennis.SeasonRules do
       public?(true)
     end
 
+    attribute :group_id, :uuid do
+      allow_nil?(false)
+      public?(true)
+    end
+
     timestamps()
   end
 
@@ -60,7 +84,15 @@ defmodule TennisTracker.Tennis.SeasonRules do
 
     create :create do
       primary?(true)
-      accept([:season_year, :min_roster, :max_roster, :on_level_min_pct, :team_type_id])
+
+      accept([
+        :season_year,
+        :min_roster,
+        :max_roster,
+        :on_level_min_pct,
+        :team_type_id,
+        :group_id
+      ])
     end
 
     update :update do
@@ -74,7 +106,7 @@ defmodule TennisTracker.Tennis.SeasonRules do
   end
 
   identities do
-    identity(:unique_team_type_season, [:team_type_id, :season_year])
+    identity(:unique_team_type_season, [:group_id, :team_type_id, :season_year])
   end
 
   validations do
@@ -95,5 +127,11 @@ defmodule TennisTracker.Tennis.SeasonRules do
       where([present(:on_level_min_pct)])
       message("must be between 0.0 and 100.0")
     end
+  end
+
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

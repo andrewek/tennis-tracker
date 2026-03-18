@@ -2,6 +2,7 @@ defmodule TennisTracker.Tennis.Match do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAdmin.Resource]
 
   postgres do
@@ -10,6 +11,26 @@ defmodule TennisTracker.Tennis.Match do
 
     custom_indexes do
       index([:team_id, :match_start_datetime])
+    end
+  end
+
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+      authorize_if(TennisTracker.Policies.IsTeamCaptainForMatch)
+    end
+
+    policy action_type([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+      authorize_if(TennisTracker.Policies.IsTeamCaptainForMatch)
     end
   end
 
@@ -42,6 +63,11 @@ defmodule TennisTracker.Tennis.Match do
     end
 
     attribute :home_or_away, TennisTracker.Tennis.HomeOrAway do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :group_id, :uuid do
       allow_nil?(false)
       public?(true)
     end
@@ -123,7 +149,8 @@ defmodule TennisTracker.Tennis.Match do
         :opponent,
         :home_or_away,
         :team_id,
-        :location_id
+        :location_id,
+        :group_id
       ])
     end
 
@@ -143,5 +170,11 @@ defmodule TennisTracker.Tennis.Match do
     destroy :destroy do
       primary?(true)
     end
+  end
+
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

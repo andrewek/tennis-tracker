@@ -6,7 +6,7 @@
   <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
     <%!-- Players card --%>
     <a
-      href="/players"
+      href={~p"/groups"}
       class="group relative rounded-box px-6 py-8 text-center font-semibold leading-6 block"
     >
       <span class="absolute inset-0 rounded-box bg-base-200 transition-all duration-200 group-hover:bg-base-300 group-hover:scale-105 group-hover:shadow-lg">
@@ -30,7 +30,7 @@
 
     <%!-- Teams card --%>
     <a
-      href={~p"/teams"}
+      href={~p"/groups"}
       class="group relative rounded-box px-6 py-8 text-center font-semibold leading-6 block"
     >
       <span class="absolute inset-0 rounded-box bg-base-200 transition-all duration-200 group-hover:bg-base-300 group-hover:scale-105 group-hover:shadow-lg">
@@ -76,7 +76,7 @@
 
     <%!-- Roster Planner card --%>
     <a
-      href="/roster-planner"
+      href={~p"/groups"}
       class="group relative rounded-box px-6 py-8 text-center font-semibold leading-6 block"
     >
       <span class="absolute inset-0 rounded-box bg-base-200 transition-all duration-200 group-hover:bg-base-300 group-hover:scale-105 group-hover:shadow-lg">

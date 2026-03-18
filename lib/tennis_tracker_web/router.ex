@@ -25,25 +25,36 @@ defmodule TennisTrackerWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    get "/players/export.csv", PlayerCSVController, :export
 
-    ash_authentication_live_session :authenticated_routes,
+    # NOTE: /groups must be defined BEFORE /g/:group_slug to avoid slug conflict
+    ash_authentication_live_session :groups_routes,
       on_mount: [{TennisTrackerWeb.LiveUserAuth, :live_user_required}] do
-      live "/players", Players.IndexLive, :index
-      live "/players/new", Players.FormLive, :new
-      live "/players/import", Players.ImportLive, :import
-      live "/players/:id", Players.ShowLive, :show
-      live "/players/:id/edit", Players.FormLive, :edit
+      live "/groups", GroupsLive.Index, :index
+    end
 
-      live "/teams", Teams.IndexLive, :index
-      live "/teams/:id", Teams.ShowLive, :show
-      live "/teams/:id/edit", Teams.EditLive, :edit
+    get "/g/:group_slug/players/export.csv", PlayerCSVController, :export
 
-      live "/matches/:id", Matches.ShowLive, :show
-      live "/matches/:id/edit", Matches.EditLive, :edit
+    ash_authentication_live_session :group_scoped_routes,
+      on_mount: [
+        {TennisTrackerWeb.LiveUserAuth, :live_user_required},
+        {TennisTrackerWeb.GroupMountHook, :require_group_member}
+      ] do
+      live "/g/:group_slug", GroupHomeLive, :index
+      live "/g/:group_slug/teams", Teams.IndexLive, :index
+      live "/g/:group_slug/teams/:id", Teams.ShowLive, :show
+      live "/g/:group_slug/teams/:id/edit", Teams.EditLive, :edit
 
-      live "/roster-planner", RosterPlannerLive, :index
-      live "/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
+      live "/g/:group_slug/players", Players.IndexLive, :index
+      live "/g/:group_slug/players/new", Players.FormLive, :new
+      live "/g/:group_slug/players/import", Players.ImportLive, :import
+      live "/g/:group_slug/players/:id", Players.ShowLive, :show
+      live "/g/:group_slug/players/:id/edit", Players.FormLive, :edit
+
+      live "/g/:group_slug/matches/:id", Matches.ShowLive, :show
+      live "/g/:group_slug/matches/:id/edit", Matches.EditLive, :edit
+
+      live "/g/:group_slug/roster-planner", RosterPlannerLive, :index
+      live "/g/:group_slug/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
     end
 
     auth_routes AuthController, TennisTracker.Accounts.User, path: "/auth"
@@ -57,18 +68,8 @@ defmodule TennisTrackerWeb.Router do
                   ]
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", TennisTrackerWeb do
-  #   pipe_through :api
-  # end
-
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:tennis_tracker, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do

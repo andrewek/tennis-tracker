@@ -12,8 +12,13 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
   end
 
   def handle_params(_params, _url, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
     teams =
       Tennis.list_real_teams!(
+        tenant: group_id,
+        actor: current_user,
         load: [:team_type_name, :next_match_start_datetime, :default_timezone]
       )
 
@@ -45,6 +50,15 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} fluid={false}>
+      <div class="mb-6">
+        <.link
+          navigate={~p"/g/#{@current_group.slug}"}
+          class="text-sm text-base-content/70 hover:text-base-content"
+        >
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
+        </.link>
+      </div>
+
       <.header>
         Teams
       </.header>
@@ -55,11 +69,11 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
           <p class="mt-2 text-base-content/60">Teams will appear here once they've been added.</p>
         </div>
       <% else %>
-        <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div id="teams-grid" phx-update="stream" class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           <.link
             :for={{dom_id, team} <- @streams.teams}
             id={dom_id}
-            navigate={~p"/teams/#{team}"}
+            navigate={~p"/g/#{@current_group.slug}/teams/#{team}"}
             class="group"
           >
             <div class="card bg-base-200 transition-all group-hover:bg-base-300 group-hover:scale-105 group-hover:shadow-lg">

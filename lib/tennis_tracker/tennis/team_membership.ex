@@ -2,6 +2,7 @@ defmodule TennisTracker.Tennis.TeamMembership do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     notifiers: [Ash.Notifier.PubSub],
     extensions: [AshAdmin.Resource]
 
@@ -14,14 +15,32 @@ defmodule TennisTracker.Tennis.TeamMembership do
     end
   end
 
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+    end
+
+    policy action_type([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+  end
+
   pub_sub do
     module(Phoenix.PubSub)
     name(TennisTracker.PubSub)
     prefix("roster")
 
-    publish(:create, [:team_type_id, :season_year])
-    publish(:update, [:team_type_id, :season_year])
-    publish(:destroy, [:team_type_id, :season_year])
+    publish(:create, [:group_id, :team_type_id, :season_year])
+    publish(:update, [:group_id, :team_type_id, :season_year])
+    publish(:destroy, [:group_id, :team_type_id, :season_year])
   end
 
   admin do
@@ -39,6 +58,11 @@ defmodule TennisTracker.Tennis.TeamMembership do
     end
 
     attribute :season_year, :integer do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :group_id, :uuid do
       allow_nil?(false)
       public?(true)
     end
@@ -86,7 +110,7 @@ defmodule TennisTracker.Tennis.TeamMembership do
 
     create :create do
       primary?(true)
-      accept([:player_id, :team_id, :team_type_id, :season_year])
+      accept([:player_id, :team_id, :team_type_id, :season_year, :group_id])
     end
 
     update :update do
@@ -119,5 +143,11 @@ defmodule TennisTracker.Tennis.TeamMembership do
 
     calculate(:team_age_group, :string, expr(team.team_type.age_group))
     calculate(:team_ntrp_level, :decimal, expr(team.team_type.ntrp_level))
+  end
+
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

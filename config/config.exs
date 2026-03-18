@@ -69,7 +69,7 @@ config :phoenix, :json_library, Jason
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
 config :tennis_tracker,
-  ash_domains: [TennisTracker.Accounts, TennisTracker.Tennis]
+  ash_domains: [TennisTracker.Accounts, TennisTracker.Groups, TennisTracker.Tennis]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

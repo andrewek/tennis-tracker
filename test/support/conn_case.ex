@@ -30,6 +30,7 @@ defmodule TennisTrackerWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import TennisTrackerWeb.ConnCase
+      import TennisTracker.Factory, only: [setup_group: 1, setup_group_with_owner: 1]
     end
   end
 
@@ -39,9 +40,20 @@ defmodule TennisTrackerWeb.ConnCase do
   end
 
   @doc """
-  Creates a user and logs them in, returning the authenticated connection.
+  Logs in a user, returning the authenticated connection.
+
+  Accepts either an existing `%TennisTracker.Accounts.User{}` struct or
+  a map of attributes used to create a new user (legacy usage).
   """
-  def log_in_user(conn, attrs \\ %{}) do
+  def log_in_user(conn, user_or_attrs \\ %{})
+
+  def log_in_user(conn, %TennisTracker.Accounts.User{} = user) do
+    conn
+    |> Phoenix.ConnTest.init_test_session(%{})
+    |> AshAuthentication.Plug.Helpers.store_in_session(user)
+  end
+
+  def log_in_user(conn, attrs) when is_map(attrs) do
     defaults = %{
       email: "test_#{System.unique_integer()}@example.com",
       password: "Password1!",

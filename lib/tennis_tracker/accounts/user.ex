@@ -15,6 +15,10 @@ defmodule TennisTracker.Accounts.User do
     bypass(AshAuthentication.Checks.AshAuthenticationInteraction) do
       authorize_if(always())
     end
+
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
   end
 
   admin do

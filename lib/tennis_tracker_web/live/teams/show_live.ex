@@ -11,21 +11,39 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     |> assign(:team, nil)
     |> assign(:players, [])
     |> assign(:selected_player, nil)
+    |> assign(:can_edit_team, false)
     |> stream(:upcoming_matches, [])
     |> stream(:past_matches, [])
     |> ok()
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
-    case Tennis.get_team_with_roster(id) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    case Tennis.get_team_with_roster(id, tenant: group_id, actor: current_user) do
       {:ok, team} ->
+        can_edit_team = Ash.can?({team, :update}, current_user, tenant: group_id, domain: Tennis)
         players = team.memberships |> Enum.map(& &1.player) |> Enum.sort_by(& &1.name)
-        upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-        past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+
+        upcoming =
+          Tennis.list_upcoming_matches_for_team!(team.id,
+            tenant: group_id,
+            actor: current_user,
+            load: [:location]
+          )
+
+        past =
+          Tennis.list_past_matches_for_team!(team.id,
+            tenant: group_id,
+            actor: current_user,
+            load: [:location]
+          )
 
         socket
         |> assign(:team, team)
         |> assign(:players, players)
+        |> assign(:can_edit_team, can_edit_team)
         |> stream(:upcoming_matches, upcoming, reset: true)
         |> stream(:past_matches, past, reset: true)
         |> noreply()
@@ -33,7 +51,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       {:error, _} ->
         socket
         |> put_flash(:error, "Team not found.")
-        |> push_navigate(to: ~p"/")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
     end
   end
@@ -54,7 +72,10 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mb-6">
-        <.link navigate={~p"/teams"} class="text-sm text-base-content/70 hover:text-base-content">
+        <.link
+          navigate={~p"/g/#{@current_group.slug}/teams"}
+          class="text-sm text-base-content/70 hover:text-base-content"
+        >
           <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Teams
         </.link>
       </div>
@@ -67,7 +88,11 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
             {@team.team_type.name} · {@team.season_year}
           </p>
         </div>
-        <.link navigate={~p"/teams/#{@team.id}/edit"} class="btn btn-sm btn-ghost">
+        <.link
+          :if={@can_edit_team}
+          navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/edit"}
+          class="btn btn-sm btn-ghost"
+        >
           Edit Team
         </.link>
       </div>
@@ -107,7 +132,10 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
               id={dom_id}
               class="bg-base-100 rounded px-3 py-2 text-sm"
             >
-              <.link navigate={~p"/matches/#{match.id}"} class="hover:underline">
+              <.link
+                navigate={~p"/g/#{@current_group.slug}/matches/#{match.id}"}
+                class="hover:underline"
+              >
                 <p class="font-medium">
                   {format_home_or_away(match.home_or_away, match.opponent)}
                 </p>
@@ -144,7 +172,10 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
                 id={dom_id}
                 class="bg-base-100 rounded px-3 py-2 text-sm opacity-70"
               >
-                <.link navigate={~p"/matches/#{match.id}"} class="hover:underline">
+                <.link
+                  navigate={~p"/g/#{@current_group.slug}/matches/#{match.id}"}
+                  class="hover:underline"
+                >
                   <p class="font-medium">
                     {format_home_or_away(match.home_or_away, match.opponent)}
                   </p>
@@ -179,9 +210,9 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         :if={@selected_player}
         player={@selected_player}
         current_team={@team.name}
+        group_slug={@current_group.slug}
         on_close={JS.push("close_player_modal")}
       />
-
     </Layouts.app>
     """
   end

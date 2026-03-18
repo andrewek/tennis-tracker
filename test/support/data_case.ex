@@ -25,6 +25,7 @@ defmodule TennisTracker.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import TennisTracker.DataCase
+      import TennisTracker.Factory, only: [setup_group: 1, setup_group_with_owner: 1]
     end
   end
 

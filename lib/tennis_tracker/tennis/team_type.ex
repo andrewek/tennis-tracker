@@ -2,11 +2,30 @@ defmodule TennisTracker.Tennis.TeamType do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAdmin.Resource]
 
   postgres do
     table("team_types")
     repo(TennisTracker.Repo)
+  end
+
+  policies do
+    bypass actor_attribute_equals(:role, :admin) do
+      authorize_if(always())
+    end
+
+    policy action_type(:read) do
+      authorize_if(TennisTracker.Policies.IsGroupMember)
+    end
+
+    policy action_type(:create) do
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+    end
+
+    policy action_type([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
   end
 
   admin do
@@ -37,6 +56,11 @@ defmodule TennisTracker.Tennis.TeamType do
       default([])
     end
 
+    attribute :group_id, :uuid do
+      allow_nil?(false)
+      public?(true)
+    end
+
     timestamps()
   end
 
@@ -52,7 +76,7 @@ defmodule TennisTracker.Tennis.TeamType do
 
     create :create do
       primary?(true)
-      accept([:name, :age_group, :ntrp_level, :allowed_ntrp_levels])
+      accept([:name, :age_group, :ntrp_level, :allowed_ntrp_levels, :group_id])
     end
 
     update :update do
@@ -73,5 +97,11 @@ defmodule TennisTracker.Tennis.TeamType do
     validate attribute_in(:ntrp_level, TennisTracker.Tennis.NtrpLevels.team_levels()) do
       where([present(:ntrp_level)])
     end
+  end
+
+  multitenancy do
+    strategy(:attribute)
+    attribute(:group_id)
+    global?(true)
   end
 end

@@ -31,38 +31,62 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
-    case Ash.get(Team, id, domain: Tennis) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    case Ash.get(Team, id, domain: Tennis, tenant: group_id, actor: current_user) do
       {:ok, team} when team.is_pseudo ->
         socket
         |> put_flash(:error, "Team not found.")
-        |> push_navigate(to: ~p"/")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
 
       {:ok, team} ->
-        {:ok, team} = Ash.load(team, [:team_type], domain: Tennis)
+        if Ash.can?({team, :update}, current_user, tenant: group_id, domain: Tennis) do
+          {:ok, team} =
+            Ash.load(team, [:team_type], domain: Tennis, tenant: group_id, actor: current_user)
 
-        team_form =
-          AshPhoenix.Form.for_update(team, :update,
-            domain: Tennis,
-            forms: [auto?: true]
-          )
-          |> to_form()
+          team_form =
+            AshPhoenix.Form.for_update(team, :update,
+              domain: Tennis,
+              actor: current_user,
+              tenant: group_id,
+              forms: [auto?: true]
+            )
+            |> to_form()
 
-        upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-        past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+          upcoming =
+            Tennis.list_upcoming_matches_for_team!(team.id,
+              tenant: group_id,
+              actor: current_user,
+              load: [:location]
+            )
 
-        socket
-        |> assign(:team, team)
-        |> assign(:team_form, team_form)
-        |> assign(:team_timezone, team.default_timezone || "America/Chicago")
-        |> stream(:upcoming_matches, upcoming, reset: true)
-        |> stream(:past_matches, past, reset: true)
-        |> noreply()
+          past =
+            Tennis.list_past_matches_for_team!(team.id,
+              tenant: group_id,
+              actor: current_user,
+              load: [:location]
+            )
+
+          socket
+          |> assign(:team, team)
+          |> assign(:team_form, team_form)
+          |> assign(:team_timezone, team.default_timezone || "America/Chicago")
+          |> stream(:upcoming_matches, upcoming, reset: true)
+          |> stream(:past_matches, past, reset: true)
+          |> noreply()
+        else
+          socket
+          |> put_flash(:error, "You don't have permission to edit this team.")
+          |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams/#{team.id}")
+          |> noreply()
+        end
 
       {:error, _} ->
         socket
         |> put_flash(:error, "Team not found.")
-        |> push_navigate(to: ~p"/")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
     end
   end
@@ -73,13 +97,19 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   def handle_event("save_team", %{"form" => params}, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
     case AshPhoenix.Form.submit(socket.assigns.team_form, params: params) do
       {:ok, team} ->
-        {:ok, team} = Ash.load(team, [:team_type], domain: Tennis)
+        {:ok, team} =
+          Ash.load(team, [:team_type], domain: Tennis, tenant: group_id, actor: current_user)
 
         team_form =
           AshPhoenix.Form.for_update(team, :update,
             domain: Tennis,
+            actor: current_user,
+            tenant: group_id,
             forms: [auto?: true]
           )
           |> to_form()
@@ -97,14 +127,19 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   def handle_event("open_match_form", _params, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
     form =
       AshPhoenix.Form.for_create(Match, :create,
         domain: Tennis,
+        actor: current_user,
+        tenant: group_id,
         forms: [auto?: true]
       )
       |> to_form()
 
-    locations = Tennis.list_locations!()
+    locations = Tennis.list_locations!(tenant: group_id, actor: current_user)
 
     socket
     |> assign(:show_match_form, true)
@@ -145,6 +180,8 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     timezone = socket.assigns.team_timezone
     date_str = params["match_date"]
     time_str = params["match_time"]
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
 
     case build_match_datetime_params(date_str, time_str, timezone) do
       {:error, _} ->
@@ -158,11 +195,23 @@ defmodule TennisTrackerWeb.Teams.EditLive do
           |> Map.put("match_start_datetime", DateTime.to_iso8601(utc_dt))
           |> Map.put("timezone", timezone)
           |> Map.put("team_id", team.id)
+          |> Map.put("group_id", group_id)
 
         case AshPhoenix.Form.submit(socket.assigns.match_form, params: params_with_datetime) do
           {:ok, _match} ->
-            upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-            past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+            upcoming =
+              Tennis.list_upcoming_matches_for_team!(team.id,
+                tenant: group_id,
+                actor: current_user,
+                load: [:location]
+              )
+
+            past =
+              Tennis.list_past_matches_for_team!(team.id,
+                tenant: group_id,
+                actor: current_user,
+                load: [:location]
+              )
 
             socket
             |> assign(:show_match_form, false)
@@ -179,7 +228,9 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   def handle_event("show_delete_match_modal", %{"match_id" => match_id}, socket) do
-    match = Ash.get!(Match, match_id, domain: Tennis)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    match = Ash.get!(Match, match_id, domain: Tennis, tenant: group_id, actor: current_user)
     socket |> assign(:match_to_delete, match) |> noreply()
   end
 
@@ -188,10 +239,24 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   def handle_event("delete_match", _params, socket) do
-    Tennis.destroy_match!(socket.assigns.match_to_delete)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    Tennis.destroy_match!(socket.assigns.match_to_delete, tenant: group_id, actor: current_user)
     team = socket.assigns.team
-    upcoming = Tennis.list_upcoming_matches_for_team!(team.id, load: [:location])
-    past = Tennis.list_past_matches_for_team!(team.id, load: [:location])
+
+    upcoming =
+      Tennis.list_upcoming_matches_for_team!(team.id,
+        tenant: group_id,
+        actor: current_user,
+        load: [:location]
+      )
+
+    past =
+      Tennis.list_past_matches_for_team!(team.id,
+        tenant: group_id,
+        actor: current_user,
+        load: [:location]
+      )
 
     socket
     |> stream(:upcoming_matches, upcoming, reset: true)
@@ -210,7 +275,10 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mb-6">
-        <.link navigate={~p"/teams/#{@team.id}"} class="text-sm text-base-content/70 hover:text-base-content">
+        <.link
+          navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}"}
+          class="text-sm text-base-content/70 hover:text-base-content"
+        >
           <.icon name="hero-arrow-left" class="size-4 inline" /> Back to {@team.name}
         </.link>
       </div>
@@ -271,7 +339,10 @@ defmodule TennisTrackerWeb.Teams.EditLive do
                 <% end %>
               </p>
               <div class="flex gap-2 mt-1">
-                <.link navigate={~p"/matches/#{match.id}/edit"} class="text-xs text-primary hover:underline">
+                <.link
+                  navigate={~p"/g/#{@current_group.slug}/matches/#{match.id}/edit"}
+                  class="text-xs text-primary hover:underline"
+                >
                   Edit
                 </.link>
                 <button
@@ -317,7 +388,10 @@ defmodule TennisTrackerWeb.Teams.EditLive do
                   <% end %>
                 </p>
                 <div class="flex gap-2 mt-1">
-                  <.link navigate={~p"/matches/#{match.id}/edit"} class="text-xs text-primary hover:underline">
+                  <.link
+                    navigate={~p"/g/#{@current_group.slug}/matches/#{match.id}/edit"}
+                    class="text-xs text-primary hover:underline"
+                  >
                     Edit
                   </.link>
                   <button

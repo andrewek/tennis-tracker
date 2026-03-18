@@ -9,12 +9,12 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
   @valid_ntrp ~w(2.5 3.0 3.5 4.0 4.5 5.0)
   @boolean_columns ~w(eligible_18_plus eligible_40_plus eligible_55_plus)
 
-  @spec import_csv(binary()) ::
+  @spec import_csv(binary(), keyword()) ::
           {:ok, non_neg_integer()}
           | {:error, :invalid_headers, [String.t()]}
           | {:error, :missing_required_headers, [String.t()]}
           | {:error, :row_error, pos_integer(), String.t()}
-  def import_csv(content) do
+  def import_csv(content, opts \\ []) do
     rows = TennisTracker.CSV.parse_string(content, skip_headers: false)
 
     case rows do
@@ -24,7 +24,7 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
       [header_row | data_rows] ->
         with {:ok, headers} <- validate_headers(header_row),
              {:ok, params_list} <- parse_rows(headers, data_rows) do
-          insert_all(params_list)
+          insert_all(params_list, opts)
         end
     end
   end
@@ -104,12 +104,17 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
     {:error, :row_error, line, "#{col} must be \"true\" or \"false\", got #{inspect(value)}"}
   end
 
-  defp insert_all(params_list) do
+  defp insert_all(params_list, opts) do
+    group_id = Keyword.get(opts, :tenant)
+    create_opts = Keyword.merge([return_notifications?: true], opts)
+
     Repo.transaction(fn ->
       params_list
       |> Enum.with_index(2)
       |> Enum.reduce_while({[], 0}, fn {params, line}, {notifs, count} ->
-        case Tennis.create_player(params, return_notifications?: true) do
+        params = if group_id, do: Map.put(params, :group_id, group_id), else: params
+
+        case Tennis.create_player(params, create_opts) do
           {:ok, _player, notifications} ->
             {:cont, {notifs ++ notifications, count + 1}}
 

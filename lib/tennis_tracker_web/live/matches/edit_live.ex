@@ -17,29 +17,47 @@ defmodule TennisTrackerWeb.Matches.EditLive do
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
-    case Ash.get(Match, id, domain: Tennis) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    case Ash.get(Match, id, domain: Tennis, tenant: group_id, actor: current_user) do
       {:ok, match} ->
-        {:ok, match} = Ash.load(match, [:team, :location], domain: Tennis)
-        locations = Tennis.list_locations!()
+        if Ash.can?({match, :update}, current_user, tenant: group_id, domain: Tennis) do
+          {:ok, match} =
+            Ash.load(match, [:team, :location],
+              domain: Tennis,
+              tenant: group_id,
+              actor: current_user
+            )
 
-        form =
-          AshPhoenix.Form.for_update(match, :update,
-            domain: Tennis,
-            forms: [auto?: true]
-          )
-          |> to_form()
+          locations = Tennis.list_locations!(tenant: group_id, actor: current_user)
 
-        socket
-        |> assign(:match, match)
-        |> assign(:form, form)
-        |> assign(:team_timezone, match.timezone)
-        |> assign(:locations, locations)
-        |> noreply()
+          form =
+            AshPhoenix.Form.for_update(match, :update,
+              domain: Tennis,
+              actor: current_user,
+              tenant: group_id,
+              forms: [auto?: true]
+            )
+            |> to_form()
+
+          socket
+          |> assign(:match, match)
+          |> assign(:form, form)
+          |> assign(:team_timezone, match.timezone)
+          |> assign(:locations, locations)
+          |> noreply()
+        else
+          socket
+          |> put_flash(:error, "You don't have permission to edit this match.")
+          |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
+          |> noreply()
+        end
 
       {:error, _} ->
         socket
         |> put_flash(:error, "Match not found.")
-        |> push_navigate(to: ~p"/")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
     end
   end
@@ -68,6 +86,7 @@ defmodule TennisTrackerWeb.Matches.EditLive do
     timezone = socket.assigns.team_timezone
     date_str = params["match_date"]
     time_str = params["match_time"]
+    group_slug = socket.assigns.current_group.slug
 
     case build_match_datetime_params(date_str, time_str, timezone) do
       {:error, _} ->
@@ -87,7 +106,7 @@ defmodule TennisTrackerWeb.Matches.EditLive do
 
             socket
             |> put_flash(:info, "Match updated.")
-            |> push_navigate(to: ~p"/teams/#{team_id}/edit")
+            |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/edit")
             |> noreply()
 
           {:error, form} ->
@@ -107,11 +126,14 @@ defmodule TennisTrackerWeb.Matches.EditLive do
   def handle_event("delete_match", _params, socket) do
     match = socket.assigns.match
     team_id = match.team_id
-    Tennis.destroy_match!(match)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    group_slug = socket.assigns.current_group.slug
+    Tennis.destroy_match!(match, tenant: group_id, actor: current_user)
 
     socket
     |> put_flash(:info, "Match deleted.")
-    |> push_navigate(to: ~p"/teams/#{team_id}/edit")
+    |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/edit")
     |> noreply()
   end
 
@@ -120,11 +142,10 @@ defmodule TennisTrackerWeb.Matches.EditLive do
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mb-6">
         <.link
-          navigate={~p"/teams/#{@match.team_id}/edit"}
+          navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team_id}/edit"}
           class="text-sm text-base-content/70 hover:text-base-content"
         >
-          <.icon name="hero-arrow-left" class="size-4 inline" />
-          Back to Edit Team
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Edit Team
         </.link>
       </div>
 
@@ -163,7 +184,9 @@ defmodule TennisTrackerWeb.Matches.EditLive do
             value={
               @match.match_start_datetime
               |> DateTime.shift_zone!(@team_timezone)
-              |> then(fn dt -> "#{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}" end)
+              |> then(fn dt ->
+                "#{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}"
+              end)
             }
           />
           <.input

@@ -13,54 +13,76 @@ defmodule TennisTracker.Tennis do
   Returns all planning contexts that have been previously accessed,
   identified by the existence of a pseudo-team. Ordered by season_year desc.
   """
-  def list_planning_contexts do
+  def list_planning_contexts(opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     Team
+    |> Ash.Query.for_read(:read, %{}, actor: actor)
     |> Ash.Query.filter(is_pseudo == true)
     |> Ash.Query.load(:team_type)
     |> Ash.Query.sort(season_year: :desc)
-    |> Ash.read!(domain: __MODULE__)
+    |> Ash.read!(domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
   Returns the SeasonRules for a given team_type_id and season_year,
   or nil if none exist.
   """
-  def get_season_rules_for_context(team_type_id, season_year) do
+  def get_season_rules_for_context(team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     SeasonRules
-    |> Ash.Query.for_read(:for_context, %{team_type_id: team_type_id, season_year: season_year})
-    |> Ash.read_one(domain: __MODULE__)
+    |> Ash.Query.for_read(:for_context, %{team_type_id: team_type_id, season_year: season_year},
+      actor: actor
+    )
+    |> Ash.read_one(domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
   Lists all teams (real and pseudo) for a planning context.
   """
-  def list_teams_for_context(team_type_id, season_year) do
+  def list_teams_for_context(team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     Team
+    |> Ash.Query.for_read(:read, %{}, actor: actor)
     |> Ash.Query.filter(team_type_id == ^team_type_id and season_year == ^season_year)
     |> Ash.Query.sort(:name)
-    |> Ash.read(domain: __MODULE__)
+    |> Ash.read(domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
   Finds or creates the "Not Participating" pseudo-team for a context.
   Returns {:ok, team} or {:error, reason}.
   """
-  def ensure_pseudo_team(team_type_id, season_year) do
+  def ensure_pseudo_team(team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     existing =
       Team
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
       |> Ash.Query.filter(
         team_type_id == ^team_type_id and season_year == ^season_year and is_pseudo == true
       )
-      |> Ash.read_one(domain: __MODULE__)
+      |> Ash.read_one(domain: __MODULE__, tenant: tenant)
 
     case existing do
       {:ok, nil} ->
-        create_team(%{
-          name: "Not Participating",
-          team_type_id: team_type_id,
-          season_year: season_year,
-          is_pseudo: true
-        })
+        create_team(
+          %{
+            name: "Not Participating",
+            team_type_id: team_type_id,
+            season_year: season_year,
+            is_pseudo: true,
+            group_id: tenant
+          },
+          tenant: tenant,
+          actor: actor
+        )
 
       {:ok, team} ->
         {:ok, team}
@@ -73,11 +95,16 @@ defmodule TennisTracker.Tennis do
   @doc """
   Lists all memberships for a planning context, preloading player and team.
   """
-  def list_memberships_for_context(team_type_id, season_year) do
+  def list_memberships_for_context(team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     TeamMembership
-    |> Ash.Query.filter(team_type_id == ^team_type_id and season_year == ^season_year)
+    |> Ash.Query.for_read(:for_context, %{team_type_id: team_type_id, season_year: season_year},
+      actor: actor
+    )
     |> Ash.Query.load([:player])
-    |> Ash.read(domain: __MODULE__)
+    |> Ash.read(domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
@@ -85,7 +112,10 @@ defmodule TennisTracker.Tennis do
   If a membership already exists for this player in this context, it is updated.
   If the target team_id is nil, the membership is removed (unassign).
   """
-  def assign_player(player_id, team_id, team_type_id, season_year) do
+  def assign_player(player_id, team_id, team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     TeamMembership
     |> Ash.Changeset.for_create(
       :create,
@@ -93,9 +123,12 @@ defmodule TennisTracker.Tennis do
         player_id: player_id,
         team_id: team_id,
         team_type_id: team_type_id,
-        season_year: season_year
+        season_year: season_year,
+        group_id: tenant
       },
-      domain: __MODULE__
+      domain: __MODULE__,
+      actor: actor,
+      tenant: tenant
     )
     |> Ash.create(
       upsert?: true,
@@ -107,33 +140,44 @@ defmodule TennisTracker.Tennis do
   @doc """
   Deletes a team and all its memberships. Players assigned to the team return to Unassigned.
   """
-  def delete_team(team) do
-    TeamMembership
-    |> Ash.Query.filter(team_id == ^team.id)
-    |> Ash.read!(domain: __MODULE__)
-    |> Enum.each(&destroy_team_membership/1)
+  def delete_team(team, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
 
-    destroy_team(team)
+    TeamMembership
+    |> Ash.Query.for_read(:read, %{}, actor: actor)
+    |> Ash.Query.filter(team_id == ^team.id)
+    |> Ash.read!(domain: __MODULE__, tenant: tenant)
+    |> Enum.each(&destroy_team_membership(&1, tenant: tenant, actor: actor))
+
+    destroy_team(team, tenant: tenant, actor: actor)
   end
 
   @doc """
   Returns all eligible, unassigned players for a planning context, sorted by NTRP
   descending (nils last) then name ascending.
-
-  Eligibility is determined by:
-  - Age group flag (eligible_18_plus or eligible_40_plus) matching the team type
-  - NTRP rating within the team type's allowed_ntrp_levels, OR nil (unrated)
-
-  Players already assigned to any team in this context are excluded.
   """
-  def list_eligible_unassigned_players(team_type, team_type_id, season_year) do
+  def list_eligible_unassigned_players(team_type, team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
     allowed_levels = team_type.allowed_ntrp_levels
 
     age_query =
       case team_type.age_group do
-        "18_plus" -> Ash.Query.filter(Player, eligible_18_plus == true)
-        "40_plus" -> Ash.Query.filter(Player, eligible_40_plus == true)
-        _ -> Ash.Query.filter(Player, eligible_18_plus == true)
+        "18_plus" ->
+          Player
+          |> Ash.Query.for_read(:read, %{}, actor: actor)
+          |> Ash.Query.filter(eligible_18_plus == true)
+
+        "40_plus" ->
+          Player
+          |> Ash.Query.for_read(:read, %{}, actor: actor)
+          |> Ash.Query.filter(eligible_40_plus == true)
+
+        _ ->
+          Player
+          |> Ash.Query.for_read(:read, %{}, actor: actor)
+          |> Ash.Query.filter(eligible_18_plus == true)
       end
 
     age_query
@@ -145,22 +189,26 @@ defmodule TennisTracker.Tennis do
         )
     )
     |> Ash.Query.sort(ntrp_rating: :desc_nils_last, name: :asc)
-    |> Ash.read!(domain: __MODULE__)
+    |> Ash.read!(domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
   Removes a player's membership from a planning context (moves them back to Unassigned).
   """
-  def unassign_player(player_id, team_type_id, season_year) do
+  def unassign_player(player_id, team_type_id, season_year, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
     membership =
       TeamMembership
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
       |> Ash.Query.filter(
         player_id == ^player_id and team_type_id == ^team_type_id and season_year == ^season_year
       )
-      |> Ash.read_one!(domain: __MODULE__)
+      |> Ash.read_one!(domain: __MODULE__, tenant: tenant)
 
     if membership do
-      destroy_team_membership(membership)
+      destroy_team_membership(membership, tenant: tenant, actor: actor)
     else
       {:ok, nil}
     end
@@ -168,16 +216,21 @@ defmodule TennisTracker.Tennis do
 
   @doc """
   Loads a real (non-pseudo) team by ID with its team type and roster of players.
-  Returns {:ok, team} on success, or {:error, :not_found} if the team doesn't
-  exist or is a pseudo-team.
   """
-  def get_team_with_roster(id) do
-    case Ash.get(Team, id, domain: __MODULE__) do
+  def get_team_with_roster(id, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    case Ash.get(Team, id, domain: __MODULE__, tenant: tenant, actor: actor) do
       {:ok, team} when team.is_pseudo ->
         {:error, :not_found}
 
       {:ok, team} ->
-        Ash.load(team, [:team_type, memberships: [:player]], domain: __MODULE__)
+        Ash.load(team, [:team_type, memberships: [:player]],
+          domain: __MODULE__,
+          tenant: tenant,
+          actor: actor
+        )
 
       {:error, _} ->
         {:error, :not_found}
@@ -194,9 +247,18 @@ defmodule TennisTracker.Tennis do
       define(:create_match, action: :create)
       define(:update_match, action: :update)
       define(:destroy_match, action: :destroy)
-      define(:list_upcoming_matches_for_team, action: :list_upcoming_matches_for_team, args: [:team_id])
+
+      define(:list_upcoming_matches_for_team,
+        action: :list_upcoming_matches_for_team,
+        args: [:team_id]
+      )
+
       define(:list_past_matches_for_team, action: :list_past_matches_for_team, args: [:team_id])
-      define(:get_next_upcoming_match_for_team, action: :next_upcoming_match_for_team, args: [:team_id])
+
+      define(:get_next_upcoming_match_for_team,
+        action: :next_upcoming_match_for_team,
+        args: [:team_id]
+      )
     end
 
     resource TennisTracker.Tennis.Player do
@@ -229,6 +291,12 @@ defmodule TennisTracker.Tennis do
       define(:create_team_membership, action: :create)
       define(:update_team_membership, action: :update)
       define(:destroy_team_membership, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.TeamRole do
+      define(:create_team_role, action: :create)
+      define(:list_team_roles_for_team, action: :for_team, args: [:team_id])
+      define(:list_team_roles_for_user, action: :for_user, args: [:user_id])
     end
   end
 end

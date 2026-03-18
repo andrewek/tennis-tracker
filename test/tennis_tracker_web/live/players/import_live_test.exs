@@ -3,21 +3,27 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
 
   import Phoenix.LiveViewTest
 
-  setup %{conn: conn} do
-    {:ok, conn: log_in_user(conn)}
-  end
-
   alias TennisTracker.Tennis
 
+  setup :setup_group
+
+  setup %{conn: conn, user: user} do
+    {:ok, conn: log_in_user(conn, user)}
+  end
+
   describe "ImportLive" do
-    test "renders the import form", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/players/import")
+    test "renders the import form", %{conn: conn, group: grp} do
+      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/import")
       assert html =~ "Import Players"
       assert html =~ "Import"
     end
 
-    test "successful CSV upload redirects to players index with flash", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/players/import")
+    test "successful CSV upload redirects to players index with flash", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/import")
 
       csv = "name,ntrp_rating\nAlice,3.5\nBob,4.0\n"
 
@@ -28,13 +34,13 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
       |> render_upload("players.csv")
 
       render_submit(view, "import", %{})
-      assert_redirected(view, ~p"/players")
+      assert_redirected(view, ~p"/g/#{grp.slug}/players")
 
-      assert length(Tennis.list_players!()) == 2
+      assert length(Tennis.list_players!(tenant: grp.id, actor: usr)) == 2
     end
 
-    test "unknown headers shows error and imports nothing", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/players/import")
+    test "unknown headers shows error and imports nothing", %{conn: conn, group: grp, user: usr} do
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/import")
 
       csv = "name,bad_column\nAlice,value\n"
 
@@ -48,11 +54,15 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
 
       assert html =~ "bad_column"
       assert html =~ "Import cancelled"
-      assert Tennis.list_players!() == []
+      assert Tennis.list_players!(tenant: grp.id, actor: usr) == []
     end
 
-    test "row error shows error with line number and imports nothing", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/players/import")
+    test "row error shows error with line number and imports nothing", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/import")
 
       csv = "name,ntrp_rating\nAlice,3.5\n,4.0\n"
 
@@ -65,7 +75,7 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
       html = render_submit(view, "import", %{})
 
       assert html =~ "line 3"
-      assert Tennis.list_players!() == []
+      assert Tennis.list_players!(tenant: grp.id, actor: usr) == []
     end
   end
 end

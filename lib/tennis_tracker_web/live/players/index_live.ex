@@ -22,7 +22,13 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   ]
 
   def mount(_params, _session, socket) do
-    total_count = Ash.count!(Player, domain: Tennis)
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    total_count =
+      Player
+      |> Ash.Query.for_read(:read, %{}, actor: current_user)
+      |> Ash.count!(domain: Tennis, tenant: group_id)
 
     socket
     |> stream(:players, [])
@@ -38,20 +44,29 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   end
 
   def handle_params(params, _url, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    group_slug = socket.assigns.current_group.slug
+
     name_search = params["name"] || ""
     ntrp_filter = parse_list_param(params["ntrp"])
     bracket_filter = parse_list_param(params["bracket"])
     ntrp_sort = if params["ntrp_sort"] == "asc", do: "asc", else: "desc"
     ntrp_sort_atom = if ntrp_sort == "asc", do: :asc_nils_first, else: :desc_nils_last
 
-    players = fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort_atom)
+    players =
+      PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter,
+        ntrp_sort: ntrp_sort_atom,
+        tenant: group_id,
+        actor: current_user
+      )
 
     socket
     |> assign(:name_search, name_search)
     |> assign(:ntrp_filter, ntrp_filter)
     |> assign(:bracket_filter, bracket_filter)
     |> assign(:ntrp_sort, ntrp_sort)
-    |> assign(:export_url, export_url(name_search, ntrp_filter, bracket_filter))
+    |> assign(:export_url, export_url(group_slug, name_search, ntrp_filter, bracket_filter))
     |> assign(:player_count, length(players))
     |> stream(:players, players, reset: true)
     |> noreply()
@@ -60,6 +75,15 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} fluid={false}>
+      <div class="mb-6">
+        <.link
+          navigate={~p"/g/#{@current_group.slug}"}
+          class="text-sm text-base-content/70 hover:text-base-content"
+        >
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
+        </.link>
+      </div>
+
       <.header>
         Players
         <:subtitle>
@@ -67,8 +91,8 @@ defmodule TennisTrackerWeb.Players.IndexLive do
         </:subtitle>
         <:actions>
           <.button href={@export_url}>Export CSV</.button>
-          <.button navigate={~p"/players/import"}>Import CSV</.button>
-          <.button navigate={~p"/players/new"}>New Player</.button>
+          <.button navigate={~p"/g/#{@current_group.slug}/players/import"}>Import CSV</.button>
+          <.button navigate={~p"/g/#{@current_group.slug}/players/new"}>New Player</.button>
         </:actions>
       </.header>
 
@@ -147,7 +171,9 @@ defmodule TennisTrackerWeb.Players.IndexLive do
       <.table id="players" rows={@streams.players}>
         <:col :let={{_id, player}} label="Name">
           <div class="flex items-center gap-2 flex-wrap">
-            <.link navigate={~p"/players/#{player.id}"}>{player.name}</.link>
+            <.link navigate={~p"/g/#{@current_group.slug}/players/#{player.id}"}>
+              {player.name}
+            </.link>
             <.age_bracket_chips player={player} />
           </div>
         </:col>
@@ -159,7 +185,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
   def handle_event("clear_filter", _params, socket) do
     socket
-    |> push_patch(to: ~p"/players")
+    |> push_patch(to: ~p"/g/#{socket.assigns.current_group.slug}/players")
     |> noreply()
   end
 
@@ -196,6 +222,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
   end
 
   defp filter_url(socket, overrides) do
+    group_slug = socket.assigns.current_group.slug
     name = Keyword.get(overrides, :name_search, socket.assigns.name_search)
     ntrp = Keyword.get(overrides, :ntrp_filter, socket.assigns.ntrp_filter)
     bracket = Keyword.get(overrides, :bracket_filter, socket.assigns.bracket_filter)
@@ -211,16 +238,13 @@ defmodule TennisTrackerWeb.Players.IndexLive do
       |> Enum.reject(fn {_, v} -> v == "" end)
       |> Map.new()
 
-    if map_size(params) > 0, do: ~p"/players?#{params}", else: ~p"/players"
+    base = ~p"/g/#{group_slug}/players"
+    if map_size(params) > 0, do: "#{base}?#{URI.encode_query(params)}", else: base
   end
 
   defp parse_list_param(s), do: PlayerFilters.parse_list_param(s)
 
-  defp fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort) do
-    PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort)
-  end
-
-  defp export_url(name_search, ntrp_filter, bracket_filter) do
+  defp export_url(group_slug, name_search, ntrp_filter, bracket_filter) do
     params =
       [
         {"name", name_search},
@@ -230,8 +254,7 @@ defmodule TennisTrackerWeb.Players.IndexLive do
       |> Enum.reject(fn {_, v} -> v == "" end)
       |> Map.new()
 
-    if map_size(params) > 0,
-      do: ~p"/players/export.csv?#{params}",
-      else: ~p"/players/export.csv"
+    base = ~p"/g/#{group_slug}/players/export.csv"
+    if map_size(params) > 0, do: "#{base}?#{URI.encode_query(params)}", else: base
   end
 end

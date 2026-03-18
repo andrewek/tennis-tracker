@@ -3,18 +3,21 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
 
   import Phoenix.LiveViewTest
 
-  setup %{conn: conn} do
-    {:ok, conn: log_in_user(conn)}
+  setup :setup_group_with_owner
+
+  setup %{conn: conn, user: user} do
+    {:ok, conn: log_in_user(conn, user)}
   end
 
   describe "page load" do
-    test "loads pre-populated with match fields", %{conn: conn} do
-      team = Factory.team(name: "My Team")
-      location = Factory.location(name: "City Courts")
+    test "loads pre-populated with match fields", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp, name: "My Team")
+      location = Factory.location(group: grp, name: "City Courts")
       now = DateTime.utc_now()
 
       match =
         Factory.match(
+          group: grp,
           team: team,
           location: location,
           opponent: "Rival Club",
@@ -23,36 +26,38 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
           timezone: "America/Chicago"
         )
 
-      {:ok, _view, html} = live(conn, ~p"/matches/#{match.id}/edit")
+      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
 
       assert html =~ "Rival Club"
       assert html =~ "My Team"
     end
 
-    test "non-existent match ID redirects to / with flash", %{conn: conn} do
+    test "non-existent match ID redirects to group teams with flash", %{conn: conn, group: grp} do
       fake_id = Ecto.UUID.generate()
 
-      {:error, {:live_redirect, %{to: "/", flash: flash}}} =
-        live(conn, ~p"/matches/#{fake_id}/edit")
+      {:error, {:live_redirect, %{to: to, flash: flash}}} =
+        live(conn, ~p"/g/#{grp.slug}/matches/#{fake_id}/edit")
 
       assert flash["error"] =~ "not found"
+      assert to =~ "/g/#{grp.slug}/teams"
     end
   end
 
   describe "edit match" do
-    test "valid update redirects to /teams/:id/edit with flash", %{conn: conn} do
-      team = Factory.team()
+    test "valid update redirects to /g/:slug/teams/:id/edit with flash", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp)
       now = DateTime.utc_now()
       future_date = Date.utc_today() |> Date.add(14)
 
       match =
         Factory.match(
+          group: grp,
           team: team,
           opponent: "Old Rival",
           match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second)
         )
 
-      {:ok, view, _html} = live(conn, ~p"/matches/#{match.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
 
       view
       |> form("form", %{
@@ -65,21 +70,22 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
       })
       |> render_submit()
 
-      assert_redirect(view, ~p"/teams/#{team.id}/edit")
+      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
     end
 
-    test "invalid update (blank opponent) shows validation error", %{conn: conn} do
-      team = Factory.team()
+    test "invalid update (blank opponent) shows validation error", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp)
       now = DateTime.utc_now()
 
       match =
         Factory.match(
+          group: grp,
           team: team,
           opponent: "Rival",
           match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second)
         )
 
-      {:ok, view, _html} = live(conn, ~p"/matches/#{match.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
 
       view
       |> form("form", %{
@@ -97,23 +103,24 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
   end
 
   describe "delete match" do
-    test "delete redirects to /teams/:id/edit with flash", %{conn: conn} do
-      team = Factory.team()
+    test "delete redirects to /g/:slug/teams/:id/edit with flash", %{conn: conn, group: grp} do
+      team = Factory.team(group: grp)
       now = DateTime.utc_now()
 
       match =
         Factory.match(
+          group: grp,
           team: team,
           opponent: "Doomed Rival",
           match_start_datetime: DateTime.add(now, 7, :day) |> DateTime.truncate(:second)
         )
 
-      {:ok, view, _html} = live(conn, ~p"/matches/#{match.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
 
       view |> element("button[phx-click='show_delete_modal']") |> render_click()
       view |> element("button[phx-click='delete_match']") |> render_click()
 
-      assert_redirect(view, ~p"/teams/#{team.id}/edit")
+      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
     end
   end
 end

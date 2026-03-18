@@ -12,23 +12,30 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
   end
 
   def handle_params(%{"id" => id}, _url, socket) do
-    case Ash.get(Tennis.Match, id, domain: Tennis) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    case Ash.get(Tennis.Match, id, domain: Tennis, tenant: group_id, actor: current_user) do
       {:ok, match} ->
-        case Ash.load(match, [:team, :location], domain: Tennis) do
+        case Ash.load(match, [:team, :location],
+               domain: Tennis,
+               tenant: group_id,
+               actor: current_user
+             ) do
           {:ok, match} ->
             socket |> assign(:match, match) |> noreply()
 
           {:error, _} ->
             socket
             |> put_flash(:error, "Match not found.")
-            |> push_navigate(to: ~p"/")
+            |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
             |> noreply()
         end
 
       {:error, _} ->
         socket
         |> put_flash(:error, "Match not found.")
-        |> push_navigate(to: ~p"/")
+        |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
     end
   end
@@ -38,11 +45,11 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mb-6">
         <.link
-          navigate={~p"/teams/#{@match.team.id}"}
+          navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
           class="text-sm text-base-content/70 hover:text-base-content"
         >
-          <.icon name="hero-arrow-left" class="size-4 inline" />
-          Back to <span class="font-medium">{@match.team.name}</span>
+          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to
+          <span class="font-medium">{@match.team.name}</span>
         </.link>
       </div>
 
@@ -55,13 +62,19 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
           <% end %>
         </h1>
         <p class="text-base-content/60 mb-6">
-          <.link navigate={~p"/teams/#{@match.team.id}"} class="hover:underline">
+          <.link
+            navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
+            class="hover:underline"
+          >
             {@match.team.name}
           </.link>
         </p>
 
         <div class="mb-4">
-          <.link navigate={~p"/matches/#{@match.id}/edit"} class="btn btn-sm btn-ghost">
+          <.link
+            navigate={~p"/g/#{@current_group.slug}/matches/#{@match.id}/edit"}
+            class="btn btn-sm btn-ghost"
+          >
             Edit Match
           </.link>
         </div>
