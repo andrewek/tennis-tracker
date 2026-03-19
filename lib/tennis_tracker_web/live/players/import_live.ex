@@ -18,14 +18,14 @@ defmodule TennisTrackerWeb.Players.ImportLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <.header>
-        Import Players
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title="Import Players"
+        back_href={~p"/g/#{@current_group.slug}/players"}
+        back_label="Players"
+      >
         <:subtitle>Upload a CSV file to bulk-import tennis players.</:subtitle>
-        <:actions>
-          <.link navigate={~p"/g/#{@current_group.slug}/players"}>Back to Players</.link>
-        </:actions>
-      </.header>
+      </.page_header>
 
       <form id="upload-form" phx-submit="import" phx-change="validate">
         <div class="space-y-4">

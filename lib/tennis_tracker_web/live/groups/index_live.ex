@@ -15,10 +15,8 @@ defmodule TennisTrackerWeb.GroupsLive.Index do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} fluid={false}>
-      <.header>
-        Your Groups
-      </.header>
+    <Layouts.app flash={@flash} current_user={@current_user}>
+      <.page_header title="Organizations" />
 
       <%= if @groups == [] do %>
         <div class="mt-12 text-center">

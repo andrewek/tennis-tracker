@@ -273,22 +273,14 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     assigns = assign(assigns, :us_timezones, @us_timezones)
 
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to {@team.name}
-        </.link>
-      </div>
-
-      <div class="mb-8">
-        <h1 class="text-4xl font-bold tracking-tight">Edit Team</h1>
-        <p class="mt-1 text-base-content/60">
-          {@team.team_type.name} · {@team.season_year}
-        </p>
-      </div>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title="Edit Team"
+        back_href={~p"/g/#{@current_group.slug}/teams/#{@team.id}"}
+        back_label={@team.name}
+      >
+        <:subtitle>{@team.team_type.name} · {@team.season_year}</:subtitle>
+      </.page_header>
 
       <div class="flex flex-wrap gap-6 items-start">
         <%!-- Team settings form --%>

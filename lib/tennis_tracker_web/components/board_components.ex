@@ -24,12 +24,12 @@ defmodule TennisTrackerWeb.BoardComponents do
     >
       <%!-- Column header --%>
       <div class="flex items-center justify-between mb-2 px-1">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-1">
-            <span class="font-semibold text-sm truncate">{@title}</span>
-            <span class="badge badge-xs badge-ghost">{@count}</span>
-            {render_slot(@header_actions)}
-          </div>
+        <div class="flex-1 min-w-0 flex items-center gap-1">
+          <span class="font-semibold text-sm truncate">{@title}</span>
+          <span class="badge badge-xs badge-ghost">{@count}</span>
+        </div>
+        <div :if={@header_actions != []} class="flex-shrink-0">
+          {render_slot(@header_actions)}
         </div>
       </div>
 

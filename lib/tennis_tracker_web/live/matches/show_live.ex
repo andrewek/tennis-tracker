@@ -42,43 +42,31 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to
-          <span class="font-medium">{@match.team.name}</span>
-        </.link>
-      </div>
-
-      <div class="max-w-lg">
-        <h1 class="text-3xl font-bold tracking-tight mb-1">
-          <%= if @match.home_or_away == :home do %>
-            HOME vs. {@match.opponent}
-          <% else %>
-            AWAY vs. {@match.opponent}
-          <% end %>
-        </h1>
-        <p class="text-base-content/60 mb-6">
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title={if @match.home_or_away == :home, do: "HOME vs. #{@match.opponent}", else: "AWAY vs. #{@match.opponent}"}
+        back_href={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
+        back_label={@match.team.name}
+      >
+        <:subtitle>
           <.link
             navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
             class="hover:underline"
           >
             {@match.team.name}
           </.link>
-        </p>
-
-        <div class="mb-4">
+        </:subtitle>
+        <:actions>
           <.link
             navigate={~p"/g/#{@current_group.slug}/matches/#{@match.id}/edit"}
             class="btn btn-sm btn-ghost"
           >
             Edit Match
           </.link>
-        </div>
+        </:actions>
+      </.page_header>
 
+      <div class="max-w-lg">
         <div class="bg-base-200 rounded-lg p-5 space-y-4">
           <div>
             <p class="text-xs text-base-content/50 uppercase tracking-wide mb-1">Date & Time</p>

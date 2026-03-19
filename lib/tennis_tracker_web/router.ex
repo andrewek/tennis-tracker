@@ -24,11 +24,10 @@ defmodule TennisTrackerWeb.Router do
   scope "/", TennisTrackerWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
-
     # NOTE: /groups must be defined BEFORE /g/:group_slug to avoid slug conflict
     ash_authentication_live_session :groups_routes,
       on_mount: [{TennisTrackerWeb.LiveUserAuth, :live_user_required}] do
+      live "/", HomeLive, :index
       live "/groups", GroupsLive.Index, :index
     end
 

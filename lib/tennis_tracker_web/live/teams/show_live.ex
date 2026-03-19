@@ -70,32 +70,23 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}/teams"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Teams
-        </.link>
-      </div>
-
-      <%!-- Team header --%>
-      <div class="mb-8 flex items-start justify-between">
-        <div>
-          <h1 class="text-4xl font-bold tracking-tight">{@team.name}</h1>
-          <p class="mt-1 text-base-content/60">
-            {@team.team_type.name} · {@team.season_year}
-          </p>
-        </div>
-        <.link
-          :if={@can_edit_team}
-          navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/edit"}
-          class="btn btn-sm btn-ghost"
-        >
-          Edit Team
-        </.link>
-      </div>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title={@team.name}
+        back_href={~p"/g/#{@current_group.slug}/teams"}
+        back_label="Teams"
+      >
+        <:subtitle>{@team.team_type.name} · {@team.season_year}</:subtitle>
+        <:actions>
+          <.link
+            :if={@can_edit_team}
+            navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/edit"}
+            class="btn btn-sm btn-ghost"
+          >
+            Edit Team
+          </.link>
+        </:actions>
+      </.page_header>
 
       <%!-- Roster + schedule: flex wrap so each column only takes the space it needs --%>
       <div class="flex flex-wrap gap-6 items-start">

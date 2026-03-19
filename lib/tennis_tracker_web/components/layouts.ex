@@ -12,11 +12,7 @@ defmodule TennisTrackerWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
+  Renders your app layout with a sidebar-based design using daisyUI drawer.
 
   ## Examples
 
@@ -26,98 +22,108 @@ defmodule TennisTrackerWeb.Layouts do
 
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
-
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
-
   attr :current_user, :map, default: nil, doc: "the currently authenticated user"
-
-  attr :fluid, :boolean, default: true, doc: "when true, removes max-width constraint"
+  attr :current_group, :map, default: nil, doc: "the current group"
 
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <.link navigate={~p"/"} class="text-lg font-bold">Tennis Tracker</.link>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-row px-1 space-x-4 items-center">
-          <%= if @current_user do %>
-            <li>
-              <.link
-                href={~p"/sign-out"}
-                class="btn btn-ghost"
-              >
-                Sign out
-              </.link>
-            </li>
-          <% end %>
-          <li>
-            <.theme_toggle />
-          </li>
-        </ul>
-      </div>
-    </header>
+    <div class="h-dvh overflow-hidden drawer lg:drawer-open">
+      <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
-    <main class="px-4 py-6 sm:px-6 lg:px-8">
-      <div class={["mx-auto space-y-4", not @fluid && "max-w-2xl"]}>
-        {render_slot(@inner_block)}
+      <%!-- Drawer content (main area) --%>
+      <div class="drawer-content flex flex-col h-full min-h-0">
+        <%!-- Mobile top bar (hidden on lg+) --%>
+        <div class="navbar bg-base-100 lg:hidden flex-shrink-0 sticky top-0 z-10 border-b border-base-300">
+          <div class="flex-none">
+            <label for="sidebar-drawer" class="btn btn-square btn-ghost" aria-label="Open sidebar">
+              <.icon name="hero-bars-3" class="size-6" />
+            </label>
+          </div>
+          <div class="flex-1 px-2 font-semibold">
+            <%= if @current_group do %>
+              {@current_group.name}
+            <% else %>
+              Tennis Tracker
+            <% end %>
+          </div>
+        </div>
+
+        <%!-- Page content --%>
+        <main class="flex-1 overflow-y-auto px-6 py-8">
+          {render_slot(@inner_block)}
+        </main>
       </div>
-    </main>
+
+      <%!-- Sidebar --%>
+      <div class="drawer-side z-20">
+        <label for="sidebar-drawer" aria-label="Close sidebar" class="drawer-overlay"></label>
+        <.sidebar current_group={@current_group} current_user={@current_user} />
+      </div>
+    </div>
 
     <.flash_group flash={@flash} />
     """
   end
 
-  @doc """
-  Full-bleed layout that fills the viewport height.
+  attr :current_group, :map, default: nil
+  attr :current_user, :map, default: nil
 
-  Use this for board-style pages that need to constrain their content to the
-  window height and handle internal scrolling themselves.
-
-  ## Examples
-
-      <Layouts.full_bleed flash={@flash}>
-        <div class="h-full flex flex-col">...</div>
-      </Layouts.full_bleed>
-
-  """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :current_user, :map, default: nil, doc: "the currently authenticated user"
-  slot :inner_block, required: true
-
-  def full_bleed(assigns) do
+  defp sidebar(assigns) do
     ~H"""
-    <div class="h-dvh flex flex-col">
-      <header class="navbar px-4 sm:px-6 lg:px-8 flex-shrink-0">
-        <div class="flex-1">
-          <.link navigate={~p"/"} class="text-lg font-bold">Tennis Tracker</.link>
+    <aside class="w-64 bg-base-200 flex flex-col h-full">
+      <%!-- App name / logo --%>
+      <div class="p-4 border-b border-base-300">
+        <.link navigate={~p"/"} class="text-lg font-bold block">Tennis Tracker</.link>
+        <div :if={@current_group} class="flex items-baseline justify-between mt-1">
+          <p class="text-sm text-base-content/60">{@current_group.name}</p>
+          <.link
+            navigate={~p"/groups"}
+            class="text-xs text-primary hover:text-primary-focus font-medium px-2 py-1"
+          >
+            Switch
+          </.link>
         </div>
-        <div class="flex-none">
-          <ul class="flex flex-row px-1 space-x-4 items-center">
-            <%= if @current_user do %>
-              <li>
-                <.link href={~p"/sign-out"} class="btn btn-ghost">
-                  Sign out
-                </.link>
-              </li>
-            <% end %>
-            <li>
-              <.theme_toggle />
-            </li>
-          </ul>
+      </div>
+
+      <%!-- Nav links (only when in a group) --%>
+      <nav :if={@current_group} class="flex-1 p-2">
+        <ul class="menu menu-sm w-full">
+          <li>
+            <.link navigate={~p"/g/#{@current_group.slug}"}>Home</.link>
+          </li>
+          <li>
+            <.link navigate={~p"/g/#{@current_group.slug}/players"}>Players</.link>
+          </li>
+          <li>
+            <.link navigate={~p"/g/#{@current_group.slug}/teams"}>Teams</.link>
+          </li>
+          <li>
+            <.link navigate={~p"/g/#{@current_group.slug}/roster-planner"}>Roster Planning</.link>
+          </li>
+        </ul>
+      </nav>
+
+      <%!-- Spacer when no group nav --%>
+      <div :if={is_nil(@current_group)} class="flex-1"></div>
+
+      <%!-- Utility section --%>
+      <div :if={@current_user} class="p-2">
+        <hr class="border-base-300 mb-2" />
+        <ul class="menu menu-sm w-full">
+          <li :if={@current_user.role == :admin}>
+            <.link navigate={~p"/admin"}>Admin</.link>
+          </li>
+          <li>
+            <.link href={~p"/sign-out"}>Sign out</.link>
+          </li>
+        </ul>
+        <div class="px-4 pb-2 pt-1">
+          <.theme_toggle />
         </div>
-      </header>
-
-      <main class="flex-1 min-h-0 overflow-hidden">
-        {render_slot(@inner_block)}
-      </main>
-    </div>
-
-    <.flash_group flash={@flash} />
+      </div>
+    </aside>
     """
   end
 
@@ -171,33 +177,16 @@ defmodule TennisTrackerWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-    </div>
+    <select
+      phx-hook="ThemeSelect"
+      id="theme-select"
+      class="select select-xs w-full"
+      onchange="this.dataset.phxTheme = this.value; this.dispatchEvent(new Event('phx:set-theme', {bubbles: true}))"
+    >
+      <option value="system">System</option>
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
     """
   end
 end

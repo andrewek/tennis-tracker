@@ -52,34 +52,25 @@ defmodule TennisTrackerWeb.Players.ShowLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}/players"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Players
-        </.link>
-      </div>
-
-      <div class="mb-6">
-        <h1 class="text-4xl font-bold tracking-tight">
-          {@player.name}
-          <span class="text-3xl font-semibold text-base-content/60 ml-3">
-            {if @player.ntrp_rating, do: @player.ntrp_rating, else: "—"}
-          </span>
-        </h1>
-        <div class="mt-2">
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title={@player.name}
+        back_href={~p"/g/#{@current_group.slug}/players"}
+        back_label="Players"
+      >
+        <:subtitle>
+          {if @player.ntrp_rating, do: @player.ntrp_rating, else: "No NTRP rating"} ·
           <.age_bracket_chips player={@player} />
-        </div>
-      </div>
-
-      <div class="flex gap-3 mb-6">
-        <.button navigate={~p"/g/#{@current_group.slug}/players/#{@player.id}/edit"}>
-          Edit
-        </.button>
-        <button phx-click="show_delete_modal" class="btn btn-error btn-soft">Delete</button>
-      </div>
+        </:subtitle>
+        <:actions>
+          <div class="flex gap-2">
+            <.button navigate={~p"/g/#{@current_group.slug}/players/#{@player.id}/edit"}>
+              Edit
+            </.button>
+            <button phx-click="show_delete_modal" class="btn btn-error btn-soft">Delete</button>
+          </div>
+        </:actions>
+      </.page_header>
 
       <.modal
         :if={@show_delete_modal}

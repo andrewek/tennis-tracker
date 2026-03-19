@@ -74,29 +74,20 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} fluid={false}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
-        </.link>
-      </div>
-
-      <.header>
-        Players
-        <:subtitle>
-          Showing {@player_count} of {@total_count}
-        </:subtitle>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header title="Players">
+        <:subtitle>Showing {@player_count} of {@total_count}</:subtitle>
         <:actions>
-          <.button href={@export_url}>Export CSV</.button>
-          <.button navigate={~p"/g/#{@current_group.slug}/players/import"}>Import CSV</.button>
-          <.button navigate={~p"/g/#{@current_group.slug}/players/new"}>New Player</.button>
+          <div class="flex gap-2 flex-wrap">
+            <.button href={@export_url}>Export CSV</.button>
+            <.button navigate={~p"/g/#{@current_group.slug}/players/import"}>Import CSV</.button>
+            <.button navigate={~p"/g/#{@current_group.slug}/players/new"}>New Player</.button>
+          </div>
         </:actions>
-      </.header>
+      </.page_header>
 
-      <div class="mb-4 space-y-3">
+      <div class="mb-4 space-y-2">
+        <%!-- Name search --%>
         <form phx-change="search_name">
           <input
             type="text"
@@ -108,77 +99,88 @@ defmodule TennisTrackerWeb.Players.IndexLive do
           />
         </form>
 
-        <div class="flex flex-wrap gap-6">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <p class="text-xs text-base-content/60">NTRP Rating</p>
+        <%!-- Compact filter pills --%>
+        <div class="space-y-1">
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-base-content/50 w-8">NTRP</span>
+            <%= for {label, value} <- @ntrp_ratings do %>
               <button
-                phx-click="toggle_ntrp_sort"
-                class="text-xs text-base-content/50 hover:text-base-content transition-colors"
-                title={"Sort #{if @ntrp_sort == "desc", do: "ascending", else: "descending"}"}
+                phx-click="toggle_ntrp"
+                phx-value-rating={value}
+                class={[
+                  "btn btn-xs",
+                  value in @ntrp_filter && "btn-neutral",
+                  value not in @ntrp_filter && "btn-ghost"
+                ]}
               >
-                <%= if @ntrp_sort == "desc" do %>
-                  <.icon name="hero-arrow-down" class="size-3.5 inline" /> Desc
-                <% else %>
-                  <.icon name="hero-arrow-up" class="size-3.5 inline" /> Asc
-                <% end %>
+                {label}
               </button>
-            </div>
-            <div class="flex gap-4 flex-wrap">
-              <%= for {label, value} <- @ntrp_ratings do %>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    checked={value in @ntrp_filter}
-                    phx-click="toggle_ntrp"
-                    phx-value-rating={value}
-                  />
-                  <span class="text-sm">{label}</span>
-                </label>
-              <% end %>
-            </div>
+            <% end %>
           </div>
 
-          <div>
-            <p class="text-xs text-base-content/60 mb-1">Age Bracket</p>
-            <div class="flex gap-4 flex-wrap">
-              <%= for {label, value} <- @bracket_options do %>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    checked={value in @bracket_filter}
-                    phx-click="toggle_bracket"
-                    phx-value-bracket={value}
-                  />
-                  <span class="text-sm">{label}</span>
-                </label>
-              <% end %>
-            </div>
+          <div class="flex items-center gap-1">
+            <span class="text-xs text-base-content/50 w-8">Age</span>
+            <%= for {label, value} <- @bracket_options do %>
+              <button
+                phx-click="toggle_bracket"
+                phx-value-bracket={value}
+                class={[
+                  "btn btn-xs",
+                  value in @bracket_filter && "btn-neutral",
+                  value not in @bracket_filter && "btn-ghost"
+                ]}
+              >
+                {label}
+              </button>
+            <% end %>
           </div>
+
+          <button
+            :if={@name_search != "" or @ntrp_filter != [] or @bracket_filter != []}
+            phx-click="clear_filter"
+            class="btn btn-xs btn-ghost text-base-content/40"
+          >
+            <.icon name="hero-x-mark" class="size-3.5" /> Clear all filters
+          </button>
         </div>
-
-        <.button
-          :if={@name_search != "" or @ntrp_filter != [] or @bracket_filter != []}
-          phx-click="clear_filter"
-          class="btn btn-sm btn-ghost text-base-content/50"
-        >
-          <.icon name="hero-x-mark" class="size-4 inline" /> Clear filters
-        </.button>
       </div>
 
-      <.table id="players" rows={@streams.players}>
-        <:col :let={{_id, player}} label="Name">
-          <div class="flex items-center gap-2 flex-wrap">
-            <.link navigate={~p"/g/#{@current_group.slug}/players/#{player.id}"}>
-              {player.name}
-            </.link>
-            <.age_bracket_chips player={player} />
-          </div>
-        </:col>
-        <:col :let={{_id, player}} label="NTRP">{player.ntrp_rating}</:col>
-      </.table>
+      <div class="max-w-2xl">
+        <table class="table table-zebra">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>
+                <button
+                  phx-click="toggle_ntrp_sort"
+                  class="flex items-center gap-1 hover:text-base-content transition-colors"
+                  title={"Sort #{if @ntrp_sort == "desc", do: "ascending", else: "descending"}"}
+                >
+                  NTRP
+                  <%= if @ntrp_sort == "desc" do %>
+                    <.icon name="hero-arrow-down" class="size-3.5" />
+                  <% else %>
+                    <.icon name="hero-arrow-up" class="size-3.5" />
+                  <% end %>
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="players" phx-update="stream">
+            <tr :for={{dom_id, player} <- @streams.players} id={dom_id}>
+              <td>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <.link navigate={~p"/g/#{@current_group.slug}/players/#{player.id}"}>
+                    {player.name}
+                  </.link>
+                  <.age_bracket_chips player={player} />
+                </div>
+              </td>
+              <td>{player.ntrp_rating}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </Layouts.app>
     """
   end

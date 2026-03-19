@@ -60,11 +60,17 @@ const DropZone = {
   }
 }
 
+const ThemeSelect = {
+  mounted() {
+    this.el.value = localStorage.getItem("phx:theme") || "system"
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, DraggableCard, DropZone},
+  hooks: {...colocatedHooks, DraggableCard, DropZone, ThemeSelect},
 })
 
 // Show progress bar on live navigation and form submits

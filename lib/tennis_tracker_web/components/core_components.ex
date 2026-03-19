@@ -365,25 +365,36 @@ defmodule TennisTrackerWeb.CoreComponents do
   end
 
   @doc """
-  Renders a header with title.
+  Renders a consistent page header with title, optional back link, subtitle, and actions.
   """
-  slot :inner_block, required: true
+  attr :title, :string, required: true
+  attr :back_href, :string, default: nil
+  attr :back_label, :string, default: "Back"
   slot :subtitle
   slot :actions
 
-  def header(assigns) do
+  def page_header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
-      <div>
-        <h1 class="text-lg font-semibold leading-8">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
-          {render_slot(@subtitle)}
-        </p>
+    <div class="mb-6">
+      <.link
+        :if={@back_href}
+        navigate={@back_href}
+        class="inline-flex items-center gap-1 text-sm text-base-content/70 hover:text-base-content mb-2"
+      >
+        <.icon name="hero-arrow-left-mini" class="size-4" /> {@back_label}
+      </.link>
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+        <div>
+          <h1 class="text-2xl font-semibold">{@title}</h1>
+          <p :if={@subtitle != []} class="mt-1 text-sm text-base-content/70">
+            {render_slot(@subtitle)}
+          </p>
+        </div>
+        <div :if={@actions != []} class="flex-none">
+          {render_slot(@actions)}
+        </div>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
-    </header>
+    </div>
     """
   end
 

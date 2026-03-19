@@ -139,22 +139,14 @@ defmodule TennisTrackerWeb.Matches.EditLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team_id}/edit"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Edit Team
-        </.link>
-      </div>
-
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold tracking-tight">Edit Match</h1>
-        <p class="mt-1 text-base-content/60">
-          vs. {@match.opponent} · {@match.team.name}
-        </p>
-      </div>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header
+        title="Edit Match"
+        back_href={~p"/g/#{@current_group.slug}/matches/#{@match.id}"}
+        back_label="Match"
+      >
+        <:subtitle>vs. {@match.opponent} · {@match.team.name}</:subtitle>
+      </.page_header>
 
       <div class="max-w-lg">
         <.form for={@form} phx-change="validate_match" phx-submit="save_match">

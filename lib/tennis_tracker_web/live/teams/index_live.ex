@@ -49,19 +49,8 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} fluid={false}>
-      <div class="mb-6">
-        <.link
-          navigate={~p"/g/#{@current_group.slug}"}
-          class="text-sm text-base-content/70 hover:text-base-content"
-        >
-          <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
-        </.link>
-      </div>
-
-      <.header>
-        Teams
-      </.header>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <.page_header title="Teams" />
 
       <%= if @team_count == 0 do %>
         <div class="mt-12 text-center">

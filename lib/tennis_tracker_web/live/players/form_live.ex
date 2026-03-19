@@ -16,6 +16,7 @@ defmodule TennisTrackerWeb.Players.FormLive do
   def mount(_params, _session, socket) do
     socket
     |> assign(:ntrp_options, @ntrp_options)
+    |> assign(:player_id, nil)
     |> ok()
   end
 
@@ -23,38 +24,55 @@ defmodule TennisTrackerWeb.Players.FormLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    form =
+    {form, player_id} =
       case socket.assigns.live_action do
         :new ->
-          AshPhoenix.Form.for_create(Player, :create,
-            domain: Tennis,
-            actor: current_user,
-            tenant: group_id
-          )
-          |> to_form()
+          form =
+            AshPhoenix.Form.for_create(Player, :create,
+              domain: Tennis,
+              actor: current_user,
+              tenant: group_id
+            )
+            |> to_form()
+
+          {form, nil}
 
         :edit ->
           player = Tennis.get_player!(params["id"], tenant: group_id, actor: current_user)
 
-          AshPhoenix.Form.for_update(player, :update,
-            domain: Tennis,
-            actor: current_user,
-            tenant: group_id
-          )
-          |> to_form()
+          form =
+            AshPhoenix.Form.for_update(player, :update,
+              domain: Tennis,
+              actor: current_user,
+              tenant: group_id
+            )
+            |> to_form()
+
+          {form, player.id}
       end
 
     socket
     |> assign(:form, form)
+    |> assign(:player_id, player_id)
     |> noreply()
   end
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user}>
-      <.header>
-        {if @live_action == :new, do: "New Player", else: "Edit Player"}
-      </.header>
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <%= if @live_action == :new do %>
+        <.page_header
+          title="New Player"
+          back_href={~p"/g/#{@current_group.slug}/players"}
+          back_label="Players"
+        />
+      <% else %>
+        <.page_header
+          title="Edit Player"
+          back_href={~p"/g/#{@current_group.slug}/players/#{@player_id}"}
+          back_label="Player"
+        />
+      <% end %>
 
       <.form
         for={@form}

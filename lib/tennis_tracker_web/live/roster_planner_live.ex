@@ -501,8 +501,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.full_bleed flash={@flash} current_user={@current_user}>
-      <div class="h-full flex flex-col">
+    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+      <%!-- Outer wrapper fills exactly the available space in main so main doesn't scroll.
+           Desktop: 100dvh - main py-8 (4rem).
+           Mobile: 100dvh - mobile top bar (4rem) - main py-8 (4rem) = 100dvh - 8rem. --%>
+      <div class="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] -mx-6 -my-8">
         <%!-- Page title bar --%>
         <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
           <.link
@@ -647,36 +650,45 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 violations={violations}
               >
                 <:header_actions>
-                  <.link
-                    navigate={~p"/g/#{@current_group.slug}/teams/#{team.id}"}
-                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100 ml-auto"
-                    aria-label="View team page"
-                  >
-                    <.icon name="hero-arrow-top-right-on-square" class="size-3.5" />
-                    <span class="sr-only">View team page</span>
-                  </.link>
-                  <button
-                    :if={is_nil(@team_modal) and @current_group_role in [:owner, :admin]}
-                    phx-click="open_team_modal"
-                    phx-value-mode="edit"
-                    phx-value-team_id={team.id}
-                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
-                    aria-label="Rename team"
-                  >
-                    <.icon name="hero-pencil-square" class="size-3.5" />
-                    <span class="sr-only">Rename team</span>
-                  </button>
-                  <button
-                    :if={is_nil(@team_modal) and @current_group_role in [:owner, :admin]}
-                    phx-click="open_team_modal"
-                    phx-value-mode="delete"
-                    phx-value-team_id={team.id}
-                    class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
-                    aria-label="Delete team"
-                  >
-                    <.icon name="hero-trash" class="size-3.5" />
-                    <span class="sr-only">Delete team</span>
-                  </button>
+                  <div class="dropdown dropdown-end">
+                    <button
+                      tabindex="0"
+                      class="btn btn-xs btn-ghost opacity-50 hover:opacity-100"
+                      aria-label="Team actions"
+                    >
+                      <.icon name="hero-ellipsis-vertical" class="size-3.5" />
+                    </button>
+                    <ul
+                      tabindex="0"
+                      class="dropdown-content menu menu-xs bg-base-100 rounded-box shadow-md z-10 w-36 p-1"
+                    >
+                      <li>
+                        <.link navigate={~p"/g/#{@current_group.slug}/teams/#{team.id}"}>
+                          <.icon name="hero-arrow-top-right-on-square" class="size-3.5" />
+                          View team
+                        </.link>
+                      </li>
+                      <li :if={@current_group_role in [:owner, :admin]}>
+                        <button
+                          phx-click="open_team_modal"
+                          phx-value-mode="edit"
+                          phx-value-team_id={team.id}
+                        >
+                          <.icon name="hero-pencil-square" class="size-3.5" /> Rename
+                        </button>
+                      </li>
+                      <li :if={@current_group_role in [:owner, :admin]}>
+                        <button
+                          phx-click="open_team_modal"
+                          phx-value-mode="delete"
+                          phx-value-team_id={team.id}
+                          class="text-error"
+                        >
+                          <.icon name="hero-trash" class="size-3.5" /> Delete
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
                 </:header_actions>
                 <.player_card
                   :for={player <- players}
@@ -847,7 +859,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           </.modal>
         </div>
       </div>
-    </Layouts.full_bleed>
+    </Layouts.app>
     """
   end
 end
