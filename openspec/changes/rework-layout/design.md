@@ -65,6 +65,26 @@ The component accepts:
 
 **Alternative considered:** Separate `<.back_link>` component alongside `<.header>`. Rejected: the back link is always semantically paired with the page title; combining them reduces composition burden at the call site.
 
+### Decision: Sidebar visual design
+
+- **Width**: `w-64` (256px) — middle of the reasonable range; adjust after seeing it
+- **Background**: `bg-base-200` — one step darker than the content area's `bg-base-100` in both light and dark mode; adjust after seeing it
+- **Nav links**: daisyUI `menu` + `menu-item` with default padding and hover styling
+- **Layout**: flex column, full height — nav links pinned to the top, utility links pinned to the bottom with an `<hr>` (`divider`) immediately above them
+- **Theme toggle**: icon-only (no labels), placed at the very bottom of the sidebar below all other utility links
+- **Divider spacing note**: on desktop, the flex `justify-between` / `mt-auto` approach pushes utility links to the bottom regardless of how many nav links exist. On mobile (drawer overlay), the same HR is present but without the flex-spacing assumption — the sidebar scrolls if content overflows.
+
+### Decision: `<.page_header>` visual design
+
+- **Title**: `text-2xl font-semibold`
+- **Back link**: `<.icon name="hero-arrow-left-mini">` inline before the label text, rendered as a `<.link navigate>` above the title
+- **Actions slot**: same row as the title on desktop (`flex justify-between items-start`); stacks below the title on mobile
+- **Spacing**: `mb-6` below the full header block before page content begins; adjust after seeing it
+
+### Decision: Theme toggle reduced to icon-only in sidebar
+
+The current theme toggle is a horizontal three-button pill with icons and a sliding indicator. In the sidebar it stays as icon-only (the icons are already present; the text labels are absent by default). It sits at the very bottom of the sidebar. A future "account settings" page may absorb it.
+
 ### Decision: Sidebar receives `current_group` and `current_user` as optional assigns
 
 `current_group` defaults to nil. When nil, the sidebar omits group-specific nav links (Players, Teams, Roster Planning) and the group name display. `current_user` defaults to nil; when nil, the Admin link and Sign Out are omitted. Both attrs are declared with `default: nil` so LiveViews that lack these assigns can omit them from the layout call.

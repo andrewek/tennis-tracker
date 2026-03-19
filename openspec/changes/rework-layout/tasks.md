@@ -13,20 +13,23 @@
 - [ ] 2.1 Add a new `page_header/1` function component to `core_components.ex` alongside the existing `header/1` (do NOT remove `header/1` yet)
 - [ ] 2.2 Declare `title` as a required string attribute
 - [ ] 2.3 Declare `back_href` as an optional string attribute (default nil) and `back_label` as an optional string attribute (default `"Back"`)
-- [ ] 2.4 Render a `<.link navigate={@back_href}>← {@back_label}</.link>` above the title when `back_href` is not nil
-- [ ] 2.5 Add `<:subtitle>` as an optional slot rendered below the title in a visually subordinate style
-- [ ] 2.6 Add `<:actions>` as an optional slot rendered to the right of the title
+- [ ] 2.4 Render a `<.link navigate={@back_href}><.icon name="hero-arrow-left-mini" /> {@back_label}</.link>` above the title when `back_href` is not nil
+- [ ] 2.5 Title: `<h1 class="text-2xl font-semibold">`
+- [ ] 2.6 Actions/title row: `flex justify-between items-start` on desktop; actions stack below title on mobile (`flex-col sm:flex-row`)
+- [ ] 2.7 Add `mb-6` spacing below the full header block
+- [ ] 2.8 Add `<:subtitle>` as an optional slot rendered below the title in a visually subordinate style
+- [ ] 2.9 Add `<:actions>` as an optional slot
 
 ## 3. New Sidebar Layout
 
 - [ ] 3.1 In `layouts.ex`, define a private `sidebar/1` function component accepting `current_group` (nullable map) and `current_user` (nullable map)
-- [ ] 3.2 Sidebar top: app name/logo linking to `/`; current group name when `current_group` is not nil
-- [ ] 3.3 Sidebar nav section (only when `current_group` is not nil): Players → `/g/:slug/players`, Teams → `/g/:slug/teams`, Roster Planning → `/g/:slug/roster-planner`
-- [ ] 3.4 Sidebar bottom (only when `current_user` is not nil): "Switch Organization" → `/groups`, `<.theme_toggle />`, "Sign out" → `/sign-out`
-- [ ] 3.5 Sidebar bottom: "Admin" → `/admin` shown only when `current_user.role == :admin`
-- [ ] 3.6 Rework `Layouts.app/1` to use daisyUI `drawer` structure: `<div class="drawer lg:drawer-open">`, hidden checkbox input, `drawer-content` div, `drawer-side` div containing `<.sidebar>`
-- [ ] 3.7 In `drawer-content`, add a sticky mobile top bar (hidden at `lg+`) containing: hamburger `<label>` toggle, and either the current group name (when `current_group` is not nil) or "Tennis Tracker" (when nil)
-- [ ] 3.8 Place `<.flash_group flash={@flash} />` inside `drawer-content` but outside the scrollable `<main>` element, so flash messages are visible when the drawer is closed
+- [ ] 3.2 Sidebar structure: `w-64 bg-base-200 flex flex-col h-full` — nav links at top, utility links at bottom (use `mt-auto` on the utility section to push it down); daisyUI `menu` for link groups
+- [ ] 3.3 Sidebar top: app name/logo linking to `/`; current group name displayed below it when `current_group` is not nil
+- [ ] 3.4 Sidebar nav links (only when `current_group` is not nil): Players → `/g/:slug/players`, Teams → `/g/:slug/teams`, Roster Planning → `/g/:slug/roster-planner`; use daisyUI `menu-item` with default padding and hover styling
+- [ ] 3.5 Sidebar utility section: `<hr>` divider immediately above utility links; links (only when `current_user` is not nil): "Switch Organization" → `/groups`, "Sign out" → `/sign-out`; "Admin" → `/admin` only when `current_user.role == :admin`
+- [ ] 3.6 Theme toggle: icon-only version at the very bottom of the utility section, below Sign out
+- [ ] 3.7 Rework `Layouts.app/1` to use daisyUI `drawer` structure: `<div class="drawer lg:drawer-open">`, hidden checkbox input, `drawer-content` div, `drawer-side` div containing `<.sidebar>`
+- [ ] 3.8 In `drawer-content`, add a sticky mobile top bar (hidden at `lg+`) containing: hamburger `<label>` toggle with `hero-bars-3` icon, and either the current group name (when `current_group` is not nil) or "Tennis Tracker" (when nil)
 - [ ] 3.9 Make `<main>` `overflow-y-auto` with padding (`px-6 py-8`)
 - [ ] 3.10 Ensure outer container is `h-dvh overflow-hidden`
 - [ ] 3.11 Declare attrs on `Layouts.app/1`: `flash` (required), `current_user` (optional, default nil), `current_group` (optional, default nil); remove `fluid` and `current_scope`
@@ -87,4 +90,6 @@ Current heading approach per file:
 - [ ] 9.5 Manually verify roster planner board fits viewport and columns scroll
 - [ ] 9.6 Manually verify auth page (sign-in) renders correctly — no sidebar, AshAuthentication layout unchanged
 - [ ] 9.7 Verify Admin link hidden for non-admin users; visible for system admins
-- [ ] 9.8 Manually verify flash messages are visible when navigating to a page that sets a flash (e.g., after a form save)
+- [ ] 9.8 Manually verify flash messages are visible on desktop after a form save (e.g., edit a player)
+- [ ] 9.9 Manually verify flash messages are visible on mobile with the drawer closed
+- [ ] 9.10 Manually verify flash messages are visible (not covered) on mobile with the drawer open — if flash appears beneath the overlay, add `z-[100]` to the flash component's class
