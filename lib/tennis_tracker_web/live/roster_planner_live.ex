@@ -508,13 +508,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       <div class="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] -mx-6 -my-8">
         <%!-- Page title bar --%>
         <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
-          <.link
-            navigate={~p"/g/#{@current_group.slug}"}
-            class="text-sm text-base-content/70 hover:text-base-content"
-          >
-            <.icon name="hero-arrow-left" class="size-4 inline" /> Back to Home
-          </.link>
-          <span class="font-bold text-lg">Roster Planner</span>
+<span class="font-bold text-lg">Roster Planner</span>
           <span :if={@context} class="text-base-content/50 text-sm">
             {@context.team_type.name} · {@context.season_year}
           </span>

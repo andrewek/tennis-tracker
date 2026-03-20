@@ -339,7 +339,7 @@ defmodule TennisTrackerWeb.CoreComponents do
           "bg-base-100 w-full p-6 shadow-xl",
           @max_width,
           @position == :center && "rounded-2xl",
-          @position == :bottom && "rounded-t-2xl sm:rounded-2xl"
+          @position == :bottom && "rounded-t-2xl sm:rounded-2xl max-h-[85dvh] overflow-y-auto"
         ]}
         phx-click-away={@on_close}
       >

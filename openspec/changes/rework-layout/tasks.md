@@ -33,7 +33,7 @@
 - [x] 3.9 Make `<main>` `overflow-y-auto` with padding (`px-6 py-8`)
 - [x] 3.10 Ensure outer container is `h-dvh overflow-hidden`
 - [x] 3.11 Declare attrs on `Layouts.app/1`: `flash` (required), `current_user` (optional, default nil), `current_group` (optional, default nil); remove `fluid` and `current_scope`
-- [ ] 3.12 Spot-check: light mode and dark mode render sidebar correctly
+- [x] 3.12 Spot-check: light mode and dark mode render sidebar correctly
 
 ## 4. Remove Full-Bleed Layout
 
@@ -84,12 +84,12 @@ Current heading approach per file:
 ## 9. Verification
 
 - [x] 9.1 Run `mix precommit` — all green
-- [ ] 9.2 Manually verify sidebar on desktop (`lg+`): group name, nav links, utility links visible
-- [ ] 9.3 Manually verify mobile: top bar visible with group name (or app name when no group), drawer opens and closes
-- [ ] 9.4 Manually verify dark mode applies correctly to sidebar
-- [ ] 9.5 Manually verify roster planner board fits viewport and columns scroll
-- [ ] 9.6 Manually verify auth page (sign-in) renders correctly — no sidebar, AshAuthentication layout unchanged
-- [ ] 9.7 Verify Admin link hidden for non-admin users; visible for system admins
-- [ ] 9.8 Manually verify flash messages are visible on desktop after a form save (e.g., edit a player)
-- [ ] 9.9 Manually verify flash messages are visible on mobile with the drawer closed
-- [ ] 9.10 Manually verify flash messages are visible (not covered) on mobile with the drawer open — if flash appears beneath the overlay, add `z-[100]` to the flash component's class
+- [x] 9.2 Manually verify sidebar on desktop (`lg+`): group name, nav links, utility links visible
+- [x] 9.3 Manually verify mobile: top bar visible with group name (or app name when no group), drawer opens and closes
+- [x] 9.4 Manually verify dark mode applies correctly to sidebar
+- [x] 9.5 Manually verify roster planner board fits viewport and columns scroll
+- [x] 9.6 Manually verify auth page (sign-in) renders correctly — no sidebar, AshAuthentication layout unchanged
+- [x] 9.7 Verify Admin link hidden for non-admin users; visible for system admins
+- [x] 9.8 Manually verify flash messages are visible on desktop after a form save (e.g., edit a player)
+- [x] 9.9 Manually verify flash messages are visible on mobile with the drawer closed
+- [x] 9.10 Manually verify flash messages are visible (not covered) on mobile with the drawer open — if flash appears beneath the overlay, add `z-[100]` to the flash component's class

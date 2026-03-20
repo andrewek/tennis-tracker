@@ -33,7 +33,7 @@ defmodule TennisTrackerWeb.Layouts do
       <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
       <%!-- Drawer content (main area) --%>
-      <div class="drawer-content flex flex-col h-full min-h-0">
+      <div class="drawer-content flex flex-col h-dvh min-h-0">
         <%!-- Mobile top bar (hidden on lg+) --%>
         <div class="navbar bg-base-100 lg:hidden flex-shrink-0 sticky top-0 z-10 border-b border-base-300">
           <div class="flex-none">
@@ -51,7 +51,7 @@ defmodule TennisTrackerWeb.Layouts do
         </div>
 
         <%!-- Page content --%>
-        <main class="flex-1 overflow-y-auto px-6 py-8">
+        <main class="flex-1 min-h-0 overflow-y-auto px-6 py-8">
           {render_slot(@inner_block)}
         </main>
       </div>

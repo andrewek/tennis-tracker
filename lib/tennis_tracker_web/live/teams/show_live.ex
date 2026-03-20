@@ -91,7 +91,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       <%!-- Roster + schedule: flex wrap so each column only takes the space it needs --%>
       <div class="flex flex-wrap gap-6 items-start">
         <%!-- Roster card --%>
-        <div class="bg-base-200 rounded-lg p-4 w-full max-w-64">
+        <div class="bg-base-200 rounded-lg p-4 flex-1 min-w-64">
           <div class="flex items-center gap-2 mb-3">
             <h2 class="font-semibold">Roster</h2>
             <span class="badge badge-xs badge-ghost">{length(@players)}</span>
@@ -112,7 +112,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         </div>
 
         <%!-- Match schedule card --%>
-        <div class="bg-base-200 rounded-lg p-4 w-full max-w-md">
+        <div class="bg-base-200 rounded-lg p-4 flex-1 min-w-64">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-semibold">Upcoming Matches</h2>
           </div>
