@@ -12,7 +12,11 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
   end
 
   describe "team memberships section" do
-    test "shows no memberships message when player has none", %{conn: conn, group: grp, user: _usr} do
+    test "shows no memberships message when player has none", %{
+      conn: conn,
+      group: grp,
+      user: _usr
+    } do
       player = Factory.player(group: grp, name: "Solo Player")
       {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
 

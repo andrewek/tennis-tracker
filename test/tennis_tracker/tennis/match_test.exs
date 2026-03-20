@@ -38,7 +38,10 @@ defmodule TennisTracker.Tennis.MatchTest do
             home_or_away: :home,
             team_id: team.id,
             group_id: grp.id
-          }, tenant: grp.id, actor: usr)
+          },
+          tenant: grp.id,
+          actor: usr
+        )
 
       assert {:error, _} = result
     end
@@ -51,7 +54,10 @@ defmodule TennisTracker.Tennis.MatchTest do
             opponent: "Someone",
             home_or_away: :home,
             group_id: grp.id
-          }, tenant: grp.id, actor: usr)
+          },
+          tenant: grp.id,
+          actor: usr
+        )
 
       assert {:error, _} = result
     end
@@ -131,7 +137,10 @@ defmodule TennisTracker.Tennis.MatchTest do
             opponent: "New Rival",
             home_or_away: :away,
             location_id: location.id
-          }, tenant: grp.id, actor: usr)
+          },
+          tenant: grp.id,
+          actor: usr
+        )
 
       assert updated.opponent == "New Rival"
       assert updated.home_or_away == :away

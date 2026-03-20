@@ -508,7 +508,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
       <div class="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] -mx-6 -my-8">
         <%!-- Page title bar --%>
         <div class="flex items-center gap-4 py-3 px-4 flex-shrink-0">
-<span class="font-bold text-lg">Roster Planner</span>
+          <span class="font-bold text-lg">Roster Planner</span>
           <span :if={@context} class="text-base-content/50 text-sm">
             {@context.team_type.name} · {@context.season_year}
           </span>
@@ -658,8 +658,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                     >
                       <li>
                         <.link navigate={~p"/g/#{@current_group.slug}/teams/#{team.id}"}>
-                          <.icon name="hero-arrow-top-right-on-square" class="size-3.5" />
-                          View team
+                          <.icon name="hero-arrow-top-right-on-square" class="size-3.5" /> View team
                         </.link>
                       </li>
                       <li :if={@current_group_role in [:owner, :admin]}>

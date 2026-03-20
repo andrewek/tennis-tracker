@@ -51,7 +51,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
                    max_roster: 18,
                    on_level_min_pct: Decimal.new("0.60"),
                    group_id: grp.id
-                 }, tenant: grp.id, actor: usr)
+                 },
+                 tenant: grp.id,
+                 actor: usr
+               )
 
       assert rules.season_year == 2026
       assert rules.min_roster == 8
@@ -68,7 +71,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
           max_roster: 18,
           on_level_min_pct: Decimal.new("0.60"),
           group_id: grp.id
-        }, tenant: grp.id, actor: usr)
+        },
+        tenant: grp.id,
+        actor: usr
+      )
 
       assert {:error, _} =
                Tennis.create_season_rules(
@@ -79,7 +85,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
                    max_roster: 15,
                    on_level_min_pct: Decimal.new("0.50"),
                    group_id: grp.id
-                 }, tenant: grp.id, actor: usr)
+                 },
+                 tenant: grp.id,
+                 actor: usr
+               )
     end
 
     test "can create rules for same team type in different years", %{group: grp, user: usr} do
@@ -93,7 +102,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
           max_roster: 18,
           on_level_min_pct: Decimal.new("0.60"),
           group_id: grp.id
-        }, tenant: grp.id, actor: usr)
+        },
+        tenant: grp.id,
+        actor: usr
+      )
 
       assert {:ok, _} =
                Tennis.create_season_rules(
@@ -104,7 +116,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
                    max_roster: 18,
                    on_level_min_pct: Decimal.new("0.60"),
                    group_id: grp.id
-                 }, tenant: grp.id, actor: usr)
+                 },
+                 tenant: grp.id,
+                 actor: usr
+               )
     end
   end
 
@@ -149,7 +164,10 @@ defmodule TennisTracker.Tennis.TeamRosterTest do
                    team_type_id: tt.id,
                    season_year: team_b.season_year,
                    group_id: grp.id
-                 }, tenant: grp.id, actor: usr)
+                 },
+                 tenant: grp.id,
+                 actor: usr
+               )
     end
 
     test "player can join teams of different types in the same season", %{group: grp, user: usr} do

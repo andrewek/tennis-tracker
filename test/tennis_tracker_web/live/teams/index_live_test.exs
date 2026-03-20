@@ -3,7 +3,6 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
 
   import Phoenix.LiveViewTest
 
-
   setup :setup_group_with_owner
 
   setup %{conn: conn, user: user} do

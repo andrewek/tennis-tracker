@@ -44,7 +44,11 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
       <.page_header
-        title={if @match.home_or_away == :home, do: "HOME vs. #{@match.opponent}", else: "AWAY vs. #{@match.opponent}"}
+        title={
+          if @match.home_or_away == :home,
+            do: "HOME vs. #{@match.opponent}",
+            else: "AWAY vs. #{@match.opponent}"
+        }
         back_href={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
         back_label={@match.team.name}
       >

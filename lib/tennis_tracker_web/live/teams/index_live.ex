@@ -58,7 +58,11 @@ defmodule TennisTrackerWeb.Teams.IndexLive do
           <p class="mt-2 text-base-content/60">Teams will appear here once they've been added.</p>
         </div>
       <% else %>
-        <div id="teams-grid" phx-update="stream" class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          id="teams-grid"
+          phx-update="stream"
+          class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3"
+        >
           <.link
             :for={{dom_id, team} <- @streams.teams}
             id={dom_id}

@@ -110,7 +110,6 @@ defmodule TennisTrackerWeb.Players.ShowLive do
           </ul>
         <% end %>
       </div>
-
     </Layouts.app>
     """
   end

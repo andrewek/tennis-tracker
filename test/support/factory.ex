@@ -65,7 +65,10 @@ defmodule TennisTracker.Factory do
     GroupMembership
     |> Ash.Changeset.for_create(
       :create,
-      %{group_id: grp.id, user_id: usr.id, role: role}, domain: Groups, authorize?: false)
+      %{group_id: grp.id, user_id: usr.id, role: role},
+      domain: Groups,
+      authorize?: false
+    )
     |> Ash.create!(authorize?: false)
   end
 

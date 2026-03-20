@@ -427,7 +427,11 @@ upsert_player = fn attrs, tenant ->
           eligible_40_plus: attrs.eligible_40_plus,
           eligible_55_plus: attrs.eligible_55_plus,
           group_id: tenant
-        }, domain: Tennis, tenant: tenant, authorize?: false)
+        },
+        domain: Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
       |> Ash.create!(authorize?: false)
   end
 end
@@ -537,7 +541,11 @@ upsert_membership = fn player, team, tenant ->
           team_type_id: team.team_type_id,
           season_year: team.season_year,
           group_id: tenant
-        }, domain: Tennis, tenant: tenant, authorize?: false)
+        },
+        domain: Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
       |> Ash.create!(authorize?: false)
   end
 end
