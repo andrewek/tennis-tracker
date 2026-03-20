@@ -7,14 +7,9 @@ In no particular order. Crossed out when done.
    propagate across all pages that would have that player visible (e.g., the
    roster planner, team show page, etc.). This might mean that a player will
    appear or disappear from dynamically applied filters.
-1. Figure out how to actually use Tidewave; what's the point of entry? What
-   tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
-   to be able to interact with it, or do I have to _just_ interact with it in the
-   browser?
 1. A corresponding auth story is something like "Only members of the team can
    see the lineups"
 1. I'd also like to get the AshAI plugin working
-1. ~It's likely that we'll need some notion of "Organization"~
 1. Re-architect the PubSub structure into something more elegant. Currently the
    roster planner subscribes to a context-level topic (`roster:team_type_id:season_year`)
    which works for the planner but doesn't extend cleanly to other views (e.g., the
@@ -25,9 +20,6 @@ In no particular order. Crossed out when done.
    would be an explicit `completed` boolean (or `status` enum) set by the captain,
    since tennis matches don't always end on the scheduled date and implicit
    time-based completion can be surprising.
-1. Allow "archiving" a Location rather than deleting it, so historical matches
-   that reference it remain valid. Deleting a location with associated matches
-   should be prevented at the DB level.
 1. Group owners need UI pages to create, edit, and update Location records
    (currently only accessible via AshAdmin). Build `/:group_slug/locations`
    index and `/:group_slug/locations/new` / `/:group_slug/locations/:id/edit`
@@ -40,9 +32,6 @@ In no particular order. Crossed out when done.
 1. What makes sense in terms of lineup scheduling? We have slightly different
    use cases for various USTA matches, and a different use case for something
    like Winter Tennis.
-1. ~Team update page: update the team name, update the team's default timezone,
-   and delete the team. (Currently deletion is only possible via the roster
-   planner board; name editing also only lives there.)~
 1. A team can be marked as archived, which would keep it from showing up in
    the /teams list by default. There will still be a way to see archived teams.
 1. Explore merging TeamRole (User → Team) and TeamMembership (Player → Team)
@@ -78,20 +67,12 @@ In no particular order. Crossed out when done.
    that organization. It'd be even better if it handled de-duplication, and if it
    let us also send "Hey, go update your stuff!" emails (without needing to create
    an account) to existing players.
-
 1. Build better seed data given the new multi-tenancy setup: create at least one
    Group with realistic team types, teams, players, and matches so the app is
    immediately explorable after `mix ecto.reset`.
-1. Rework the site layout from the current top-nav to a sidenav. As part of
-   this, extract common layout pieces (group nav links, back-links, page header
-   wrapper) into reusable components so individual LiveViews stay thin.
 1. The `/g/:group_slug` group home page is currently a placeholder. Replace it
    with something more useful — ideas include: active roster planning sessions,
    the next few upcoming matches, and perhaps an activity feed.
-1. Explore a better flash/toast notification implementation. Currently flash messages
-   render inside the layout structure, which can conflict with drawer overlays and
-   fixed-position UI. A proper toast system would float above all content (fixed
-   position, z-index aware) and work correctly regardless of layout nesting.
 1. Rework the Roster Planner page structure. Currently it acts as both an index
    (selecting a planning context) and a show/board page in one LiveView. Split
    this into a conventional index page (list/create planning contexts) and a
@@ -119,3 +100,14 @@ In no particular order. Crossed out when done.
    fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
    that are duplicated across test files.~
 1. ~We should start thinking about team match schedules.~
+1. ~It's likely that we'll need some notion of "Organization"~
+1. ~Team update page: update the team name, update the team's default timezone,
+   and delete the team. (Currently deletion is only possible via the roster
+   planner board; name editing also only lives there.)~
+1. ~Rework the site layout from the current top-nav to a sidenav. As part of
+   this, extract common layout pieces (group nav links, back-links, page header
+   wrapper) into reusable components so individual LiveViews stay thin.~
+1. ~Figure out how to actually use Tidewave; what's the point of entry? What
+   tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
+   to be able to interact with it, or do I have to _just_ interact with it in the
+   browser?~
