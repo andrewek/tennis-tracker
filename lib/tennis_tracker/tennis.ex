@@ -240,7 +240,13 @@ defmodule TennisTracker.Tennis do
   resources do
     resource TennisTracker.Tennis.Location do
       define(:list_locations, action: :list_locations)
+      define(:list_archived_locations, action: :archived)
+      define(:get_location, action: :read, get_by: [:id])
+      define(:get_archived_location, action: :archived, get_by: [:id])
       define(:create_location, action: :create)
+      define(:update_location, action: :update)
+      define(:archive_location, action: :archive)
+      define(:unarchive_location, action: :unarchive)
     end
 
     resource TennisTracker.Tennis.Match do

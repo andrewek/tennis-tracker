@@ -59,7 +59,12 @@ defmodule TennisTrackerWeb.Players.FormLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      current_group={@current_group}
+      current_group_role={@current_group_role}
+    >
       <%= if @live_action == :new do %>
         <.page_header
           title="New Player"

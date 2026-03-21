@@ -24,6 +24,7 @@ defmodule TennisTrackerWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, default: nil, doc: "the currently authenticated user"
   attr :current_group, :map, default: nil, doc: "the current group"
+  attr :current_group_role, :atom, default: nil, doc: "the current user's role in the group"
 
   slot :inner_block, required: true
 
@@ -59,7 +60,11 @@ defmodule TennisTrackerWeb.Layouts do
       <%!-- Sidebar --%>
       <div class="drawer-side z-20">
         <label for="sidebar-drawer" aria-label="Close sidebar" class="drawer-overlay"></label>
-        <.sidebar current_group={@current_group} current_user={@current_user} />
+        <.sidebar
+          current_group={@current_group}
+          current_user={@current_user}
+          current_group_role={@current_group_role}
+        />
       </div>
     </div>
 
@@ -69,6 +74,7 @@ defmodule TennisTrackerWeb.Layouts do
 
   attr :current_group, :map, default: nil
   attr :current_user, :map, default: nil
+  attr :current_group_role, :atom, default: nil
 
   defp sidebar(assigns) do
     ~H"""
@@ -101,6 +107,18 @@ defmodule TennisTrackerWeb.Layouts do
           </li>
           <li>
             <.link navigate={~p"/g/#{@current_group.slug}/roster-planner"}>Roster Planning</.link>
+          </li>
+          <li :if={@current_group_role in [:owner, :admin]}>
+            <details>
+              <summary>Group Settings</summary>
+              <ul>
+                <li>
+                  <.link navigate={~p"/g/#{@current_group.slug}/settings/locations"}>
+                    Locations
+                  </.link>
+                </li>
+              </ul>
+            </details>
           </li>
         </ul>
       </nav>

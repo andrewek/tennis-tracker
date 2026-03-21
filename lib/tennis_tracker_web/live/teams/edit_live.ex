@@ -273,7 +273,12 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     assigns = assign(assigns, :us_timezones, @us_timezones)
 
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      current_group={@current_group}
+      current_group_role={@current_group_role}
+    >
       <.page_header
         title="Edit Team"
         back_href={~p"/g/#{@current_group.slug}/teams/#{@team.id}"}

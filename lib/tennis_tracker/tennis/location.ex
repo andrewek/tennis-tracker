@@ -3,7 +3,7 @@ defmodule TennisTracker.Tennis.Location do
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAdmin.Resource]
+    extensions: [AshAdmin.Resource, AshArchival.Resource]
 
   postgres do
     table("locations")
@@ -23,12 +23,16 @@ defmodule TennisTracker.Tennis.Location do
       authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
     end
 
-    policy action_type([:update, :destroy]) do
+    policy action_type(:update) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
     end
   end
 
   admin do
+  end
+
+  archive do
+    exclude_read_actions [:archived, :load_for_relationship]
   end
 
   attributes do
@@ -66,17 +70,42 @@ defmodule TennisTracker.Tennis.Location do
       prepare(fn query, _ -> Ash.Query.sort(query, :name) end)
     end
 
+    read :archived do
+      filter(expr(not is_nil(archived_at)))
+      prepare(fn query, _ -> Ash.Query.sort(query, :name) end)
+    end
+
+    read :load_for_relationship do
+    end
+
     create :create do
       primary?(true)
       accept([:name, :address, :google_maps_url, :group_id])
-      upsert?(true)
-      upsert_identity(:unique_name)
-      upsert_fields([:address, :google_maps_url])
     end
-  end
 
-  identities do
-    identity(:unique_name, [:group_id, :name])
+    update :update do
+      primary?(true)
+      accept([:name, :address, :google_maps_url])
+    end
+
+    update :archive do
+      accept([])
+      require_atomic?(false)
+
+      change(fn changeset, _ ->
+        Ash.Changeset.force_change_attribute(changeset, :archived_at, DateTime.utc_now())
+      end)
+    end
+
+    update :unarchive do
+      accept([])
+      change(set_attribute(:archived_at, nil))
+      atomic_upgrade_with(:archived)
+    end
+
+    destroy :destroy do
+      primary?(true)
+    end
   end
 
   multitenancy do

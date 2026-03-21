@@ -74,7 +74,12 @@ defmodule TennisTrackerWeb.Players.IndexLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      current_group={@current_group}
+      current_group_role={@current_group_role}
+    >
       <.page_header title="Players">
         <:subtitle>Showing {@player_count} of {@total_count}</:subtitle>
         <:actions>

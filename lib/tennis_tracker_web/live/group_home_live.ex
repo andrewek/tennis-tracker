@@ -9,7 +9,12 @@ defmodule TennisTrackerWeb.GroupHomeLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      current_group={@current_group}
+      current_group_role={@current_group_role}
+    >
       <.page_header title="Home" />
       <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <.link

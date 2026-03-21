@@ -84,6 +84,7 @@ defmodule TennisTracker.Tennis.Match do
     belongs_to :location, TennisTracker.Tennis.Location do
       allow_nil?(true)
       public?(true)
+      read_action(:load_for_relationship)
     end
   end
 

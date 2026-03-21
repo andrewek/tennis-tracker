@@ -54,6 +54,10 @@ defmodule TennisTrackerWeb.Router do
 
       live "/g/:group_slug/roster-planner", RosterPlannerLive, :index
       live "/g/:group_slug/roster-planner/:team_type_id/:season_year", RosterPlannerLive, :board
+
+      live "/g/:group_slug/settings/locations", Settings.Locations.IndexLive, :index
+      live "/g/:group_slug/settings/locations/new", Settings.Locations.FormLive, :new
+      live "/g/:group_slug/settings/locations/:id/edit", Settings.Locations.FormLive, :edit
     end
 
     auth_routes AuthController, TennisTracker.Accounts.User, path: "/auth"

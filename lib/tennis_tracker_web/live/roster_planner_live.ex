@@ -501,7 +501,12 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} current_group={@current_group}>
+    <Layouts.app
+      flash={@flash}
+      current_user={@current_user}
+      current_group={@current_group}
+      current_group_role={@current_group_role}
+    >
       <%!-- Outer wrapper fills exactly the available space in main so main doesn't scroll.
            Desktop: 100dvh - main py-8 (4rem).
            Mobile: 100dvh - mobile top bar (4rem) - main py-8 (4rem) = 100dvh - 8rem. --%>

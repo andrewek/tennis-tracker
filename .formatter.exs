@@ -1,6 +1,7 @@
 [
   import_deps: [
     :ash_admin,
+    :ash_archival,
     :ash_authentication_phoenix,
     :ash_authentication,
     :ecto,

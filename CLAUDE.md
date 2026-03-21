@@ -62,7 +62,9 @@ This is a Phoenix 1.8.5 application with PostgreSQL, LiveView, Tailwind CSS v4, 
 - Generate migrations with `mix ash_postgres.generate_migrations --name name` — **never** use `mix ecto.gen.migration`
 - Resource snapshots live in `priv/resource_snapshots/`; do not edit them manually
 
-**Authorization UI convention:** If the current user cannot perform an action, do NOT render the button or link for it. If a user navigates directly to an unauthorized form URL, redirect them in `mount/3` after the role check. Ash policies enforce at the data layer regardless — the UI convention is defense-in-depth plus UX clarity.
+**Authorization UI convention:** If the current user cannot perform an action, do NOT render the button or link for it. If a user navigates directly to an unauthorized form URL, redirect them in `mount/3` or `handle_params/3`. Ash policies enforce at the data layer regardless — the UI convention is defense-in-depth plus UX clarity.
+
+**Authorization checks — use `Ash.can?`, not manual role checks:** Use `Ash.can?(action, actor, opts)` to gate LiveView access rather than checking `current_group_role` directly. This keeps authorization logic in one place (the resource policies) and ensures the UI check and the data layer check stay in sync. For create actions (where no existing record is available), pass the input map: `Ash.can?({Resource, :create, %{group_id: group_id}}, actor, domain: Domain, tenant: group_id)`. For update/destroy actions on an existing record, pass a changeset: `Ash.can?(Ash.Changeset.for_update(record, :action, %{}, actor: actor, ...), actor, domain: Domain)`.
 
 **Multitenancy — tenant and actor are both required:** All Tennis domain Ash calls MUST pass BOTH `tenant: group_id` AND `actor: current_user`. A missing tenant is a hard error. A missing actor means policies are silently skipped. Never call Tennis domain functions without both. In LiveViews, these come from `socket.assigns.current_group_id` and `socket.assigns.current_user`.
 
