@@ -20,10 +20,6 @@ In no particular order. Crossed out when done.
    would be an explicit `completed` boolean (or `status` enum) set by the captain,
    since tennis matches don't always end on the scheduled date and implicit
    time-based completion can be surprising.
-1. Group owners need UI pages to create, edit, and update Location records
-   (currently only accessible via AshAdmin). Build `/:group_slug/locations`
-   index and `/:group_slug/locations/new` / `/:group_slug/locations/:id/edit`
-   pages.
 1. Group owners need UI pages to create, edit, and update SeasonRules records
    (currently only accessible via AshAdmin). Build `/:group_slug/seasons`
    index and create/edit forms.
@@ -67,9 +63,6 @@ In no particular order. Crossed out when done.
    that organization. It'd be even better if it handled de-duplication, and if it
    let us also send "Hey, go update your stuff!" emails (without needing to create
    an account) to existing players.
-1. Build better seed data given the new multi-tenancy setup: create at least one
-   Group with realistic team types, teams, players, and matches so the app is
-   immediately explorable after `mix ecto.reset`.
 1. The `/g/:group_slug` group home page is currently a placeholder. Replace it
    with something more useful — ideas include: active roster planning sessions,
    the next few upcoming matches, and perhaps an activity feed.
@@ -111,3 +104,10 @@ In no particular order. Crossed out when done.
    tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
    to be able to interact with it, or do I have to _just_ interact with it in the
    browser?~
+1. ~Group owners need UI pages to create, edit, and update Location records
+   (currently only accessible via AshAdmin). Build `/:group_slug/locations`
+   index and `/:group_slug/locations/new` / `/:group_slug/locations/:id/edit`
+   pages.~
+1. ~Build better seed data given the new multi-tenancy setup: create at least one
+   Group with realistic team types, teams, players, and matches so the app is
+   immediately explorable after `mix ecto.reset`.~
