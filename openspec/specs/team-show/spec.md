@@ -93,6 +93,17 @@ The page layout SHALL be usable on both mobile-sized and desktop-sized viewports
 - **WHEN** the page is viewed on a wide viewport
 - **THEN** the roster and match schedule sections display side by side
 
+### Requirement: Team show page provides an Export Calendar link
+The team show page SHALL include an "Export Calendar" link visible to all authenticated group members. The link SHALL point to `GET /g/:group_slug/teams/:team_id/calendar.ics` and trigger a file download when clicked.
+
+#### Scenario: Export Calendar link is present for group members
+- **WHEN** an authenticated group member views the team show page
+- **THEN** an "Export Calendar" link is visible on the page
+
+#### Scenario: Export Calendar link points to the correct route
+- **WHEN** the team show page renders for team with id `abc` in group `my-group`
+- **THEN** the Export Calendar link href is `/g/my-group/teams/abc/calendar.ics`
+
 ### Requirement: LiveView smoke tests cover the team show page
 
 The system SHALL have LiveView integration tests that verify the page renders correctly with real data and handles invalid team IDs gracefully.
