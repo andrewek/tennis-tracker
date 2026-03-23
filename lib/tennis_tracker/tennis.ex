@@ -261,6 +261,11 @@ defmodule TennisTracker.Tennis do
 
       define(:list_past_matches_for_team, action: :list_past_matches_for_team, args: [:team_id])
 
+      define(:list_all_matches_for_team,
+        action: :list_all_matches_for_team,
+        args: [:team_id]
+      )
+
       define(:get_next_upcoming_match_for_team,
         action: :next_upcoming_match_for_team,
         args: [:team_id]
@@ -287,6 +292,7 @@ defmodule TennisTracker.Tennis do
 
     resource TennisTracker.Tennis.Team do
       define(:list_real_teams, action: :list_real)
+      define(:get_team, action: :read, get_by: [:id])
       define(:create_team, action: :create)
       define(:update_team, action: :update)
       define(:destroy_team, action: :destroy)

@@ -12,8 +12,15 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
          domain: Tennis,
          tenant: group_id
        ) do
-      active = Tennis.list_locations!(tenant: group_id, actor: current_user)
-      archived = Tennis.list_archived_locations!(tenant: group_id, actor: current_user)
+      active =
+        Tennis.list_locations!(tenant: group_id, actor: current_user, load: [:formatted_address])
+
+      archived =
+        Tennis.list_archived_locations!(
+          tenant: group_id,
+          actor: current_user,
+          load: [:formatted_address]
+        )
 
       socket =
         socket
@@ -63,8 +70,20 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
         :archive ->
           location = Tennis.get_location!(location_id, tenant: group_id, actor: current_user)
           Tennis.archive_location!(location, tenant: group_id, actor: current_user)
-          archived = Tennis.list_archived_locations!(tenant: group_id, actor: current_user)
-          active = Tennis.list_locations!(tenant: group_id, actor: current_user)
+
+          archived =
+            Tennis.list_archived_locations!(
+              tenant: group_id,
+              actor: current_user,
+              load: [:formatted_address]
+            )
+
+          active =
+            Tennis.list_locations!(
+              tenant: group_id,
+              actor: current_user,
+              load: [:formatted_address]
+            )
 
           socket
           |> assign(:active_locations, active)
@@ -76,8 +95,20 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
             Tennis.get_archived_location!(location_id, tenant: group_id, actor: current_user)
 
           Tennis.unarchive_location!(location, tenant: group_id, actor: current_user)
-          active = Tennis.list_locations!(tenant: group_id, actor: current_user)
-          archived = Tennis.list_archived_locations!(tenant: group_id, actor: current_user)
+
+          active =
+            Tennis.list_locations!(
+              tenant: group_id,
+              actor: current_user,
+              load: [:formatted_address]
+            )
+
+          archived =
+            Tennis.list_archived_locations!(
+              tenant: group_id,
+              actor: current_user,
+              load: [:formatted_address]
+            )
 
           socket
           |> assign(:active_locations, active)
@@ -144,7 +175,9 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
           >
             <div>
               <p class="font-medium">{location.name}</p>
-              <p class="text-sm text-base-content/60">{location.address}</p>
+              <p :if={location.formatted_address} class="text-sm text-base-content/60">
+                {location.formatted_address}
+              </p>
             </div>
             <div class="flex gap-2">
               <.link
@@ -187,7 +220,9 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
           >
             <div>
               <p class="font-medium">{location.name}</p>
-              <p class="text-sm text-base-content/60">{location.address}</p>
+              <p :if={location.formatted_address} class="text-sm text-base-content/60">
+                {location.formatted_address}
+              </p>
             </div>
             <button
               class="btn btn-ghost btn-sm"

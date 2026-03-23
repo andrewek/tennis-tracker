@@ -17,7 +17,10 @@ defmodule TennisTrackerWeb.Matches.ShowLiveTest do
         Factory.location(
           group: grp,
           name: "Woods Tennis Center",
-          address: "4701 Happy Hollow Blvd",
+          street_address: "4701 Happy Hollow Blvd",
+          city: "Omaha",
+          state: "NE",
+          postal_code: "68132",
           google_maps_url: "https://maps.google.com/?q=woods"
         )
 

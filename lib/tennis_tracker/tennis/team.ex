@@ -145,6 +145,25 @@ defmodule TennisTracker.Tennis.Team do
     calculate(:team_type_name, :string, expr(team_type.name))
     calculate(:team_type_age_group, :string, expr(team_type.age_group))
     calculate(:team_type_ntrp_level, :decimal, expr(team_type.ntrp_level))
+
+    calculate(
+      :display_label,
+      :string,
+      expr(
+        fragment(
+          "CAST(? AS text) || ' ' || ? || ' - ' || ?",
+          season_year,
+          team_type.name,
+          name
+        )
+      )
+    )
+
+    calculate(
+      :short_display_label,
+      :string,
+      expr(fragment("? || ' - ' || ?", team_type.name, name))
+    )
   end
 
   multitenancy do

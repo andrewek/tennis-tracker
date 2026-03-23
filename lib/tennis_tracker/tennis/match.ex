@@ -140,6 +140,16 @@ defmodule TennisTracker.Tennis.Match do
       end)
     end
 
+    read :list_all_matches_for_team do
+      argument(:team_id, :uuid, allow_nil?: false)
+
+      filter(expr(team_id == ^arg(:team_id)))
+
+      prepare(fn query, _ ->
+        Ash.Query.sort(query, match_start_datetime: :asc)
+      end)
+    end
+
     create :create do
       primary?(true)
 

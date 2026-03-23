@@ -105,7 +105,10 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLive do
       <div class="max-w-lg">
         <.form :if={@form} for={@form} phx-change="validate" phx-submit="save">
           <.input field={@form[:name]} type="text" label="Name" />
-          <.input field={@form[:address]} type="text" label="Address" />
+          <.input field={@form[:street_address]} type="text" label="Street Address (optional)" />
+          <.input field={@form[:city]} type="text" label="City (optional)" />
+          <.input field={@form[:state]} type="text" label="State (optional)" />
+          <.input field={@form[:postal_code]} type="text" label="Postal Code (optional)" />
           <.input field={@form[:google_maps_url]} type="text" label="Google Maps URL (optional)" />
           <div class="mt-4">
             <.button type="submit">

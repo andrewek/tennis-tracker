@@ -304,7 +304,10 @@ defmodule TennisTracker.Factory do
 
     base = %{
       name: "Location #{n}",
-      address: "#{n} Tennis Ave, Omaha, NE 68101",
+      street_address: "#{n} Tennis Ave",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68101",
       google_maps_url: nil,
       group_id: grp.id
     }

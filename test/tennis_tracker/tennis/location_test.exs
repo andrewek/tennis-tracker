@@ -6,17 +6,40 @@ defmodule TennisTracker.Tennis.LocationTest do
   setup :setup_group_with_owner
 
   describe "create" do
-    test "creates with required fields", %{group: grp} do
+    test "creates with name only (address fields optional)", %{group: grp} do
       location =
         Factory.location(
           group: grp,
           name: "Woods Tennis Center",
-          address: "4701 Happy Hollow Blvd, Omaha, NE 68132"
+          street_address: nil,
+          city: nil,
+          state: nil,
+          postal_code: nil
         )
 
       assert location.name == "Woods Tennis Center"
-      assert location.address == "4701 Happy Hollow Blvd, Omaha, NE 68132"
+      assert is_nil(location.street_address)
+      assert is_nil(location.city)
+      assert is_nil(location.state)
+      assert is_nil(location.postal_code)
       assert is_nil(location.google_maps_url)
+    end
+
+    test "creates with all structured address fields", %{group: grp} do
+      location =
+        Factory.location(
+          group: grp,
+          name: "Woods Tennis Center",
+          street_address: "4701 Happy Hollow Blvd",
+          city: "Omaha",
+          state: "NE",
+          postal_code: "68132"
+        )
+
+      assert location.street_address == "4701 Happy Hollow Blvd"
+      assert location.city == "Omaha"
+      assert location.state == "NE"
+      assert location.postal_code == "68132"
     end
 
     test "creates with google_maps_url", %{group: grp} do
@@ -26,17 +49,78 @@ defmodule TennisTracker.Tennis.LocationTest do
   end
 
   describe "update" do
-    test "updates name and address", %{group: grp, user: usr} do
-      location = Factory.location(group: grp, name: "Old Name", address: "Old Address")
+    test "updates name and address fields", %{group: grp, user: usr} do
+      location =
+        Factory.location(
+          group: grp,
+          name: "Old Name",
+          street_address: "1 Old St",
+          city: "Oldtown",
+          state: "OL",
+          postal_code: "00001"
+        )
 
       {:ok, updated} =
-        Tennis.update_location(location, %{name: "New Name", address: "New Address"},
+        Tennis.update_location(
+          location,
+          %{
+            name: "New Name",
+            street_address: "2 New St",
+            city: "Newtown",
+            state: "NW",
+            postal_code: "99999"
+          },
           tenant: grp.id,
           actor: usr
         )
 
       assert updated.name == "New Name"
-      assert updated.address == "New Address"
+      assert updated.street_address == "2 New St"
+      assert updated.city == "Newtown"
+      assert updated.state == "NW"
+      assert updated.postal_code == "99999"
+    end
+  end
+
+  describe "formatted_address/1" do
+    test "returns formatted address when all fields present", %{group: grp, user: usr} do
+      location =
+        Factory.location(
+          group: grp,
+          street_address: "123 Main St",
+          city: "Springfield",
+          state: "IL",
+          postal_code: "62701"
+        )
+
+      {:ok, loaded} =
+        Ash.load(location, [:formatted_address],
+          domain: Tennis,
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert loaded.formatted_address == "123 Main St, Springfield, IL 62701"
+    end
+
+    test "returns nil when all address fields are nil", %{group: grp, user: usr} do
+      location =
+        Factory.location(
+          group: grp,
+          street_address: nil,
+          city: nil,
+          state: nil,
+          postal_code: nil
+        )
+
+      {:ok, loaded} =
+        Ash.load(location, [:formatted_address],
+          domain: Tennis,
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert is_nil(loaded.formatted_address)
     end
   end
 

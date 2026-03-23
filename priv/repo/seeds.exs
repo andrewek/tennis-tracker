@@ -239,7 +239,10 @@ small_loc_1 =
   upsert_location.(
     %{
       name: "Elmwood Park Tennis Courts",
-      address: "602 S 60th St, Omaha, NE 68106",
+      street_address: "602 S 60th St",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68106",
       google_maps_url: "https://maps.google.com/?q=Elmwood+Park+Tennis+Courts"
     },
     small_tenant
@@ -249,7 +252,10 @@ small_loc_2 =
   upsert_location.(
     %{
       name: "Benson Park Tennis Courts",
-      address: "5625 Maple St, Omaha, NE 68104",
+      street_address: "5625 Maple St",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68104",
       google_maps_url: nil
     },
     small_tenant
@@ -727,7 +733,10 @@ large_loc_1 =
   upsert_location.(
     %{
       name: "Woods Tennis Center",
-      address: "4701 Happy Hollow Blvd, Omaha, NE 68132",
+      street_address: "4701 Happy Hollow Blvd",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68132",
       google_maps_url: "https://maps.google.com/?q=Woods+Tennis+Center"
     },
     large_tenant
@@ -737,7 +746,10 @@ large_loc_2 =
   upsert_location.(
     %{
       name: "Lifetime Fitness - West Omaha",
-      address: "17802 Burke St, Omaha, NE 68118",
+      street_address: "17802 Burke St",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68118",
       google_maps_url: "https://maps.google.com/?q=Lifetime+Fitness+West+Omaha"
     },
     large_tenant
@@ -747,7 +759,10 @@ large_loc_3 =
   upsert_location.(
     %{
       name: "Genesis Health Club - Westroads",
-      address: "10831 Old Mill Rd, Omaha, NE 68154",
+      street_address: "10831 Old Mill Rd",
+      city: "Omaha",
+      state: "NE",
+      postal_code: "68154",
       google_maps_url: "https://maps.google.com/?q=Genesis+Health+Club+Westroads"
     },
     large_tenant

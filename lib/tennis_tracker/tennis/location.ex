@@ -43,8 +43,23 @@ defmodule TennisTracker.Tennis.Location do
       public?(true)
     end
 
-    attribute :address, :string do
-      allow_nil?(false)
+    attribute :street_address, :string do
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :city, :string do
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :state, :string do
+      allow_nil?(true)
+      public?(true)
+    end
+
+    attribute :postal_code, :string do
+      allow_nil?(true)
       public?(true)
     end
 
@@ -80,12 +95,15 @@ defmodule TennisTracker.Tennis.Location do
 
     create :create do
       primary?(true)
-      accept([:name, :address, :google_maps_url, :group_id])
+      accept([:name, :street_address, :city, :state, :postal_code, :google_maps_url, :group_id])
+      change(&trim_address_fields/2)
     end
 
     update :update do
       primary?(true)
-      accept([:name, :address, :google_maps_url])
+      require_atomic?(false)
+      accept([:name, :street_address, :city, :state, :postal_code, :google_maps_url])
+      change(&trim_address_fields/2)
     end
 
     update :archive do
@@ -108,9 +126,38 @@ defmodule TennisTracker.Tennis.Location do
     end
   end
 
+  calculations do
+    calculate(
+      :formatted_address,
+      :string,
+      expr(
+        fragment(
+          "NULLIF(CONCAT_WS(', ', ?, ?, NULLIF(CONCAT_WS(' ', ?, ?), '')), '')",
+          street_address,
+          city,
+          state,
+          postal_code
+        )
+      )
+    )
+  end
+
   multitenancy do
     strategy(:attribute)
     attribute(:group_id)
     global?(true)
+  end
+
+  defp trim_address_fields(changeset, _context) do
+    [:street_address, :city, :state, :postal_code]
+    |> Enum.reduce(changeset, fn field, cs ->
+      case Ash.Changeset.fetch_change(cs, field) do
+        {:ok, value} when is_binary(value) ->
+          Ash.Changeset.force_change_attribute(cs, field, String.trim(value))
+
+        _ ->
+          cs
+      end
+    end)
   end
 end

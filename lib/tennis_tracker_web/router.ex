@@ -21,6 +21,10 @@ defmodule TennisTrackerWeb.Router do
     plug :set_actor, :user
   end
 
+  pipeline :group_member do
+    plug TennisTrackerWeb.Plugs.RequireGroupMember
+  end
+
   scope "/", TennisTrackerWeb do
     pipe_through :browser
 
@@ -31,7 +35,12 @@ defmodule TennisTrackerWeb.Router do
       live "/groups", GroupsLive.Index, :index
     end
 
-    get "/g/:group_slug/players/export.csv", PlayerCSVController, :export
+    scope "/g/:group_slug", as: :group do
+      pipe_through :group_member
+
+      get "/players/export.csv", PlayerCSVController, :export
+      get "/teams/:team_id/calendar.ics", TeamCalendarController, :export
+    end
 
     ash_authentication_live_session :group_scoped_routes,
       on_mount: [

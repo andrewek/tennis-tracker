@@ -51,7 +51,15 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
 
       {:ok, _view, html} =
         view
-        |> form("form", form: %{name: name, address: "123 Test Ave"})
+        |> form("form",
+          form: %{
+            name: name,
+            street_address: "123 Test Ave",
+            city: "Omaha",
+            state: "NE",
+            postal_code: "68101"
+          }
+        )
         |> render_submit()
         |> follow_redirect(conn)
 
@@ -66,7 +74,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
 
       html =
         view
-        |> form("form", form: %{name: "", address: ""})
+        |> form("form", form: %{name: ""})
         |> render_submit()
 
       assert html =~ "required" or html =~ "blank"
@@ -75,7 +83,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
 
   describe "edit form" do
     test "renders edit form pre-populated with location data", %{conn: conn, group: grp} do
-      loc = Factory.location(group: grp, name: "My Court", address: "1 Court Lane")
+      loc = Factory.location(group: grp, name: "My Court")
 
       {:ok, _view, html} =
         live(conn, ~p"/g/#{grp.slug}/settings/locations/#{loc.id}/edit")
@@ -85,7 +93,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
     end
 
     test "successfully updates a location and redirects", %{conn: conn, group: grp, user: usr} do
-      loc = Factory.location(group: grp, name: "Before Update", address: "Old Address")
+      loc = Factory.location(group: grp, name: "Before Update")
 
       {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/settings/locations/#{loc.id}/edit")
@@ -95,7 +103,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
 
       {:ok, _view, html} =
         view
-        |> form("form", form: %{name: new_name, address: "New Address"})
+        |> form("form", form: %{name: new_name, street_address: "99 New St"})
         |> render_submit()
         |> follow_redirect(conn)
 

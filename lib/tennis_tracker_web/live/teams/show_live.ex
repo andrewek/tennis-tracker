@@ -83,6 +83,12 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
       >
         <:subtitle>{@team.team_type.name} · {@team.season_year}</:subtitle>
         <:actions>
+          <a
+            href={~p"/g/#{@current_group.slug}/teams/#{@team.id}/calendar.ics"}
+            class="btn btn-sm btn-ghost"
+          >
+            Export Calendar
+          </a>
           <.link
             :if={@can_edit_team}
             navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/edit"}

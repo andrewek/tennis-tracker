@@ -17,7 +17,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
 
     case Ash.get(Tennis.Match, id, domain: Tennis, tenant: group_id, actor: current_user) do
       {:ok, match} ->
-        case Ash.load(match, [:team, :location],
+        case Ash.load(match, [:team, location: [:formatted_address]],
                domain: Tennis,
                tenant: group_id,
                actor: current_user
@@ -91,7 +91,9 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
             <p class="text-xs text-base-content/50 uppercase tracking-wide mb-1">Location</p>
             <%= if @match.location do %>
               <p class="font-medium">{@match.location.name}</p>
-              <p class="text-base-content/70">{@match.location.address}</p>
+              <p :if={@match.location.formatted_address} class="text-base-content/70">
+                {@match.location.formatted_address}
+              </p>
               <a
                 :if={@match.location.google_maps_url}
                 href={@match.location.google_maps_url}
