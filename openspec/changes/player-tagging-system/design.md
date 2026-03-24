@@ -47,9 +47,11 @@ Blocking deletion when tags exist would require captains to manually remove all 
 
 **Application standard pattern:** A confirmation modal before any destructive delete is the standard UX pattern in this application (used for players and teams). Tags and tag categories follow the same pattern. For category deletion, the modal message includes the count of tags that will also be removed.
 
-### D5: Faceted filter semantics — OR within category, AND between categories, with exclude list
+### D5: Faceted filter semantics — OR within category, AND between categories
 
-This is the canonical faceted search model (used by Amazon, Airbnb, Elasticsearch). Within a category, selected tags are alternatives (OR). Between categories, all must match (AND). An explicit exclude list allows AND NOT filtering. This gives full expressiveness without requiring a query language.
+This is the canonical faceted search model (used by Amazon, Airbnb, Elasticsearch). Within a category, selected tags are alternatives (OR). Between categories, all must match (AND). This gives the expressiveness needed for real-world roster filtering without requiring a query language.
+
+An explicit exclude list (AND NOT filtering) was considered but is deferred — it adds UI complexity and the need for it is unconfirmed. It can be added as a fast-follow if captains find the OR/AND model insufficient.
 
 **Alternative considered:** Full string-based query builder. Rejected: high UX cost, same expressiveness achievable with faceted UI.
 
@@ -63,7 +65,7 @@ When a captain filters by NTRP-related tags, they may also want to see players w
 
 The current hard eligibility filter (`list_eligible_unassigned_players`) is replaced with an unassigned player query filtered by the session-state tag filter. This enables captains to scan broadly ("show me everyone, then narrow down") rather than being gated by pre-set eligibility. Each browser session maintains its own filter state; refreshing resets to defaults from `season_rules.default_tags`.
 
-The tag filter (OR within category, AND between categories, exclude list as AND NOT) is applied at the DB level via Ash query — not in-memory after loading. When the filter changes, the DB is re-queried with the updated filter rather than filtering over a stale in-memory list. If Ash query expressions prove insufficient for the full faceted logic, revisit and document the decision here.
+The tag filter (OR within category, AND between categories) is applied at the DB level via Ash query — not in-memory after loading. When the filter changes, the DB is re-queried with the updated filter rather than filtering over a stale in-memory list. If Ash query expressions prove insufficient for the full faceted logic, revisit and document the decision here.
 
 **Alternative considered:** Keep eligibility filter, add tags as a supplemental filter. Rejected: two overlapping filter mechanisms, unclear semantics about which takes precedence.
 
@@ -77,9 +79,11 @@ Automatically triggering the preset seeder on group creation is deferred. For no
 
 No production data exists; all records are seed data. A full `mix ecto.reset` is simpler and cleaner than authoring a migration that removes three boolean columns, creates four new tables, and backfills data. Seeds are updated to assign tags instead of boolean values.
 
-### D10: Filter URL params for player list use tag IDs
+### D10: Filter URL params for player list encode only selected (include) tag IDs
 
-Tag filter state is encoded in the URL as a list of selected tag UUIDs: `tags[]=<uuid>&tags[]=<uuid>`. Using IDs (rather than names) makes URLs durable across tag renames, avoids URL-encoding issues with special characters in tag names (e.g., "40+ Eligible", "Women's Leagues"), and eliminates the need to disambiguate same-name tags across categories. The LiveView resolves IDs back to tag records using the already-loaded `@tag_categories` assign. URLs are less human-readable but more robust.
+Only the include tag selection is reflected in the player list URL: `tags[]=<uuid>&tags[]=<uuid>`. The `show_untagged` toggles are transient UI state and are not URL-encoded — they reset on page load. The exclude list is deferred (see D5).
+
+Using IDs (rather than names) makes URLs durable across tag renames, avoids URL-encoding issues with special characters in tag names (e.g., "40+ Eligible", "Women's Leagues"), and eliminates the need to disambiguate same-name tags across categories. The LiveView resolves IDs back to tag records using the already-loaded `@tag_categories` assign. URLs are less human-readable but more robust.
 
 **Alternative considered:** `tag[category]=name` style params using tag names. Rejected: tag names may contain characters that require percent-encoding ("+", apostrophes, spaces), making URLs fragile and harder to share; renames would silently break bookmarked URLs; disambiguation of same-name tags across categories adds complexity.
 

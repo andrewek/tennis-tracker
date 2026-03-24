@@ -23,7 +23,7 @@ Players have diverse and overlapping eligibility profiles — age groups they pr
 - `tag-management`: Group owners can create, rename, and delete tag categories and tags; categories cascade-delete their tags; deletions cascade through player and season-rules join records; a preset taxonomy is seeded for each new group
 - `player-tagging`: Players can have zero or more tags assigned; tags are grouped by category; tag assignment happens on the player edit page; tags are displayed on the player show page
 - `player-list-tag-filter`: The player list replaces age bracket filter pills with a tag-based faceted filter; OR within a category, AND between categories; filter state is reflected in the URL
-- `roster-planner-tag-filter`: The roster planner moves to listing all unassigned players with a session-state faceted tag filter; facets use OR-within / AND-between semantics; a per-facet "show untagged" toggle (always rendered, disabled when facet is inactive); exclude list for AND NOT filtering; defaults come from `SeasonRules.default_tags`; state is per-browser-session and resets on page refresh
+- `roster-planner-tag-filter`: The roster planner moves to listing all unassigned players with a session-state faceted tag filter; facets use OR-within / AND-between semantics; a per-facet "show untagged" toggle (always rendered, disabled when facet is inactive); defaults come from `SeasonRules.default_tags`; state is per-browser-session and resets on page refresh
 
 ### Modified Capabilities
 

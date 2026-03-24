@@ -8,7 +8,9 @@
 - [ ] 1.6 Add `many_to_many :tags` to Player through PlayerTag; add `many_to_many :default_tags` to SeasonRules through SeasonRulesDefaultTag
 - [ ] 1.7 Add `many_to_many :players` inverse on Tag through PlayerTag (for cascade destroy support)
 - [ ] 1.8 Register TagCategory, Tag, PlayerTag, SeasonRulesDefaultTag in the Tennis domain
-- [ ] 1.9 Add domain functions to Tennis domain: `list_tag_categories!/1`, `create_tag_category/2`, `update_tag_category/2`, `destroy_tag_category/2`, `list_tags_for_category!/2`, `create_tag/2`, `update_tag/2`, `destroy_tag/2`, `add_player_tag/3`, `remove_player_tag/3`
+- [ ] 1.9 Add domain functions to Tennis domain: `list_tag_categories!/1`, `create_tag_category/2`, `update_tag_category/2`, `destroy_tag_category/2`, `list_tags_for_category!/2`, `create_tag/2`, `update_tag/2`, `destroy_tag/2`, `add_player_tag/3`, `remove_player_tag/3`, `sync_season_rules_default_tags/3` (replaces the full set of SeasonRulesDefaultTag records for a given season_rules_id with the provided tag_id list, creating/destroying records to match)
+- [ ] 1.10 Add admin bypass policy to TagCategory, Tag, PlayerTag, and SeasonRulesDefaultTag so system admins can read, create, update, and destroy all records across all groups
+- [ ] 1.11 Expose `seed_preset_tags!/1` as an AshAdmin action on the Group resource (or via a custom admin page) so system admins can trigger preset seeding for any group without needing `iex` shell access
 
 ## 2. Player Schema Changes
 
@@ -38,22 +40,22 @@
 
 ## 6. PlayerFilters — Tag-Based Filtering
 
-- [ ] 6.1 Replace `maybe_filter_bracket/2` in `PlayerFilters` with `maybe_filter_tags/2` implementing full faceted search: OR within category (include), AND between categories, exclude list (AND NOT), and per-facet show_untagged
-- [ ] 6.2 Update `fetch_players/4` signature to accept `tag_filter` param (`%{include: %{category_id => [tag_id]}, exclude: [tag_id], show_untagged: [category_id]}`) in place of `bracket_filter`
+- [ ] 6.1 Replace `maybe_filter_bracket/2` in `PlayerFilters` with `maybe_filter_tags/2` implementing full faceted search: OR within category (include), AND between categories, per-facet show_untagged
+- [ ] 6.2 Update `fetch_players/4` signature to accept `tag_filter` param (`%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`) in place of `bracket_filter`
 - [ ] 6.3 Implement `maybe_filter_tags` at the DB level via Ash.Query (not Elixir-side); this same filter logic is also used by `list_unassigned_players` in the roster planner — consider extracting a shared query-builder function
 
 ## 7. Player List LiveView — Tag Filter UI
 
-The player list tag filter UI shall match the roster planner tag filter UI as closely as possible (same faceted pills, per-facet show_untagged toggle, exclude list). Start with separate components with similar code — do not attempt a single shared top-level component upfront. Shared sub-components (e.g., a facet group, a tag pill) may be worth extracting; evaluate after both are built. The only fundamental difference is state persistence: URL params here, session-only in the planner.
+The player list tag filter UI shall match the roster planner tag filter UI as closely as possible (same faceted pills, per-facet show_untagged toggle). Start with separate components with similar code — do not attempt a single shared top-level component upfront. Shared sub-components (e.g., a facet group, a tag pill) may be worth extracting; evaluate after both are built. The only fundamental difference is state persistence: URL params here (include tags only), session-only in the planner.
 
 - [ ] 7.1 Load all TagCategories and Tags for the group in `Players.IndexLive.mount/3`
-- [ ] 7.2 Replace `@bracket_options` / `bracket_filter` assigns with `@tag_categories` / `tag_filter` assign: `%{include: %{category_id => [tag_id]}, exclude: [tag_id], show_untagged: [category_id]}`
-- [ ] 7.3 Replace age bracket filter pills in the template with tag category groups, each with per-tag toggle pills, per-facet show_untagged toggle (always rendered, disabled when facet inactive), and an exclude list control
-- [ ] 7.4 Update `handle_event("toggle_bracket", ...)` → `handle_event("toggle_tag", ...)` and add `handle_event("toggle_exclude", ...)` and `handle_event("toggle_show_untagged", ...)`
-- [ ] 7.5 Update `filter_url/2` to encode full tag filter state: `tags[]=<uuid>` for include, `exclude[]=<uuid>` for excluded tags, `show_untagged[]=<category_uuid>` for active show_untagged facets
-- [ ] 7.6 Update `handle_params/3` to parse all three param groups back into the tag_filter map; resolve IDs against loaded `@tag_categories`; silently ignore unrecognized IDs
+- [ ] 7.2 Replace `@bracket_options` / `bracket_filter` assigns with `@tag_categories` / `tag_filter` assign: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; note that `show_untagged` for a facet persists in socket state even when the facet is inactive — if the captain re-selects a tag in that category, the previous `show_untagged` value re-activates
+- [ ] 7.3 Replace age bracket filter pills in the template with tag category groups, each with per-tag toggle pills and a per-facet show_untagged toggle (always rendered, disabled when facet inactive)
+- [ ] 7.4 Update `handle_event("toggle_bracket", ...)` → `handle_event("toggle_tag", ...)` and add `handle_event("toggle_show_untagged", ...)`
+- [ ] 7.5 Update `filter_url/2` to encode include tag selection only: `tags[]=<uuid>` per selected tag; `show_untagged` state is not URL-encoded
+- [ ] 7.6 Update `handle_params/3` to parse `tags[]` params into the tag_filter include map; resolve IDs against loaded `@tag_categories`; silently ignore unrecognized IDs; initialize `show_untagged` to empty list (all off) on page load
 - [ ] 7.7 ~~Update `export_url/4` to pass tag filter params through to the CSV export endpoint~~ — **DEFERRED**: tag filter passthrough to CSV export is a fast-follow; remove any bracket param from the export URL but do not add tag params
-- [ ] 7.8 Update "Clear all filters" to reset all tag_filter state: include, exclude, and show_untagged
+- [ ] 7.8 Update "Clear all filters" to reset all tag_filter state: include and show_untagged
 
 ## 8. Player List — Tag Chips in Table
 
@@ -71,19 +73,19 @@ The player list tag filter UI shall match the roster planner tag filter UI as cl
 ## 10. Roster Planner — Tag Filter
 
 - [ ] 10.1 Replace `list_eligible_unassigned_players` with `list_unassigned_players` (there is exactly one caller: `RosterPlannerLive`); the new function returns all players with no membership in the current planning context and accepts a tag filter param; remove the old function entirely
-- [ ] 10.2 Add `tag_filter` socket assign to `RosterPlannerLive` using the same struct shape as the player list: `%{include: %{category_id => [tag_id]}, exclude: [tag_id], show_untagged: [category_id]}`; initialize from `season_rules.default_tags`
+- [ ] 10.2 Add `tag_filter` socket assign to `RosterPlannerLive` using the same struct shape as the player list: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; initialize include facets from `season_rules.default_tags`; initialize `show_untagged` to empty list (all off); the `show_untagged` value for a facet persists in session state when the facet is deactivated and re-activates when a tag in that category is re-selected
 - [ ] 10.3 Load `season_rules.default_tags` (with category preloaded) when building the board; use them to populate initial `tag_filter` include facets
-- [ ] 10.4 Apply tag filter to the unassigned pool at the DB level via Ash query (OR within category, AND between categories, exclude list as AND NOT, show_untagged per facet). Attempt this with Ash.Query filter expressions before considering any Elixir-side fallback; assess feasibility after implementation and adjust if needed.
+- [ ] 10.4 Apply tag filter to the unassigned pool at the DB level via Ash query (OR within category, AND between categories, show_untagged per facet). Attempt this with Ash.Query filter expressions before considering any Elixir-side fallback; assess feasibility after implementation and adjust if needed.
 - [ ] 10.5 Load all TagCategories+Tags for the group in the planner mount; assign as `@tag_categories` for the filter UI
-- [ ] 10.6 Add tag filter panel to the planner board toolbar using the same UI pattern as the player list: one facet group per TagCategory; per-tag toggle pills; per-facet "show untagged" toggle (always rendered, disabled when facet inactive); exclude list control
-- [ ] 10.7 ~~Add exclude tag list UI to the planner filter panel~~ — covered by 10.6
-- [ ] 10.8 Handle `toggle_planner_tag`, `toggle_planner_exclude`, and `toggle_planner_show_untagged` events; update `tag_filter` assign and re-query the DB with the updated filter (same Ash query path as 10.4; do not apply filter in-memory over a stale list)
+- [ ] 10.6 Add tag filter panel to the planner board toolbar using the same UI pattern as the player list: one facet group per TagCategory; per-tag toggle pills; per-facet "show untagged" toggle (always rendered, disabled when facet inactive)
+- [ ] 10.7 ~~Add exclude tag list UI to the planner filter panel~~ — **DEFERRED**: exclude list (AND NOT filtering) is out of scope; may be added in a fast-follow if the OR/AND model proves insufficient
+- [ ] 10.8 Handle `toggle_planner_tag` and `toggle_planner_show_untagged` events; update `tag_filter` assign and re-query the DB with the updated filter (same Ash query path as 10.4; do not apply filter in-memory over a stale list)
 - [ ] 10.9 Ensure filter state is per-session: no persistence; refresh resets to defaults
 
 ## 11. Season Rules — Default Tags
 
 - [ ] 11.1 Add tag picker to season rules create/edit form (load all TagCategories+Tags; render grouped multi-select for default_tags)
-- [ ] 11.2 Handle default tag changes on season rules form submit: sync SeasonRulesDefaultTag records to match selection
+- [ ] 11.2 Handle default tag changes on season rules form submit: call `Tennis.sync_season_rules_default_tags/3` to replace the full set of SeasonRulesDefaultTag records for the season rules with the submitted tag selection
 - [ ] 11.3 Load `default_tags` when fetching SeasonRules for a planning context
 
 ## 12. Tag Management UI
@@ -108,7 +110,7 @@ The player list tag filter UI shall match the roster planner tag filter UI as cl
 - [ ] 13.5 Unit tests for `PlayerFilters.fetch_players` with tag filter (OR within category, AND between categories, inactive facet, empty filter)
 - [ ] 13.6 LiveView tests for player list tag filter (toggle tag, clear filters, URL param encoding)
 - [ ] 13.7 LiveView tests for player edit tag assignment (add tag, remove tag)
-- [ ] 13.8 LiveView tests for roster planner tag filter (initial state from defaults, toggle tag, show_untagged, exclude list, session isolation)
+- [ ] 13.8 LiveView tests for roster planner tag filter (initial state from defaults, toggle tag, show_untagged, show_untagged state persistence across facet deactivation/reactivation, session isolation)
 - [ ] 13.9 LiveView tests for tag management UI (create/rename/delete category and tag, confirmation dialog)
 - [ ] 13.10 Update existing player tests that reference eligible_18_plus/40_plus/55_plus to remove those field references
 - [ ] 13.11 Update existing CSV import/export tests to reflect removed columns

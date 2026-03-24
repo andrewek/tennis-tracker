@@ -2,6 +2,14 @@
 
 In no particular order. Crossed out when done.
 
+1. Build an archive/soft-delete action for SeasonRules records — currently there is
+   no delete action on SeasonRules (to avoid cascading data loss); a future "archived"
+   flag would let group owners hide stale season rules without destroying them or their
+   associated default-tag configuration.
+1. Explore adding a group-settings UI entrypoint for seeding a group's preset tag
+   taxonomy (currently only accessible via AshAdmin or `iex` shell). See the
+   `seed_preset_tags!/1` domain function; consider surfacing it in a "Group Setup"
+   or "Tags" settings page so admins don't need shell access for new groups.
 1. Explore adding free-text Notes to Player records — useful for narrative context
    tags cannot capture (e.g. "think she'll be a 3.0", "contact info coming soon").
 1. Revisit tags in CSV import/export — tags are currently excluded from CSV; decide
