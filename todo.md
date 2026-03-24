@@ -2,6 +2,10 @@
 
 In no particular order. Crossed out when done.
 
+1. Explore adding free-text Notes to Player records — useful for narrative context
+   tags cannot capture (e.g. "think she'll be a 3.0", "contact info coming soon").
+1. Revisit tags in CSV import/export — tags are currently excluded from CSV; decide
+   on format (e.g. pipe-separated values in a single column) and implement.
 1. Configure with ngrok so we can demonstrate locally without needing to deploy
 1. When I update a player (name, age group, NTRP rating), that change should
    propagate across all pages that would have that player visible (e.g., the
@@ -66,6 +70,17 @@ In no particular order. Crossed out when done.
 1. The `/g/:group_slug` group home page is currently a placeholder. Replace it
    with something more useful — ideas include: active roster planning sessions,
    the next few upcoming matches, and perhaps an activity feed.
+1. Explore whether we need additional FK integrity constraints across the app —
+   particularly for join records that reference resources from different
+   relationships (e.g., SeasonRulesDefaultTag references both a SeasonRules and
+   a Tag, which must belong to the same group, but this is not enforced at the
+   DB level). Audit foreign keys broadly and decide where cross-group or
+   cross-resource integrity constraints are actually needed.
+1. Figure out how system admins can gracefully pre-seed new organizations with a
+   useful starting dataset (e.g., preset tag taxonomy, team types, season rules).
+   For now: use `priv/repo/seeds.exs` for local dev, AshAdmin dashboard or an
+   `iex` shell against production when needed. Future: consider a "group setup
+   wizard" or an admin-triggered seed action so this doesn't require shell access.
 1. Rework the Roster Planner page structure. Currently it acts as both an index
    (selecting a planning context) and a show/board page in one LiveView. Split
    this into a conventional index page (list/create planning contexts) and a
