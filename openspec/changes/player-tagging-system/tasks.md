@@ -1,9 +1,9 @@
 ## 1. Ash Resources — TagCategory and Tag
 
-- [ ] 1.1 Create `TennisTracker.Tennis.TagCategory` Ash resource (name, group_id, timestamps; unique name per group; group member read, group owner write policies; multitenancy)
-- [ ] 1.2 Create `TennisTracker.Tennis.Tag` Ash resource (name, tag_category_id, group_id, timestamps; unique name+category per group; group member read, group owner write policies; multitenancy)
+- [ ] 1.1 Create `TennisTracker.Tennis.TagCategory` Ash resource (name, group_id, timestamps; unique name per group; group member read, group owner write policies; multitenancy; default sort order: alphabetical ascending by name)
+- [ ] 1.2 Create `TennisTracker.Tennis.Tag` Ash resource (name, tag_category_id, group_id, timestamps; unique name+category per group (case-insensitive — use `citext` column type or a `lower(name)` expression index); group member read, group owner write policies; multitenancy; default sort order: alphabetical ascending by name within category)
 - [ ] 1.3 Add `has_many :tags` relationship to TagCategory; add `belongs_to :tag_category` to Tag
-- [ ] 1.4 Create `TennisTracker.Tennis.PlayerTag` join Ash resource (player_id, tag_id, group_id; no timestamps; group member read, group owner create/destroy; multitenancy)
+- [ ] 1.4 Create `TennisTracker.Tennis.PlayerTag` join Ash resource (player_id, tag_id, group_id; no timestamps; group member read/create/destroy; multitenancy)
 - [ ] 1.5 Create `TennisTracker.Tennis.SeasonRulesDefaultTag` join Ash resource (season_rules_id, tag_id, group_id; no timestamps; group member read, group owner create/destroy; cascade destroy when tag deleted; multitenancy)
 - [ ] 1.6 Add `many_to_many :tags` to Player through PlayerTag; add `many_to_many :default_tags` to SeasonRules through SeasonRulesDefaultTag
 - [ ] 1.7 Add `many_to_many :players` inverse on Tag through PlayerTag (for cascade destroy support)
@@ -30,8 +30,108 @@
 
 - [ ] 4.1 Create a `Tennis.seed_preset_tags!/1` domain function (or equivalent) that creates the preset TagCategories and Tags for a given group_id
 - [ ] 4.2 ~~Trigger preset tag seeder on group creation~~ — **DEFERRED**: automatic seeding on group creation is out of scope; new groups are seeded via seeds file (local dev) or iex/AshAdmin (production)
-- [ ] 4.3 Update `priv/repo/seeds.exs` to remove boolean field assignments; call the preset seeder for each seeded group
-- [ ] 4.4 Update seeds to assign realistic tags to seeded players using the preset taxonomy
+- [ ] 4.3 Rebuild `priv/repo/seeds.exs` with two new groups replacing the old "Small Group" / "Large Group". Remove all `eligible_18_plus`, `eligible_40_plus`, `eligible_55_plus` field references. Call `seed_preset_tags!/1` for each group after creating it. Update team membership assignment to use player names or NTRP rating rather than the removed boolean fields.
+
+- [ ] 4.4 Seed groups and players per the following spec. For each player the tag columns below list tags to assign; all other players in that group get no special-category tags beyond Age Group and (for Mixed group) League Gender. Use `upsert_player` as before, then create `PlayerTag` records after players and tags both exist.
+
+  **Group 1: "Main"** (`slug: "main"`) — male players, no League Gender tags on any player
+
+  *12 NTRP 4.5 players — all 18+ Eligible; 6 also 40+ Eligible; 3 of those 6 also 55+ Eligible*
+  | # | Age Group tags | Role tags |
+  |---|---------------|-----------|
+  | 1 | 18+, 40+, 55+ | Willing to Captain |
+  | 2 | 18+, 40+, 55+ | — |
+  | 3 | 18+, 40+, 55+ | — |
+  | 4 | 18+, 40+ | Sub Only |
+  | 5 | 18+, 40+ | — |
+  | 6 | 18+, 40+ | — |
+  | 7–12 | 18+ only | — |
+
+  *25 NTRP 4.0 players — all 18+ Eligible; 14 also 40+ Eligible; 8 of those 14 also 55+ Eligible*
+  | # | Age Group tags | NTRP / Role / Availability / Pipeline tags |
+  |---|---------------|---------------------------------------------|
+  | 1 | 18+, 40+, 55+ | Willing to Captain |
+  | 2 | 18+, 40+, 55+ | Willing to Captain |
+  | 3 | 18+, 40+ | Willing to Captain |
+  | 4 | 18+, 40+, 55+ | Can Play Up |
+  | 5 | 18+, 40+ | Can Play Up |
+  | 6 | 18+ | Can Play Up |
+  | 7 | 18+ | Can Play Up |
+  | 8 | 18+, 40+, 55+ | Medical Hold, Roster Fill Only |
+  | 9 | 18+, 40+ | Medical Hold, Roster Fill Only |
+  | 10 | 18+, 40+, 55+ | Last Resort |
+  | 11 | 18+ | Limited Availability |
+  | 12 | 18+ | Prospective |
+  | 13–25 | mix (remaining 40+/55+ slots filled by players 13–18 as 40+, 16–18 as 55+) | — |
+
+  *25 NTRP 3.5 players — same demarcation as 4.0:*
+  | # | Age Group tags | NTRP / Role / Availability / Pipeline tags |
+  |---|---------------|---------------------------------------------|
+  | 1 | 18+, 40+, 55+ | Willing to Captain |
+  | 2 | 18+, 40+, 55+ | Willing to Captain |
+  | 3 | 18+, 40+ | Willing to Captain |
+  | 4 | 18+, 40+, 55+ | Can Play Up |
+  | 5 | 18+, 40+ | Can Play Up |
+  | 6 | 18+ | Can Play Up |
+  | 7 | 18+ | Can Play Up |
+  | 8 | 18+, 40+, 55+ | Medical Hold, Roster Fill Only |
+  | 9 | 18+, 40+ | Medical Hold, Roster Fill Only |
+  | 10 | 18+, 40+, 55+ | Last Resort |
+  | 11 | 18+ | Limited Availability |
+  | 12 | 18+ | Prospective |
+  | 13–25 | mix (remaining 40+/55+ slots) | — |
+
+  *Main group team types and teams (all current year):*
+  - TeamType "18+ 4.5": age_group 18_plus, ntrp_level 4.5, allowed [4.0, 4.5] → 1 team "Main 18+ 4.5", ~10 players from the 4.5 pool (skip Medical Hold players)
+  - TeamType "18+ 4.0": age_group 18_plus, ntrp_level 4.0, allowed [3.5, 4.0] → 2 teams "Main 18+ 4.0 A" (~12 players) and "Main 18+ 4.0 B" (~11 players), drawn from 4.0 pool (skip Medical Hold players, distribute Can Play Up across both)
+  - TeamType "18+ 3.5": age_group 18_plus, ntrp_level 3.5, allowed [3.0, 3.5] → 2 teams "Main 18+ 3.5 A" (~12 players) and "Main 18+ 3.5 B" (~11 players), drawn from 3.5 pool (same rule)
+  - TeamType "40+ 3.5": age_group 40_plus, ntrp_level 3.5, allowed [3.0, 3.5] → 1 team "Main 40+ 3.5", ~10 players who have the 40+ Eligible tag and NTRP 3.5 (skip Medical Hold)
+
+  *SeasonRules default_tags:* after syncing season rules defaults, set:
+  - 18+ 4.5 season rules → default_tags: ["18+ Eligible"]
+  - 18+ 4.0 season rules → default_tags: ["18+ Eligible"]
+  - 18+ 3.5 season rules → default_tags: ["18+ Eligible"]
+  - 40+ 3.5 season rules → default_tags: ["40+ Eligible"]
+
+  ---
+
+  **Group 2: "Mixed"** (`slug: "mixed"`) — 12 men + 12 women, no teams seeded
+
+  *Men — 6 NTRP 3.5, 6 NTRP 4.0; all 18+ Eligible; no 40+/55+ tags*
+  | # | NTRP | League Gender tags | Role tags |
+  |---|------|-------------------|-----------|
+  | 1 | 3.5 | Men's Leagues, Mixed Leagues | Willing to Captain |
+  | 2 | 3.5 | Men's Leagues, Mixed Leagues | Willing to Captain |
+  | 3 | 3.5 | Men's Leagues, Mixed Leagues | — |
+  | 4 | 3.5 | Men's Leagues only | — |
+  | 5 | 3.5 | Men's Leagues only | — |
+  | 6 | 3.5 | Mixed Leagues only | Sub Only |
+  | 7 | 4.0 | Men's Leagues, Mixed Leagues | — |
+  | 8 | 4.0 | Men's Leagues, Mixed Leagues | — |
+  | 9 | 4.0 | Men's Leagues, Mixed Leagues | — |
+  | 10 | 4.0 | Men's Leagues only | — |
+  | 11 | 4.0 | Men's Leagues only | — |
+  | 12 | 4.0 | Mixed Leagues only | — |
+
+  (Note: 2 Mixed-only, 6 Men's+Mixed, 4 Men's-only — one of the 2 Mixed-only is Sub Only, two Willing to Captain are in the Men's+Mixed group)
+
+  *Women — 6 NTRP 3.5, 6 NTRP 4.0; all 18+ Eligible; no 40+/55+ tags*
+  | # | NTRP | League Gender tags | Role tags |
+  |---|------|-------------------|-----------|
+  | 1 | 3.5 | Women's Leagues, Mixed Leagues | Willing to Captain |
+  | 2 | 3.5 | Women's Leagues, Mixed Leagues | Willing to Captain |
+  | 3 | 3.5 | Women's Leagues, Mixed Leagues | — |
+  | 4 | 3.5 | Women's Leagues only | — |
+  | 5 | 3.5 | Women's Leagues only | — |
+  | 6 | 3.5 | Mixed Leagues only | Sub Only |
+  | 7 | 4.0 | Women's Leagues, Mixed Leagues | — |
+  | 8 | 4.0 | Women's Leagues, Mixed Leagues | — |
+  | 9 | 4.0 | Women's Leagues, Mixed Leagues | — |
+  | 10 | 4.0 | Women's Leagues only | — |
+  | 11 | 4.0 | Women's Leagues only | — |
+  | 12 | 4.0 | Mixed Leagues only | — |
+
+- [ ] 4.5 Update team membership assignment in seeds to select players by NTRP rating and, for 40+ teams, by presence of the "40+ Eligible" tag (look up the tag record after calling `seed_preset_tags!/1`, then filter the already-created player list by checking their `PlayerTag` records). The old `eligible_18_plus`/`eligible_40_plus` filters on `large_player_defs` no longer exist — do not use `Enum.filter` on boolean fields.
 
 ## 5. Database Reset and Migration
 
@@ -48,8 +148,8 @@
 
 The player list tag filter UI shall match the roster planner tag filter UI as closely as possible (same faceted pills, per-facet show_untagged toggle). Start with separate components with similar code — do not attempt a single shared top-level component upfront. Shared sub-components (e.g., a facet group, a tag pill) may be worth extracting; evaluate after both are built. The only fundamental difference is state persistence: URL params here (include tags only), session-only in the planner.
 
-- [ ] 7.1 Load all TagCategories and Tags for the group in `Players.IndexLive.mount/3`
-- [ ] 7.2 Replace `@bracket_options` / `bracket_filter` assigns with `@tag_categories` / `tag_filter` assign: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; note that `show_untagged` for a facet persists in socket state even when the facet is inactive — if the captain re-selects a tag in that category, the previous `show_untagged` value re-activates
+- [ ] 7.1 Load all TagCategories and Tags for the group in `Players.IndexLive.mount/3`; sort both categories and tags alphabetically ascending by name (A → Z)
+- [ ] 7.2 Replace `@bracket_options` / `bracket_filter` assigns with `@tag_categories` / `tag_filter` assign: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; note that `show_untagged` for a facet persists in socket state even when the facet is inactive — if the captain re-selects a tag in that category, the previous `show_untagged` value re-activates; when the last tag in a category is deselected, remove the category key from `include` entirely (absent key = inactive facet; do not keep an empty list)
 - [ ] 7.3 Replace age bracket filter pills in the template with tag category groups, each with per-tag toggle pills and a per-facet show_untagged toggle (always rendered, disabled when facet inactive)
 - [ ] 7.4 Update `handle_event("toggle_bracket", ...)` → `handle_event("toggle_tag", ...)` and add `handle_event("toggle_show_untagged", ...)`
 - [ ] 7.5 Update `filter_url/2` to encode include tag selection only: `tags[]=<uuid>` per selected tag; `show_untagged` state is not URL-encoded
@@ -68,15 +168,15 @@ The player list tag filter UI shall match the roster planner tag filter UI as cl
 - [ ] 9.1 Load `:tags` (with category) on player show page; display tags grouped by category name
 - [ ] 9.2 Add tag section to player edit page: load all TagCategories+Tags for the group; render grouped checkboxes (one per tag, grouped by category); pre-check current player tags; submit as a list of selected tag IDs alongside the rest of the form
 - [ ] 9.3 On form submit, diff submitted tag IDs against the player's current tag IDs; create PlayerTag records for newly checked tags; destroy PlayerTag records for unchecked tags; no real-time toggle — changes only take effect on save
-- [ ] 9.4 Ensure tag picker is not shown or is read-only for group members (owners only can edit)
+- [ ] 9.4 Ensure tag section and checkboxes are shown and interactive for all group members (both owners and members can add/remove player tags)
 
 ## 10. Roster Planner — Tag Filter
 
 - [ ] 10.1 Replace `list_eligible_unassigned_players` with `list_unassigned_players` (there is exactly one caller: `RosterPlannerLive`); the new function returns all players with no membership in the current planning context and accepts a tag filter param; remove the old function entirely
-- [ ] 10.2 Add `tag_filter` socket assign to `RosterPlannerLive` using the same struct shape as the player list: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; initialize include facets from `season_rules.default_tags`; initialize `show_untagged` to empty list (all off); the `show_untagged` value for a facet persists in session state when the facet is deactivated and re-activates when a tag in that category is re-selected
+- [ ] 10.2 Add `tag_filter` socket assign to `RosterPlannerLive` using the same struct shape as the player list: `%{include: %{category_id => [tag_id]}, show_untagged: [category_id]}`; initialize include facets from `season_rules.default_tags`; initialize `show_untagged` to empty list (all off); the `show_untagged` value for a facet persists in session state when the facet is deactivated and re-activates when a tag in that category is re-selected; when the last tag in a category is deselected, remove the category key from `include` entirely (absent key = inactive facet; do not keep an empty list)
 - [ ] 10.3 Load `season_rules.default_tags` (with category preloaded) when building the board; use them to populate initial `tag_filter` include facets
 - [ ] 10.4 Apply tag filter to the unassigned pool at the DB level via Ash query (OR within category, AND between categories, show_untagged per facet). Attempt this with Ash.Query filter expressions before considering any Elixir-side fallback; assess feasibility after implementation and adjust if needed.
-- [ ] 10.5 Load all TagCategories+Tags for the group in the planner mount; assign as `@tag_categories` for the filter UI
+- [ ] 10.5 Load all TagCategories+Tags for the group in the planner mount; assign as `@tag_categories` for the filter UI; sort both categories and tags alphabetically ascending by name (A → Z)
 - [ ] 10.6 Add tag filter panel to the planner board toolbar using the same UI pattern as the player list: one facet group per TagCategory; per-tag toggle pills; per-facet "show untagged" toggle (always rendered, disabled when facet inactive)
 - [ ] 10.7 ~~Add exclude tag list UI to the planner filter panel~~ — **DEFERRED**: exclude list (AND NOT filtering) is out of scope; may be added in a fast-follow if the OR/AND model proves insufficient
 - [ ] 10.8 Handle `toggle_planner_tag` and `toggle_planner_show_untagged` events; update `tag_filter` assign and re-query the DB with the updated filter (same Ash query path as 10.4; do not apply filter in-memory over a stale list)
@@ -91,7 +191,7 @@ The player list tag filter UI shall match the roster planner tag filter UI as cl
 ## 12. Tag Management UI
 
 - [ ] 12.1 Add route `/g/:group_slug/settings/tags` → `TennisTrackerWeb.Settings.TagsLive`
-- [ ] 12.2 Create `TagsLive` index: list all TagCategories with their Tags; show create category form inline
+- [ ] 12.2 Create `TagsLive` index: list all TagCategories with their Tags; show create category form inline; display categories and tags sorted alphabetically ascending by name (A → Z)
 - [ ] 12.3 Implement create TagCategory (inline form; validates unique name; saves and refreshes list)
 - [ ] 12.4 Implement rename TagCategory (inline edit; validates unique name; saves)
 - [ ] 12.5 Implement delete TagCategory: always show confirmation modal (standard app pattern); include tag count in message when category has tags; cascade handled by Ash

@@ -10,6 +10,17 @@ In no particular order. Crossed out when done.
    taxonomy (currently only accessible via AshAdmin or `iex` shell). See the
    `seed_preset_tags!/1` domain function; consider surfacing it in a "Group Setup"
    or "Tags" settings page so admins don't need shell access for new groups.
+1. Explore custom display ordering for tag categories and tags. Currently categories
+   and tags are displayed in alphabetical ascending (A → Z) order by name. A
+   `position` or `display_order` field on TagCategory and Tag would let group owners
+   arrange their taxonomy in a preferred sequence (e.g., Age Group before Availability,
+   "18+" before "40+"). Evaluate whether alphabetical descending is sufficient or
+   whether a drag-to-reorder UI is warranted.
+1. Add Mixed Doubles as a supported league type in SeasonRules (e.g., a `league_gender`
+   or `format` field on TeamType or SeasonRules). Once this exists, update the "Mixed"
+   seed group with appropriate TeamTypes, teams, and SeasonRules so it demonstrates
+   mixed doubles roster planning alongside the men's and women's league players already
+   seeded there.
 1. Explore adding free-text Notes to Player records — useful for narrative context
    tags cannot capture (e.g. "think she'll be a 3.0", "contact info coming soon").
 1. Revisit tags in CSV import/export — tags are currently excluded from CSV; decide

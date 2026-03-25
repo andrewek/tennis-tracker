@@ -21,7 +21,6 @@ This change introduces a general-purpose tagging system: group-scoped `TagCatego
 - Gender as a first-class Player attribute (replaced by League Gender tags)
 - Enforcing mutual exclusivity within a tag category
 - Storing per-facet `show_untagged` defaults in SeasonRules (always false; session-only)
-- Tag support on any resource other than Player in this change
 
 ## Decisions
 
@@ -37,9 +36,9 @@ Ash does not have a built-in polymorphic belongs_to pattern and actively discour
 
 **Alternative considered:** Generic `Tagging` join with `taggable_id` + `taggable_type`. Rejected: no FK integrity, harder to query, non-idiomatic.
 
-### D3: Tag identity is unique by name + tag_category_id per group
+### D3: Tag identity is unique by name + tag_category_id per group (case-insensitive)
 
-Two tags in different categories may share a name (e.g., "Active" in Availability and "Active" in some future Status category). Identity is `[:name, :tag_category_id, :group_id]`. This allows meaningful name reuse across categories while preventing duplicates within a category.
+Two tags in different categories may share a name (e.g., "Active" in Availability and "Active" in some future Status category). Identity is `[:name, :tag_category_id, :group_id]` with case-insensitive name comparison — implement using a `citext` column type or a `lower(name)` expression in the DB unique index. This allows meaningful name reuse across categories while preventing duplicates within a category regardless of casing.
 
 ### D4: Cascade delete TagCategory → Tags → PlayerTags + SeasonRulesDefaultTags
 
@@ -88,6 +87,10 @@ Using IDs (rather than names) makes URLs durable across tag renames, avoids URL-
 **Alternative considered:** `tag[category]=name` style params using tag names. Rejected: tag names may contain characters that require percent-encoding ("+", apostrophes, spaces), making URLs fragile and harder to share; renames would silently break bookmarked URLs; disambiguation of same-name tags across categories adds complexity.
 
 **Tag name constraints:** Because tag names appear in the UI (not URLs), there are no character restrictions on names beyond reasonable length. The URL encoding concern is fully addressed by using IDs.
+
+### D11: Default display ordering is alphabetical ascending (A → Z); custom ordering is deferred
+
+TagCategory and Tag records are displayed in alphabetical ascending (A → Z) order by name wherever they appear in the UI (tag management page, filter panels, player show/edit pages, season rules form). A `position` or `display_order` field enabling custom ordering by group owners is deferred to a future change (see todo.md).
 
 ## Risks / Trade-offs
 

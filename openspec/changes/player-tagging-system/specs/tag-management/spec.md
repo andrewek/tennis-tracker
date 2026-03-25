@@ -30,11 +30,15 @@ No two `TagCategory` records within the same group SHALL share the same name (ca
 - **WHEN** two different groups each have a TagCategory named "Availability"
 - **THEN** both records coexist and are valid
 
-### Requirement: Tag names are unique within a category within a group
-No two `Tag` records in the same `TagCategory` within the same group SHALL share the same name. Tags in different categories MAY share the same name.
+### Requirement: Tag names are unique within a category within a group (case-insensitive)
+No two `Tag` records in the same `TagCategory` within the same group SHALL share the same name (case-insensitive). Tags in different categories MAY share the same name.
 
 #### Scenario: Duplicate tag name within a category is rejected
-- **WHEN** a group owner attempts to create a Tag with a name already used in the same category
+- **WHEN** a group owner attempts to create a Tag with a name that matches (case-insensitively) a name already used in the same category
+- **THEN** the action fails with a uniqueness error
+
+#### Scenario: Tag name differing only by case is rejected within a category
+- **WHEN** a group owner attempts to create a Tag named "active" in a category that already has a Tag named "Active"
 - **THEN** the action fails with a uniqueness error
 
 #### Scenario: Same tag name in different categories is allowed
