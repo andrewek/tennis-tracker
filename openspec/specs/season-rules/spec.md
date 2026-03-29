@@ -37,6 +37,28 @@ The system SHALL NOT error if no SeasonRules exist for the current planning cont
 - **WHEN** a planning board is loaded for a (team_type, season_year) with no SeasonRules record
 - **THEN** the board loads successfully and no rule-based health warnings are shown
 
+### Requirement: SeasonRules can have default tags for the roster planner
+A `SeasonRules` record SHALL support a many-to-many relationship with `Tag` via `SeasonRulesDefaultTag`. These tags represent the pre-selected tag filter state when a captain opens a roster planner session for this (team_type, season_year) context. Default tags are optional; a SeasonRules record with no default tags opens the planner with no tag filter active.
+
+#### Scenario: Default tags are loaded with season rules
+- **WHEN** a SeasonRules record is loaded for a planning context
+- **THEN** its default_tags relationship returns the associated Tag records with their categories loaded
+
+#### Scenario: SeasonRules with no default tags loads planner with no filter
+- **WHEN** a SeasonRules record has no SeasonRulesDefaultTag records
+- **THEN** the planner opens with no tag filter active and all unassigned players are shown
+
+#### Scenario: SeasonRules with default tags pre-populates planner filter
+- **WHEN** a SeasonRules record has default_tags set
+- **THEN** the planner opens with those tags pre-selected in the include facets, grouped by category
+
+### Requirement: SeasonRules default tags can be managed on the season rules form
+The season rules create/edit form SHALL include a tag picker for selecting default tags, grouped by TagCategory. Group owners SHALL be able to add and remove default tags from a SeasonRules record.
+
+#### Scenario: Owner sets default tags on season rules
+- **WHEN** a group owner selects tags in the tag picker on the season rules form and saves
+- **THEN** SeasonRulesDefaultTag records are created for those tags
+
 ### Requirement: SeasonRules management requires group owner role
 Only users with a `GroupMembership.role == :owner` for the current group (or system admins) SHALL be permitted to create, update, or destroy SeasonRules records.
 

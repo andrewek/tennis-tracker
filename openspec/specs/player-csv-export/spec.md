@@ -6,7 +6,7 @@ The players index page SHALL display an "Export CSV" link/button that initiates 
 - **THEN** an "Export CSV" button SHALL be visible in the page header actions
 
 #### Scenario: Export link encodes current filters
-- **WHEN** the user has active filters (name search, NTRP ratings, age brackets)
+- **WHEN** the user has active filters (name search, NTRP ratings)
 - **THEN** the "Export CSV" link href SHALL include those filter values as query parameters matching the index page's URL param format
 
 ### Requirement: CSV download respects active filters
@@ -24,12 +24,8 @@ The export endpoint SHALL return only the players that match the currently activ
 - **WHEN** the user has one or more NTRP ratings selected (e.g., 3.5 and 4.0)
 - **THEN** the CSV SHALL contain only players with those NTRP ratings
 
-#### Scenario: Export with age bracket filter
-- **WHEN** the user has one or more age brackets selected (e.g., 55+)
-- **THEN** the CSV SHALL contain only players eligible for those brackets
-
 #### Scenario: Export with combined filters
-- **WHEN** multiple filters are active simultaneously (e.g., NTRP 3.5 + 4.0 AND 55+ bracket)
+- **WHEN** multiple filters are active simultaneously (e.g., NTRP 3.5 + 4.0)
 - **THEN** the CSV SHALL contain only players matching ALL active filters
 
 #### Scenario: Export with no matching players
@@ -49,7 +45,8 @@ The export endpoint SHALL return a valid CSV file as an HTTP attachment download
 
 #### Scenario: CSV column headers
 - **WHEN** the CSV is downloaded
-- **THEN** the first row SHALL be a header row with columns: `name`, `email`, `phone_number`, `ntrp_rating`, `eligible_18_plus`, `eligible_40_plus`, `eligible_55_plus`
+- **THEN** the first row SHALL be a header row with columns: `name`, `email`, `phone_number`, `ntrp_rating`
+- **AND** the columns `eligible_18_plus`, `eligible_40_plus`, `eligible_55_plus` SHALL NOT be present
 
 #### Scenario: CSV rows are sorted by name
 - **WHEN** the CSV is downloaded

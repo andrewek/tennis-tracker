@@ -29,25 +29,15 @@ The system SHALL display a board with one column per team (plus Unassigned and N
 - **THEN** the Not Participating column shows all players assigned to the pseudo-team for this context
 
 ### Requirement: Unassigned column filtering is performed at the database level
-The Unassigned column SHALL show only players who are eligible for the current planning context's team type and who have no membership in this context. This filtering SHALL be performed via database query, not in-memory enumeration.
+The Unassigned column SHALL show all players who have no membership in the current planning context. This pool is then narrowed by the session-state tag filter (see `roster-planner-tag-filter`). Hard eligibility filtering based on age bracket boolean fields is removed. NTRP-based health check violations continue to surface non-blocking warnings when players are placed on teams.
 
-#### Scenario: Unassigned column shows eligible players
-- **WHEN** the planning board loads
-- **THEN** the Unassigned column contains only players with no membership in this planning context who are eligible for the team type
+#### Scenario: Unassigned column shows all players with no membership in this context
+- **WHEN** the planning board loads with no tag filter active
+- **THEN** the Unassigned column contains all players who have no TeamMembership record for this planning context, regardless of age group, gender league, or other tag attributes
 
-#### Scenario: Ineligible player already assigned to a team
-- **WHEN** a player's eligibility changes after they were assigned to a team
-- **THEN** the player still appears in their team column
-- **AND** existing RosterHealth violation indicators surface the issue
-- **AND** the player does NOT appear in the Unassigned column
-
-#### Scenario: Unrated player appears in Unassigned
-- **WHEN** a player with a nil NTRP rating is age-group eligible for the planning context
-- **THEN** the player appears in the Unassigned column
-
-#### Scenario: Over-rated player is excluded from Unassigned
-- **WHEN** a player has an NTRP rating above the team type's allowed levels (e.g. a 4.0-rated player for a 3.5 team)
-- **THEN** the player does NOT appear in the Unassigned column
+#### Scenario: Tag filter narrows the unassigned pool
+- **WHEN** the captain has an active tag filter
+- **THEN** the Unassigned column shows only players matching the tag filter (see roster-planner-tag-filter spec)
 
 ### Requirement: Players can be moved between columns on desktop via drag-and-drop
 The system SHALL support dragging a player card from one column and dropping it onto another column to reassign the player.

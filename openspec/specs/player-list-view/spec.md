@@ -1,19 +1,15 @@
 ## Requirements
 
-### Requirement: Players list displays age brackets as inline chips
-The players index table SHALL display each player's age bracket eligibility as inline badge chips next to the player's name, rather than as separate columns.
+### Requirement: Players list displays assigned tags as inline chips
+The players index table SHALL display a player's assigned tags as inline badge chips next to the player's name. Tags SHALL be visually compact. Not all tags need to be shown if space is limited; a truncation or overflow indicator is acceptable.
 
-#### Scenario: Eligible player shows bracket chips
-- **WHEN** a player is eligible for one or more age brackets (18+, 40+, 55+)
-- **THEN** the corresponding bracket labels SHALL be displayed as small badge chips in the same cell as the player's name
+#### Scenario: Player with tags shows tag chips
+- **WHEN** a player has one or more tags assigned
+- **THEN** tag chips appear next to the player's name in the table row
 
-#### Scenario: No bracket columns in table
-- **WHEN** the players index page is rendered
-- **THEN** the table SHALL NOT have columns labeled "18+ Eligible?", "40+ Eligible?", or "55+ Eligible?"
-
-#### Scenario: Player with no brackets shows no chips
-- **WHEN** a player is not eligible for any age bracket
-- **THEN** no age bracket chips SHALL be displayed for that player
+#### Scenario: Player with no tags shows no chips
+- **WHEN** a player has no tags assigned
+- **THEN** no tag chips are displayed for that player
 
 ### Requirement: Players list is sorted by NTRP then name by default
 The players index SHALL display players sorted by NTRP rating descending by default, then by name ascending. The user MAY toggle the NTRP sort direction between ascending and descending using a control on the page. Only the NTRP column supports sort direction toggling. Unrated players (no NTRP rating) SHALL always appear after all rated players when sorted descending, and before all rated players when sorted ascending.
@@ -31,7 +27,7 @@ The players index SHALL display players sorted by NTRP rating descending by defa
 - **THEN** players SHALL revert to descending NTRP order with unrated players at the bottom
 
 #### Scenario: Sort direction preserved with filters
-- **WHEN** the players index page is loaded with name, NTRP, or bracket filter parameters and a sort direction parameter
+- **WHEN** the players index page is loaded with name, NTRP, or tag filter parameters and a sort direction parameter
 - **THEN** the filtered results SHALL be sorted according to the selected NTRP sort direction, then name ascending, with unrated players positioned according to the selected direction
 
 ### Requirement: Players list NTRP filter includes "No rating" option
