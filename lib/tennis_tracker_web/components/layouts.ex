@@ -117,6 +117,16 @@ defmodule TennisTrackerWeb.Layouts do
                     Locations
                   </.link>
                 </li>
+                <li>
+                  <.link navigate={~p"/g/#{@current_group.slug}/settings/tags"}>
+                    Tags
+                  </.link>
+                </li>
+                <li>
+                  <.link navigate={~p"/g/#{@current_group.slug}/settings/season-rules"}>
+                    Season Rules
+                  </.link>
+                </li>
               </ul>
             </details>
           </li>

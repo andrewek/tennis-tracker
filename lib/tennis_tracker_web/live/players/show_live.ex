@@ -15,7 +15,12 @@ defmodule TennisTrackerWeb.Players.ShowLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    player = Tennis.get_player!(id, tenant: group_id, actor: current_user)
+    player =
+      Tennis.get_player!(id,
+        tenant: group_id,
+        actor: current_user,
+        load: [tags: [:tag_category]]
+      )
 
     memberships =
       Tennis.list_real_memberships_for_player!(id,
@@ -64,8 +69,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
         back_label="Players"
       >
         <:subtitle>
-          {if @player.ntrp_rating, do: @player.ntrp_rating, else: "No NTRP rating"} ·
-          <.age_bracket_chips player={@player} />
+          {if @player.ntrp_rating, do: @player.ntrp_rating, else: "No NTRP rating"}
         </:subtitle>
         <:actions>
           <div class="flex gap-2">
@@ -95,6 +99,22 @@ defmodule TennisTrackerWeb.Players.ShowLive do
         <:item title="Email">{@player.email || "—"}</:item>
         <:item title="Phone">{@player.phone_number || "—"}</:item>
       </.list>
+
+      <%!-- Tags grouped by category --%>
+      <% tag_groups = Enum.group_by(@player.tags, & &1.tag_category) %>
+      <div :if={tag_groups != %{}} class="mt-6">
+        <h2 class="text-lg font-semibold mb-2">Tags</h2>
+        <div class="space-y-2">
+          <%= for {category, tags} <- tag_groups do %>
+            <div class="flex items-start gap-2">
+              <span class="text-sm text-base-content/60 w-24 shrink-0">{category.name}</span>
+              <div class="flex gap-1 flex-wrap">
+                <span :for={tag <- tags} class="badge badge-sm badge-ghost">{tag.name}</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
 
       <div class="mt-6">
         <h2 class="text-lg font-semibold mb-2">Team Memberships</h2>

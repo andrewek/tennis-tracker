@@ -1,4 +1,4 @@
-defmodule TennisTracker.Tennis.Player do
+defmodule TennisTracker.Tennis.Tag do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
@@ -6,11 +6,18 @@ defmodule TennisTracker.Tennis.Player do
     extensions: [AshAdmin.Resource]
 
   postgres do
-    table("players")
+    table("tags")
     repo(TennisTracker.Repo)
 
     custom_indexes do
-      index([:ntrp_rating, :name])
+      index([:group_id, :tag_category_id, "lower(name)"],
+        unique: true,
+        name: "tags_unique_name_per_category_group"
+      )
+    end
+
+    references do
+      reference(:tag_category, on_delete: :delete)
     end
   end
 
@@ -24,14 +31,10 @@ defmodule TennisTracker.Tennis.Player do
     end
 
     policy action_type(:create) do
-      authorize_if(TennisTracker.Policies.IsGroupMemberCheck)
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
     end
 
-    policy action_type(:update) do
-      authorize_if(TennisTracker.Policies.IsGroupMember)
-    end
-
-    policy action_type(:destroy) do
+    policy action_type([:update, :destroy]) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
     end
   end
@@ -47,18 +50,6 @@ defmodule TennisTracker.Tennis.Player do
       public?(true)
     end
 
-    attribute :email, :string do
-      public?(true)
-    end
-
-    attribute :phone_number, :string do
-      public?(true)
-    end
-
-    attribute :ntrp_rating, :decimal do
-      public?(true)
-    end
-
     attribute :group_id, :uuid do
       allow_nil?(false)
       public?(true)
@@ -68,12 +59,19 @@ defmodule TennisTracker.Tennis.Player do
   end
 
   relationships do
-    has_many :team_memberships, TennisTracker.Tennis.TeamMembership
+    belongs_to :tag_category, TennisTracker.Tennis.TagCategory do
+      allow_nil?(false)
+      public?(true)
+    end
 
-    many_to_many :tags, TennisTracker.Tennis.Tag do
+    has_many :player_tags, TennisTracker.Tennis.PlayerTag
+
+    has_many :season_rules_default_tags, TennisTracker.Tennis.SeasonRulesDefaultTag
+
+    many_to_many :players, TennisTracker.Tennis.Player do
       through(TennisTracker.Tennis.PlayerTag)
-      source_attribute_on_join_resource(:player_id)
-      destination_attribute_on_join_resource(:tag_id)
+      source_attribute_on_join_resource(:tag_id)
+      destination_attribute_on_join_resource(:player_id)
       public?(true)
     end
   end
@@ -81,40 +79,21 @@ defmodule TennisTracker.Tennis.Player do
   actions do
     read :read do
       primary?(true)
+      prepare(build(sort: [name: :asc]))
     end
 
     create :create do
       primary?(true)
-
-      accept([
-        :name,
-        :email,
-        :phone_number,
-        :ntrp_rating,
-        :group_id
-      ])
+      accept([:name, :group_id, :tag_category_id])
     end
 
     update :update do
       primary?(true)
-
-      accept([
-        :name,
-        :email,
-        :phone_number,
-        :ntrp_rating
-      ])
+      accept([:name])
     end
 
     destroy :destroy do
       primary?(true)
-    end
-  end
-
-  validations do
-    validate attribute_in(:ntrp_rating, TennisTracker.Tennis.NtrpLevels.player_levels()) do
-      where([present(:ntrp_rating)])
-      message("must be a valid NTRP rating (2.5, 3.0, 3.5, 4.0, 4.5, or 5.0)")
     end
   end
 

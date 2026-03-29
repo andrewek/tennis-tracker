@@ -46,6 +46,16 @@ defmodule TennisTracker.Tennis.LocationTest do
       location = Factory.location(group: grp, google_maps_url: "https://maps.google.com/?q=test")
       assert location.google_maps_url == "https://maps.google.com/?q=test"
     end
+
+    test "rejects duplicate name within the same group", %{group: grp, user: usr} do
+      Factory.location(group: grp, name: "Duplicate Court")
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Tennis.create_location(%{name: "Duplicate Court", group_id: grp.id},
+                 tenant: grp.id,
+                 actor: usr
+               )
+    end
   end
 
   describe "update" do

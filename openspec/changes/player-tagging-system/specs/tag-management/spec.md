@@ -120,10 +120,10 @@ A tag management page SHALL be accessible at `/g/:group_slug/settings/tags`. The
 A `Tennis.seed_preset_tags!/1` domain function SHALL create a standard set of tag categories and tags for a given group. This function is called from `priv/repo/seeds.exs` for local development. For production groups, it can be invoked via an `iex` shell or AshAdmin. Automatic triggering on group creation is deferred.
 
 The preset taxonomy is:
-- Age Group: 18+ Eligible, 40+ Eligible, 55+ Eligible, 65+ Eligible, 70+ Eligible
+- Age Group: 18+, 40+, 55+, 65+, 70+
 - League Gender: Women's Leagues, Men's Leagues, Mixed Leagues
 - NTRP: Can Play Up, Appealing Down
-- Availability: Active, Sitting Out, Medical Hold, Roster Fill Only, Limited Availability, Last Resort
+- Availability: Active, Sitting Out, Medical Hold, Roster Fill Only, Limited Availability, Inactive
 - Role: Willing to Captain, Sub Only
 - Pipeline: Prospective, Needs Follow-up, Incomplete Record
 

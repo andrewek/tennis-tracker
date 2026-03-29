@@ -67,6 +67,12 @@ defmodule TennisTrackerWeb.Router do
       live "/g/:group_slug/settings/locations", Settings.Locations.IndexLive, :index
       live "/g/:group_slug/settings/locations/new", Settings.Locations.FormLive, :new
       live "/g/:group_slug/settings/locations/:id/edit", Settings.Locations.FormLive, :edit
+
+      live "/g/:group_slug/settings/tags", Settings.TagsLive, :index
+
+      live "/g/:group_slug/settings/season-rules", Settings.SeasonRules.IndexLive, :index
+      live "/g/:group_slug/settings/season-rules/new", Settings.SeasonRules.FormLive, :new
+      live "/g/:group_slug/settings/season-rules/:id/edit", Settings.SeasonRules.FormLive, :edit
     end
 
     auth_routes AuthController, TennisTracker.Accounts.User, path: "/auth"

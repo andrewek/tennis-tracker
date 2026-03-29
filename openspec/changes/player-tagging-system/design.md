@@ -82,7 +82,7 @@ No production data exists; all records are seed data. A full `mix ecto.reset` is
 
 Only the include tag selection is reflected in the player list URL: `tags[]=<uuid>&tags[]=<uuid>`. The `show_untagged` toggles are transient UI state and are not URL-encoded — they reset on page load. The exclude list is deferred (see D5).
 
-Using IDs (rather than names) makes URLs durable across tag renames, avoids URL-encoding issues with special characters in tag names (e.g., "40+ Eligible", "Women's Leagues"), and eliminates the need to disambiguate same-name tags across categories. The LiveView resolves IDs back to tag records using the already-loaded `@tag_categories` assign. URLs are less human-readable but more robust.
+Using IDs (rather than names) makes URLs durable across tag renames, avoids URL-encoding issues with special characters in tag names (e.g., "40+", "Women's Leagues"), and eliminates the need to disambiguate same-name tags across categories. The LiveView resolves IDs back to tag records using the already-loaded `@tag_categories` assign. URLs are less human-readable but more robust.
 
 **Alternative considered:** `tag[category]=name` style params using tag names. Rejected: tag names may contain characters that require percent-encoding ("+", apostrophes, spaces), making URLs fragile and harder to share; renames would silently break bookmarked URLs; disambiguation of same-name tags across categories adds complexity.
 

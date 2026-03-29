@@ -68,6 +68,13 @@ defmodule TennisTracker.Tennis.SeasonRules do
       allow_nil?(false)
       public?(true)
     end
+
+    many_to_many :default_tags, TennisTracker.Tennis.Tag do
+      through(TennisTracker.Tennis.SeasonRulesDefaultTag)
+      source_attribute_on_join_resource(:season_rules_id)
+      destination_attribute_on_join_resource(:tag_id)
+      public?(true)
+    end
   end
 
   actions do

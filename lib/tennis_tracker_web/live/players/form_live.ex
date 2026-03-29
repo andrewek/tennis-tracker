@@ -17,6 +17,8 @@ defmodule TennisTrackerWeb.Players.FormLive do
     socket
     |> assign(:ntrp_options, @ntrp_options)
     |> assign(:player_id, nil)
+    |> assign(:tag_categories, [])
+    |> assign(:selected_tag_ids, [])
     |> ok()
   end
 
@@ -24,7 +26,9 @@ defmodule TennisTrackerWeb.Players.FormLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    {form, player_id} =
+    tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+
+    {form, player_id, selected_tag_ids} =
       case socket.assigns.live_action do
         :new ->
           form =
@@ -35,10 +39,15 @@ defmodule TennisTrackerWeb.Players.FormLive do
             )
             |> to_form()
 
-          {form, nil}
+          {form, nil, []}
 
         :edit ->
-          player = Tennis.get_player!(params["id"], tenant: group_id, actor: current_user)
+          player =
+            Tennis.get_player!(params["id"],
+              tenant: group_id,
+              actor: current_user,
+              load: [:tags]
+            )
 
           form =
             AshPhoenix.Form.for_update(player, :update,
@@ -48,12 +57,14 @@ defmodule TennisTrackerWeb.Players.FormLive do
             )
             |> to_form()
 
-          {form, player.id}
+          {form, player.id, Enum.map(player.tags, & &1.id)}
       end
 
     socket
     |> assign(:form, form)
     |> assign(:player_id, player_id)
+    |> assign(:tag_categories, tag_categories)
+    |> assign(:selected_tag_ids, selected_tag_ids)
     |> noreply()
   end
 
@@ -95,9 +106,30 @@ defmodule TennisTrackerWeb.Players.FormLive do
           options={@ntrp_options}
           prompt="Select a rating"
         />
-        <.input field={@form[:eligible_18_plus]} type="checkbox" label="18+ Eligible?" />
-        <.input field={@form[:eligible_40_plus]} type="checkbox" label="40+ Eligible?" />
-        <.input field={@form[:eligible_55_plus]} type="checkbox" label="55+ Eligible?" />
+
+        <%!-- Tag checkboxes grouped by category --%>
+        <div :if={@tag_categories != []} class="mt-4 space-y-3">
+          <p class="text-sm font-medium">Tags</p>
+          <%= for category <- @tag_categories do %>
+            <div>
+              <p class="text-xs text-base-content/60 mb-1">{category.name}</p>
+              <div class="flex flex-wrap gap-2">
+                <%= for tag <- category.tags do %>
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="tag_ids[]"
+                      value={tag.id}
+                      checked={tag.id in @selected_tag_ids}
+                      class="checkbox checkbox-sm"
+                    />
+                    <span class="text-sm">{tag.name}</span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
 
         <div class="mt-6 flex gap-4">
           <.button type="submit" variant="primary">
@@ -118,13 +150,35 @@ defmodule TennisTrackerWeb.Players.FormLive do
     |> noreply()
   end
 
-  def handle_event("save", %{"form" => params}, socket) do
+  def handle_event("save", params, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
     group_slug = socket.assigns.current_group.slug
+    form_params = params["form"] || %{}
+    submitted_tag_ids = params["tag_ids"] || []
 
-    case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
+    submitted_tag_ids =
+      if is_list(submitted_tag_ids), do: submitted_tag_ids, else: [submitted_tag_ids]
+
+    case AshPhoenix.Form.submit(socket.assigns.form, params: form_params) do
       {:ok, player} ->
+        current_tag_ids = socket.assigns.selected_tag_ids
+        added = submitted_tag_ids -- current_tag_ids
+        removed = current_tag_ids -- submitted_tag_ids
+
+        tag_errors =
+          (Enum.map(added, &Tennis.add_player_tag(player.id, &1, tenant: group_id, actor: current_user)) ++
+             Enum.map(removed, &Tennis.remove_player_tag(player.id, &1, tenant: group_id, actor: current_user)))
+          |> Enum.filter(&match?({:error, _}, &1))
+
+        socket =
+          if tag_errors == [] do
+            put_flash(socket, :info, "Player saved.")
+          else
+            put_flash(socket, :error, "Player saved, but some tag changes could not be applied.")
+          end
+
         socket
-        |> put_flash(:info, "Player saved.")
         |> push_navigate(to: ~p"/g/#{group_slug}/players/#{player.id}")
         |> noreply()
 

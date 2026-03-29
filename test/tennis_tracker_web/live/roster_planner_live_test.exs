@@ -289,13 +289,13 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
   end
 
   # ---------------------------------------------------------------------------
-  # 8.x — Eligibility filtering for Unassigned column
+  # Unassigned column — player pool
   # ---------------------------------------------------------------------------
 
-  describe "eligibility filtering" do
-    test "eligible player with matching NTRP appears in Unassigned", %{conn: conn, group: grp} do
+  describe "unassigned player pool" do
+    test "unassigned player appears in Unassigned column", %{conn: conn, group: grp} do
       tt = Factory.team_type(group: grp)
-      player = Factory.player(group: grp, name: "Alex Eligible", ntrp_rating: Decimal.new("3.5"))
+      player = Factory.player(group: grp, name: "Alex Player", ntrp_rating: Decimal.new("3.5"))
 
       {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
@@ -303,29 +303,27 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
-    test "over-rated player is excluded from Unassigned", %{conn: conn, group: grp} do
+    test "players outside the team type's allowed NTRP levels are excluded from Unassigned", %{
+      conn: conn,
+      group: grp
+    } do
+      # Default team type has allowed_ntrp_levels [3.0, 3.5]; 4.0 is ineligible
       tt = Factory.team_type(group: grp)
-      # 4.0 is not in allowed_ntrp_levels [3.0, 3.5] for this team type
-      player = Factory.player(group: grp, name: "Zara Overrated", ntrp_rating: Decimal.new("4.0"))
+
+      over_rated =
+        Factory.player(group: grp, name: "Zara Overrated", ntrp_rating: Decimal.new("4.0"))
+
+      eligible =
+        Factory.player(group: grp, name: "Zara Eligible", ntrp_rating: Decimal.new("3.5"))
 
       {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
-      refute has_element?(view, "#col-unassigned #player-#{player.id}")
+      refute has_element?(view, "#col-unassigned #player-#{over_rated.id}")
+      assert has_element?(view, "#col-unassigned #player-#{eligible.id}")
     end
 
-    test "under-rated player is excluded from Unassigned", %{conn: conn, group: grp} do
-      tt = Factory.team_type(group: grp, traits: [:_40], name: "18+ 4.0")
-      # 3.0 is below the 4.0 team's allowed levels
-      player = Factory.player(group: grp, name: "Ben Underrated", ntrp_rating: Decimal.new("3.0"))
-
-      {:ok, view, _html} =
-        live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
-
-      refute has_element?(view, "#col-unassigned #player-#{player.id}")
-    end
-
-    test "nil-rated age-eligible player appears in Unassigned", %{conn: conn, group: grp} do
+    test "nil-rated player appears in Unassigned", %{conn: conn, group: grp} do
       tt = Factory.team_type(group: grp)
       player = Factory.player(group: grp, traits: [:unrated], name: "Cam Unrated")
 
@@ -335,25 +333,14 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       assert has_element?(view, "#col-unassigned #player-#{player.id}")
     end
 
-    test "age-ineligible player is excluded from Unassigned", %{conn: conn, group: grp} do
-      tt = Factory.team_type(group: grp)
-      player = Factory.player(group: grp, traits: [:ineligible], name: "Dana Ineligible")
-
-      {:ok, view, _html} =
-        live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
-
-      refute has_element?(view, "#col-unassigned #player-#{player.id}")
-    end
-
-    test "ineligible player already assigned to a team still appears in their team column", %{
+    test "player already assigned to a team appears in their team column, not Unassigned", %{
       conn: conn,
       group: grp,
       user: usr
     } do
       tt = Factory.team_type(group: grp)
-      # 4.5 is not in allowed_ntrp_levels for this 3.5 team type
-      player = Factory.player(group: grp, name: "Eve Assigned", ntrp_rating: Decimal.new("4.5"))
-      team = Factory.team(group: grp, team_type: tt, name: "Team Ineligible")
+      player = Factory.player(group: grp, name: "Eve Assigned", ntrp_rating: Decimal.new("3.5"))
+      team = Factory.team(group: grp, team_type: tt, name: "Team A")
 
       Tennis.assign_player(player.id, team.id, tt.id, team.season_year,
         tenant: grp.id,

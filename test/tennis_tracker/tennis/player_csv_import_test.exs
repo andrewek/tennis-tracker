@@ -9,10 +9,10 @@ defmodule TennisTracker.Tennis.PlayerCsvImportTest do
   describe "import_csv/2" do
     test "imports a CSV with all columns", %{group: grp, user: usr} do
       csv = """
-      name,email,phone_number,ntrp_rating,eligible_18_plus,eligible_40_plus,eligible_55_plus
-      Alice,alice@example.com,555-1234,3.5,true,false,false
-      Bob,bob@example.com,555-5678,4.0,true,true,false
-      Carol,carol@example.com,,2.5,true,false,false
+      name,email,phone_number,ntrp_rating
+      Alice,alice@example.com,555-1234,3.5
+      Bob,bob@example.com,555-5678,4.0
+      Carol,carol@example.com,,2.5
       """
 
       assert {:ok, 3} = PlayerCsvImport.import_csv(csv, tenant: grp.id, actor: usr)
@@ -112,18 +112,6 @@ defmodule TennisTracker.Tennis.PlayerCsvImportTest do
       assert message =~ "ntrp_rating"
     end
 
-    test "returns error with line number for invalid boolean value", %{group: grp, user: usr} do
-      csv = """
-      name,eligible_18_plus
-      Alice,yes
-      """
-
-      assert {:error, :row_error, 2, message} =
-               PlayerCsvImport.import_csv(csv, tenant: grp.id, actor: usr)
-
-      assert message =~ "eligible_18_plus"
-    end
-
     test "imports duplicate rows without error", %{group: grp, user: usr} do
       csv = """
       name,ntrp_rating
@@ -133,35 +121,6 @@ defmodule TennisTracker.Tennis.PlayerCsvImportTest do
 
       assert {:ok, 2} = PlayerCsvImport.import_csv(csv, tenant: grp.id, actor: usr)
       assert length(Tennis.list_players!(tenant: grp.id, actor: usr)) == 2
-    end
-
-    test "applies schema defaults when optional boolean columns are absent", %{
-      group: grp,
-      user: usr
-    } do
-      csv = """
-      name
-      Alice
-      """
-
-      assert {:ok, 1} = PlayerCsvImport.import_csv(csv, tenant: grp.id, actor: usr)
-      [player] = Tennis.list_players!(tenant: grp.id, actor: usr)
-      assert player.eligible_18_plus == true
-      assert player.eligible_40_plus == false
-      assert player.eligible_55_plus == false
-    end
-
-    test "applies schema defaults for blank boolean cells", %{group: grp, user: usr} do
-      csv = """
-      name,eligible_18_plus,eligible_40_plus,eligible_55_plus
-      Alice,,,
-      """
-
-      assert {:ok, 1} = PlayerCsvImport.import_csv(csv, tenant: grp.id, actor: usr)
-      [player] = Tennis.list_players!(tenant: grp.id, actor: usr)
-      assert player.eligible_18_plus == true
-      assert player.eligible_40_plus == false
-      assert player.eligible_55_plus == false
     end
 
     test "treats blank ntrp_rating as nil", %{group: grp, user: usr} do

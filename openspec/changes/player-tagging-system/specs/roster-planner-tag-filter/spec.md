@@ -21,7 +21,7 @@ The planning board tag filter (applied to the Unassigned column) SHALL use the s
 - **THEN** only players with at least one of those tags appear in Unassigned
 
 #### Scenario: Multi-category AND filter
-- **WHEN** the captain selects "40+ Eligible" in Age Group AND "Women's Leagues" in League Gender
+- **WHEN** the captain selects "40+" in Age Group AND "Women's Leagues" in League Gender
 - **THEN** only players matching both facets appear in Unassigned
 
 #### Scenario: Inactive facet does not filter
@@ -34,9 +34,9 @@ The planner tag filter SHALL have a per-facet "show untagged" toggle for every c
 **State persistence:** The `show_untagged` value for a facet persists in session state even when the facet becomes inactive (i.e., its last tag is deselected). If a captain re-activates a facet by selecting a tag, the previous `show_untagged` value is restored and the toggle becomes interactive again. On page refresh, all `show_untagged` toggles reset to false (they are not persisted in the database).
 
 #### Scenario: Show untagged includes tag-less players for that facet
-- **WHEN** the captain has "40+ Eligible" selected in Age Group AND enables "show untagged" for Age Group
-- **THEN** players with the "40+ Eligible" tag AND players with no Age Group tags at all are shown
-- **AND** players with a different Age Group tag (e.g., "18+ Eligible" only) are still excluded
+- **WHEN** the captain has "40+" selected in Age Group AND enables "show untagged" for Age Group
+- **THEN** players with the "40+" tag AND players with no Age Group tags at all are shown
+- **AND** players with a different Age Group tag (e.g., "18+" only) are still excluded
 
 #### Scenario: Show untagged for one facet does not affect another
 - **WHEN** "show untagged" is enabled for Age Group but not League Gender

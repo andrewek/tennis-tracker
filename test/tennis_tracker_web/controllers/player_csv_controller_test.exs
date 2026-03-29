@@ -35,8 +35,7 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
 
       [header_line | _] = String.split(conn.resp_body, "\n")
 
-      assert header_line ==
-               "name,ntrp_rating,email,phone_number,eligible_18_plus,eligible_40_plus,eligible_55_plus"
+      assert header_line == "name,ntrp_rating,email,phone_number"
     end
 
     test "returns all players when no filters", %{conn: conn, group: grp} do
@@ -60,24 +59,12 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
       assert rows == []
     end
 
-    test "filters by NTRP and bracket", %{conn: conn, group: grp} do
-      Factory.player(
-        group: grp,
-        name: "Alice",
-        ntrp_rating: Decimal.new("3.5"),
-        eligible_55_plus: true
-      )
+    test "filters by NTRP", %{conn: conn, group: grp} do
+      Factory.player(group: grp, name: "Alice", ntrp_rating: Decimal.new("3.5"))
+      Factory.player(group: grp, name: "Bob", ntrp_rating: Decimal.new("4.0"))
+      Factory.player(group: grp, name: "Carol", ntrp_rating: Decimal.new("4.5"))
 
-      Factory.player(
-        group: grp,
-        name: "Bob",
-        ntrp_rating: Decimal.new("4.0"),
-        eligible_55_plus: true
-      )
-
-      Factory.player(group: grp, name: "Carol", ntrp_rating: Decimal.new("3.5"))
-
-      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv?ntrp=3.5,4.0&bracket=55")
+      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv?ntrp=3.5,4.0")
       rows = parse_csv(conn.resp_body)
       names = Enum.map(rows, & &1["name"])
 

@@ -3,7 +3,14 @@ defmodule TennisTracker.Tennis do
 
   require Ash.Query
 
-  alias TennisTracker.Tennis.{Team, TeamMembership, SeasonRules, Player}
+  alias TennisTracker.Tennis.{
+    Team,
+    TeamMembership,
+    SeasonRules,
+    SeasonRulesDefaultTag,
+    Player,
+    PlayerTag
+  }
 
   admin do
     show? true
@@ -50,6 +57,7 @@ defmodule TennisTracker.Tennis do
     Team
     |> Ash.Query.for_read(:read, %{}, actor: actor)
     |> Ash.Query.filter(team_type_id == ^team_type_id and season_year == ^season_year)
+    |> Ash.Query.load(:team_type)
     |> Ash.Query.sort(:name)
     |> Ash.read(domain: __MODULE__, tenant: tenant)
   end
@@ -154,42 +162,37 @@ defmodule TennisTracker.Tennis do
   end
 
   @doc """
-  Returns all eligible, unassigned players for a planning context, sorted by NTRP
-  descending (nils last) then name ascending.
+  Returns all unassigned players for a planning context (those with no membership
+  in this context), optionally filtered by a tag_filter map.
+
+  tag_filter shape: %{include: %{category_id => [tag_id]}, show_untagged: [category_id]}
   """
-  def list_eligible_unassigned_players(team_type, team_type_id, season_year, opts \\ []) do
+  def list_unassigned_players(team_type_id, season_year, opts \\ []) do
     tenant = Keyword.fetch!(opts, :tenant)
     actor = Keyword.fetch!(opts, :actor)
-    allowed_levels = team_type.allowed_ntrp_levels
+    tag_filter = Keyword.get(opts, :tag_filter, %{include: %{}, show_untagged: []})
+    allowed_ntrp_levels = Keyword.get(opts, :allowed_ntrp_levels, [])
 
-    age_query =
-      case team_type.age_group do
-        "18_plus" ->
-          Player
-          |> Ash.Query.for_read(:read, %{}, actor: actor)
-          |> Ash.Query.filter(eligible_18_plus == true)
-
-        "40_plus" ->
-          Player
-          |> Ash.Query.for_read(:read, %{}, actor: actor)
-          |> Ash.Query.filter(eligible_40_plus == true)
-
-        _ ->
-          Player
-          |> Ash.Query.for_read(:read, %{}, actor: actor)
-          |> Ash.Query.filter(eligible_18_plus == true)
-      end
-
-    age_query
-    |> Ash.Query.filter(
-      (is_nil(ntrp_rating) or ntrp_rating in ^allowed_levels) and
+    query =
+      Player
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
+      |> Ash.Query.filter(
         not exists(
           team_memberships,
           team_type_id == ^team_type_id and season_year == ^season_year
         )
-    )
-    |> Ash.Query.sort(ntrp_rating: :desc_nils_last, name: :asc)
-    |> Ash.read!(domain: __MODULE__, tenant: tenant)
+      )
+      |> TennisTracker.Tennis.PlayerFilters.apply_tag_filter(tag_filter)
+      |> Ash.Query.sort(ntrp_rating: :desc_nils_last, name: :asc)
+
+    query =
+      if allowed_ntrp_levels != [] do
+        Ash.Query.filter(query, is_nil(ntrp_rating) or ntrp_rating in ^allowed_ntrp_levels)
+      else
+        query
+      end
+
+    Ash.read!(query, domain: __MODULE__, tenant: tenant)
   end
 
   @doc """
@@ -237,7 +240,133 @@ defmodule TennisTracker.Tennis do
     end
   end
 
+  @doc """
+  Adds a tag to a player. Creates a PlayerTag record.
+  """
+  def add_player_tag(player_id, tag_id, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    PlayerTag
+    |> Ash.Changeset.for_create(
+      :create,
+      %{player_id: player_id, tag_id: tag_id, group_id: tenant},
+      domain: __MODULE__,
+      actor: actor,
+      tenant: tenant
+    )
+    |> Ash.create(upsert?: true, upsert_identity: :unique_player_tag)
+  end
+
+  @doc """
+  Removes a tag from a player. Destroys the matching PlayerTag record.
+  """
+  def remove_player_tag(player_id, tag_id, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    case PlayerTag
+         |> Ash.Query.for_read(:read, %{}, actor: actor)
+         |> Ash.Query.filter(player_id == ^player_id and tag_id == ^tag_id)
+         |> Ash.read_one(domain: __MODULE__, tenant: tenant) do
+      {:ok, nil} -> {:ok, nil}
+      {:ok, record} -> Ash.destroy(record, domain: __MODULE__, actor: actor, tenant: tenant)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Syncs the default_tags for a SeasonRules record.
+  Replaces the full set of SeasonRulesDefaultTag records with the provided tag_id list,
+  creating new records for added tags and destroying records for removed tags.
+  """
+  def sync_season_rules_default_tags(season_rules_id, tag_ids, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    existing =
+      SeasonRulesDefaultTag
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
+      |> Ash.Query.filter(season_rules_id == ^season_rules_id)
+      |> Ash.read!(domain: __MODULE__, tenant: tenant)
+
+    existing_tag_ids = Enum.map(existing, & &1.tag_id)
+    desired_tag_ids = tag_ids
+
+    to_add = desired_tag_ids -- existing_tag_ids
+    to_remove = existing_tag_ids -- desired_tag_ids
+
+    with :ok <- sync_add_default_tags(to_add, season_rules_id, tenant, actor),
+         :ok <- sync_remove_default_tags(to_remove, existing, tenant, actor) do
+      :ok
+    end
+  end
+
+  defp sync_add_default_tags(tag_ids, season_rules_id, tenant, actor) do
+    Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
+      result =
+        SeasonRulesDefaultTag
+        |> Ash.Changeset.for_create(
+          :create,
+          %{season_rules_id: season_rules_id, tag_id: tag_id, group_id: tenant},
+          domain: __MODULE__,
+          actor: actor,
+          tenant: tenant
+        )
+        |> Ash.create(upsert?: true, upsert_identity: :unique_season_rules_tag)
+
+      case result do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp sync_remove_default_tags(tag_ids, existing, tenant, actor) do
+    Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
+      case Enum.find(existing, &(&1.tag_id == tag_id)) do
+        nil ->
+          {:cont, :ok}
+
+        record ->
+          case Ash.destroy(record, domain: __MODULE__, actor: actor, tenant: tenant) do
+            :ok -> {:cont, :ok}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+      end
+    end)
+  end
+
   resources do
+    resource TennisTracker.Tennis.TagCategory do
+      define(:list_tag_categories, action: :read)
+      define(:create_tag_category, action: :create)
+      define(:get_tag_category, action: :read, get_by: [:id])
+      define(:update_tag_category, action: :update)
+      define(:destroy_tag_category, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.Tag do
+      define(:list_tags, action: :read)
+      define(:list_tags_for_category, action: :read)
+      define(:get_tag, action: :read, get_by: [:id])
+      define(:create_tag, action: :create)
+      define(:update_tag, action: :update)
+      define(:destroy_tag, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.PlayerTag do
+      define(:list_player_tags, action: :read)
+      define(:create_player_tag, action: :create)
+      define(:destroy_player_tag, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.SeasonRulesDefaultTag do
+      define(:list_season_rules_default_tags, action: :read)
+      define(:create_season_rules_default_tag, action: :create)
+      define(:destroy_season_rules_default_tag, action: :destroy)
+    end
+
     resource TennisTracker.Tennis.Location do
       define(:list_locations, action: :list_locations)
       define(:list_archived_locations, action: :archived)
@@ -287,7 +416,11 @@ defmodule TennisTracker.Tennis do
     end
 
     resource TennisTracker.Tennis.SeasonRules do
+      define(:list_season_rules, action: :read)
+      define(:get_season_rules, action: :read, get_by: [:id])
       define(:create_season_rules, action: :create)
+      define(:update_season_rules, action: :update)
+      define(:destroy_season_rules, action: :destroy)
     end
 
     resource TennisTracker.Tennis.Team do

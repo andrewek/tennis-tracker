@@ -3,10 +3,31 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias TennisTracker.Tennis
+  alias TennisTracker.Tennis.{Tag, TagCategory}
+
+  require Ash.Query
+
   setup :setup_group
 
   setup %{conn: conn, user: user} do
     {:ok, conn: log_in_user(conn, user)}
+  end
+
+  defp create_category(grp, name) do
+    Ash.create!(TagCategory, %{name: name, group_id: grp.id},
+      domain: Tennis,
+      tenant: grp.id,
+      authorize?: false
+    )
+  end
+
+  defp create_tag(grp, category, name) do
+    Ash.create!(Tag, %{name: name, group_id: grp.id, tag_category_id: category.id},
+      domain: Tennis,
+      tenant: grp.id,
+      authorize?: false
+    )
   end
 
   describe "\"No rating\" filter" do
@@ -58,6 +79,83 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
 
       assert html =~ "Rated"
       assert html =~ "Unrated"
+    end
+  end
+
+  describe "tag filter" do
+    test "toggling a tag shows only players with that tag", %{conn: conn, group: grp, user: usr} do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+      _bob = Factory.player(group: grp, name: "Bob")
+
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players")
+
+      html =
+        render_click(view, "toggle_tag", %{
+          "category_id" => category.id,
+          "tag_id" => tag.id
+        })
+
+      assert html =~ "Alice"
+      refute html =~ "Bob"
+    end
+
+    test "clear all filters resets tag filter", %{conn: conn, group: grp, user: usr} do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+      _bob = Factory.player(group: grp, name: "Bob")
+
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players")
+
+      render_click(view, "toggle_tag", %{"category_id" => category.id, "tag_id" => tag.id})
+      html = render_click(view, "clear_filter", %{})
+
+      assert html =~ "Alice"
+      assert html =~ "Bob"
+    end
+
+    test "tag IDs are URL-encoded as tags[] params", %{conn: conn, group: grp, user: usr} do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      # Load page with tag param in URL
+      {:ok, _view, html} =
+        live(conn, ~p"/g/#{grp.slug}/players?tags[]=#{tag.id}")
+
+      assert html =~ "Alice"
+    end
+
+    test "show_untagged toggle includes players without that category tag", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+      _bob = Factory.player(group: grp, name: "Bob")
+
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players")
+
+      # First activate the facet
+      render_click(view, "toggle_tag", %{"category_id" => category.id, "tag_id" => tag.id})
+
+      # Then toggle show_untagged
+      html = render_click(view, "toggle_show_untagged", %{"category_id" => category.id})
+
+      assert html =~ "Alice"
+      assert html =~ "Bob"
     end
   end
 

@@ -15,33 +15,45 @@ defmodule TennisTracker.Tennis.PlayerFilters do
   Params:
     - `name_search` – partial, case-insensitive name match (empty string = no filter)
     - `ntrp_filter` – list of NTRP rating strings, e.g. `["3.5", "4.0"]`; use `"none"` to include unrated players
-    - `bracket_filter` – list of age bracket strings: `"18"`, `"40"`, `"55"`
+    - `tag_filter` – map with keys:
+        - `:include` – `%{category_id => [tag_id]}` (OR within category, AND between categories)
+        - `:show_untagged` – list of category_ids; include players with no tags in that category
     - `ntrp_sort` – `:asc_nils_first` or `:desc_nils_last` (default `:desc_nils_last`)
 
   Options (keyword list):
     - `tenant:` – required group_id for multitenancy
     - `actor:` – required actor for authorization
   """
-  def fetch_players(name_search, ntrp_filter, bracket_filter, opts_or_sort \\ :desc_nils_last)
+  def fetch_players(name_search, ntrp_filter, tag_filter, opts_or_sort \\ :desc_nils_last)
 
-  def fetch_players(name_search, ntrp_filter, bracket_filter, opts) when is_list(opts) do
+  def fetch_players(name_search, ntrp_filter, tag_filter, opts) when is_list(opts) do
     ntrp_sort = Keyword.get(opts, :ntrp_sort, :desc_nils_last)
+    load = Keyword.get(opts, :load, [])
     ash_opts = Keyword.take(opts, [:tenant, :actor])
 
-    Player
-    |> maybe_filter_name(name_search)
-    |> maybe_filter_ntrp(ntrp_filter)
-    |> maybe_filter_bracket(bracket_filter)
-    |> Ash.Query.sort(ntrp_rating: ntrp_sort, name: :asc)
-    |> Ash.read!(Keyword.merge([domain: Tennis], ash_opts))
+    query =
+      Player
+      |> maybe_filter_name(name_search)
+      |> maybe_filter_ntrp(ntrp_filter)
+      |> apply_tag_filter(tag_filter)
+      |> Ash.Query.sort(ntrp_rating: ntrp_sort, name: :asc)
+
+    query =
+      if load != [] do
+        Ash.Query.load(query, load)
+      else
+        query
+      end
+
+    Ash.read!(query, Keyword.merge([domain: Tennis], ash_opts))
   end
 
-  def fetch_players(name_search, ntrp_filter, bracket_filter, ntrp_sort)
+  def fetch_players(name_search, ntrp_filter, tag_filter, ntrp_sort)
       when is_atom(ntrp_sort) do
     Player
     |> maybe_filter_name(name_search)
     |> maybe_filter_ntrp(ntrp_filter)
-    |> maybe_filter_bracket(bracket_filter)
+    |> apply_tag_filter(tag_filter)
     |> Ash.Query.sort(ntrp_rating: ntrp_sort, name: :asc)
     |> Ash.read!(domain: Tennis)
   end
@@ -81,15 +93,33 @@ defmodule TennisTracker.Tennis.PlayerFilters do
     end
   end
 
-  defp maybe_filter_bracket(query, []), do: query
+  # No active facets — return query unmodified
+  def apply_tag_filter(query, nil), do: query
+  def apply_tag_filter(query, %{include: include}) when map_size(include) == 0, do: query
 
-  defp maybe_filter_bracket(query, brackets) do
-    Enum.reduce(brackets, query, fn bracket, q ->
-      case bracket do
-        "18" -> Ash.Query.filter(q, eligible_18_plus == true)
-        "40" -> Ash.Query.filter(q, eligible_40_plus == true)
-        "55" -> Ash.Query.filter(q, eligible_55_plus == true)
+  def apply_tag_filter(query, %{include: include, show_untagged: show_untagged}) do
+    # For each active category (those with at least one tag selected), apply:
+    # OR within the category (player has at least one of the selected tags)
+    # AND between categories (all active categories must match, with show_untagged exception)
+    Enum.reduce(include, query, fn {category_id, tag_ids}, q ->
+      if tag_ids == [] do
+        q
+      else
+        show_untagged_for_this = category_id in show_untagged
+
+        if show_untagged_for_this do
+          # Include players with the selected tags OR with no tags in this category
+          Ash.Query.filter(
+            q,
+            exists(tags, id in ^tag_ids) or
+              not exists(tags, tag_category_id == ^category_id)
+          )
+        else
+          # Include only players with at least one of the selected tags
+          Ash.Query.filter(q, exists(tags, id in ^tag_ids))
+        end
       end
     end)
   end
+
 end

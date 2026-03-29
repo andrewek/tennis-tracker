@@ -18,10 +18,14 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     team_types = Tennis.list_team_types!(tenant: group_id, actor: current_user)
     planning_contexts = Tennis.list_planning_contexts(tenant: group_id, actor: current_user)
 
+    tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+
     socket
     |> assign(:page_title, "Roster Planner")
     |> assign(:team_types, team_types)
     |> assign(:planning_contexts, planning_contexts)
+    |> assign(:tag_categories, tag_categories)
+    |> assign(:tag_filter, %{include: %{}, show_untagged: []})
     |> assign(:show_create_form, false)
     |> assign(:context, nil)
     |> assign(:board, nil)
@@ -62,13 +66,38 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             actor: current_user
           )
 
+        season_rules_with_tags =
+          if season_rules do
+            case Ash.load(season_rules, [default_tags: [:tag_category]],
+                   domain: Tennis,
+                   tenant: group_id,
+                   actor: current_user
+                 ) do
+              {:ok, loaded} -> loaded
+              _ -> season_rules
+            end
+          end
+
+        # Initialize tag_filter include facets from season_rules.default_tags
+        initial_tag_filter =
+          if season_rules_with_tags && season_rules_with_tags.default_tags != [] do
+            include =
+              season_rules_with_tags.default_tags
+              |> Enum.group_by(& &1.tag_category_id, & &1.id)
+
+            %{include: include, show_untagged: []}
+          else
+            %{include: %{}, show_untagged: []}
+          end
+
         board =
           load_board(
             team_type_id,
             season_year,
             pseudo_team,
-            team_type,
             season_rules,
+            initial_tag_filter,
+            team_type.allowed_ntrp_levels,
             group_id,
             current_user
           )
@@ -79,8 +108,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           team_type_id: team_type_id,
           season_year: season_year,
           pseudo_team: pseudo_team,
-          season_rules: season_rules
+          season_rules: season_rules_with_tags || season_rules
         })
+        |> assign(:tag_filter, initial_tag_filter)
         |> assign(:board, board)
         |> noreply()
 
@@ -309,6 +339,36 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     end
   end
 
+  def handle_event(
+        "toggle_planner_tag",
+        %{"category_id" => category_id, "tag_id" => tag_id},
+        socket
+      ) do
+    tag_filter = socket.assigns.tag_filter
+
+    updated_include =
+      tag_filter.include
+      |> Map.update(category_id, [tag_id], fn tags ->
+        if tag_id in tags, do: List.delete(tags, tag_id), else: [tag_id | tags]
+      end)
+      |> Map.reject(fn {_, v} -> v == [] end)
+
+    new_filter = %{tag_filter | include: updated_include}
+    update_tag_filter(socket, new_filter)
+  end
+
+  def handle_event("toggle_planner_show_untagged", %{"category_id" => category_id}, socket) do
+    tag_filter = socket.assigns.tag_filter
+
+    updated_show =
+      if category_id in tag_filter.show_untagged,
+        do: List.delete(tag_filter.show_untagged, category_id),
+        else: [category_id | tag_filter.show_untagged]
+
+    new_filter = %{tag_filter | show_untagged: updated_show}
+    update_tag_filter(socket, new_filter)
+  end
+
   def handle_event("confirm_delete_team", %{"team_id" => team_id}, socket) do
     ctx = socket.assigns.context
     group_id = socket.assigns.current_group_id
@@ -350,6 +410,29 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
   # Board helpers
   # ---------------------------------------------------------------------------
 
+  defp update_tag_filter(socket, new_filter) do
+    ctx = socket.assigns.context
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    board =
+      load_board(
+        ctx.team_type_id,
+        ctx.season_year,
+        ctx.pseudo_team,
+        ctx.season_rules,
+        new_filter,
+        ctx.team_type.allowed_ntrp_levels,
+        group_id,
+        current_user
+      )
+
+    socket
+    |> assign(:tag_filter, new_filter)
+    |> assign(:board, board)
+    |> noreply()
+  end
+
   defp topic(group_id, team_type_id, season_year),
     do: "roster:#{group_id}:#{team_type_id}:#{season_year}"
 
@@ -380,8 +463,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         ctx.team_type_id,
         ctx.season_year,
         ctx.pseudo_team,
-        ctx.team_type,
         ctx.season_rules,
+        socket.assigns.tag_filter,
+        ctx.team_type.allowed_ntrp_levels,
         group_id,
         current_user
       )
@@ -393,8 +477,9 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
          team_type_id,
          season_year,
          pseudo_team,
-         team_type,
          season_rules,
+         tag_filter,
+         allowed_ntrp_levels,
          group_id,
          current_user
        ) do
@@ -413,9 +498,11 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     real_teams = Enum.reject(all_teams, & &1.is_pseudo)
 
     unassigned =
-      Tennis.list_eligible_unassigned_players(team_type, team_type_id, season_year,
+      Tennis.list_unassigned_players(team_type_id, season_year,
         tenant: group_id,
-        actor: current_user
+        actor: current_user,
+        tag_filter: tag_filter,
+        allowed_ntrp_levels: allowed_ntrp_levels
       )
 
     not_participating =
@@ -432,9 +519,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           |> Enum.map(& &1.player)
           |> Enum.sort_by(& &1.name)
 
-        team_with_type = Map.put(team, :team_type, team_type)
-
-        health = RosterHealth.check(team_with_type, players, season_rules)
+        health = RosterHealth.check(team, players, season_rules)
 
         player_violation_ids =
           health
@@ -611,13 +696,23 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
         <%!-- Planning board --%>
         <div :if={@board} class="flex-1 min-h-0 flex flex-col">
           <%!-- Board toolbar --%>
-          <div class="flex items-center gap-6 mb-4 px-4 flex-shrink-0">
-            <.link
-              navigate={~p"/g/#{@current_group.slug}/roster-planner"}
-              class="btn btn-sm btn-ghost"
-            >
-              <.icon name="hero-arrow-left" class="size-4" /> Change context
-            </.link>
+          <div class="mb-4 px-4 flex-shrink-0 space-y-2">
+            <div class="flex items-center gap-6">
+              <.link
+                navigate={~p"/g/#{@current_group.slug}/roster-planner"}
+                class="btn btn-sm btn-ghost"
+              >
+                <.icon name="hero-arrow-left" class="size-4" /> Change context
+              </.link>
+            </div>
+
+            <%!-- Tag filter facets --%>
+            <.tag_filter_facets
+              tag_categories={@tag_categories}
+              tag_filter={@tag_filter}
+              on_toggle_tag="toggle_planner_tag"
+              on_toggle_untagged="toggle_planner_show_untagged"
+            />
           </div>
 
           <%!-- Board columns --%>

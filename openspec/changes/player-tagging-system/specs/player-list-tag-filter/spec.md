@@ -8,7 +8,7 @@ The player list filter SHALL support tag-based filtering using faceted search se
 - **THEN** only players with at least one of those tags are shown
 
 #### Scenario: Multi-category filter — AND semantics
-- **WHEN** the user selects "40+ Eligible" in Age Group AND "Women's Leagues" in League Gender
+- **WHEN** the user selects "40+" in Age Group AND "Women's Leagues" in League Gender
 - **THEN** only players who have the 40+ tag AND at least one of the gender tags are shown
 
 #### Scenario: Inactive facet does not filter
@@ -21,9 +21,9 @@ The player list tag filter SHALL have a per-facet "show untagged" toggle. When e
 **State persistence:** The `show_untagged` value for a facet persists in socket state even when the facet becomes inactive (i.e., its last tag is deselected). If a captain re-activates a facet by selecting a tag, the previous `show_untagged` value is restored and the toggle becomes interactive again. `show_untagged` is NOT encoded in the URL — it is transient UI state that resets on page load.
 
 #### Scenario: Show untagged includes tag-less players for that facet
-- **WHEN** the user has "40+ Eligible" selected in Age Group AND enables "show untagged" for Age Group
-- **THEN** players with the "40+ Eligible" tag AND players with no Age Group tags at all are shown
-- **AND** players with a different Age Group tag (e.g., "18+ Eligible" only) are still excluded
+- **WHEN** the user has "40+" selected in Age Group AND enables "show untagged" for Age Group
+- **THEN** players with the "40+" tag AND players with no Age Group tags at all are shown
+- **AND** players with a different Age Group tag (e.g., "18+" only) are still excluded
 
 #### Scenario: Show untagged for one facet does not affect another
 - **WHEN** "show untagged" is enabled for Age Group but not League Gender
@@ -65,7 +65,7 @@ The include tag selection SHALL be encoded in the player list URL so that filter
 - **AND** all `show_untagged` toggles start as off (they are not URL-encoded)
 
 #### Scenario: Tag with special characters in its name round-trips correctly
-- **WHEN** the user selects a tag whose name contains special characters (e.g., "40+ Eligible", "Women's Leagues")
+- **WHEN** the user selects a tag whose name contains special characters (e.g., "40+", "Women's Leagues")
 - **THEN** the URL encodes the tag's UUID, not its name, so no percent-encoding of the name is required and the URL remains clean
 
 #### Scenario: Unknown tag ID in URL is ignored

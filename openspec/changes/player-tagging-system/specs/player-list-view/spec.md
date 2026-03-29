@@ -1,7 +1,7 @@
 ## REMOVED Requirements
 
 ### Requirement: Players list displays age brackets as inline chips
-**Reason**: Age bracket eligibility is no longer stored as boolean attributes on Player. It is now represented by tags (e.g., "40+ Eligible" in the Age Group category). Tag chips replace bracket chips.
+**Reason**: Age bracket eligibility is no longer stored as boolean attributes on Player. It is now represented by tags (e.g., "40+" in the Age Group category). Tag chips replace bracket chips.
 **Migration**: Display assigned tags as inline chips next to the player's name on the index table, grouped or labeled by category if space allows. See the `player-tagging` and `player-list-tag-filter` capabilities for the replacement behavior.
 
 ## ADDED Requirements

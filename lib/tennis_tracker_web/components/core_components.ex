@@ -462,23 +462,77 @@ defmodule TennisTrackerWeb.CoreComponents do
   end
 
   @doc """
-  Renders age bracket eligibility chips for a player.
+  Renders tag chips for a player's assigned tags.
   """
-  attr :player, :map, required: true
+  attr :tags, :list, default: []
 
-  def age_bracket_chips(assigns) do
+  def tag_chips(assigns) do
     ~H"""
-    <span class="inline-flex gap-1">
-      <span :if={@player.eligible_18_plus} class="badge badge-sm age-chip-18">
-        18+
-      </span>
-      <span :if={@player.eligible_40_plus} class="badge badge-sm age-chip-40">
-        40+
-      </span>
-      <span :if={@player.eligible_55_plus} class="badge badge-sm age-chip-55">
-        55+
+    <span class="inline-flex gap-1 flex-wrap">
+      <span :for={tag <- @tags} class="badge badge-sm badge-ghost">
+        {tag.name}
       </span>
     </span>
+    """
+  end
+
+  @doc """
+  Renders tag filter facets — one row per category with toggle buttons for each tag
+  and an "Untagged" button that is only active when at least one tag in the category
+  is selected.
+
+  ## Attributes
+
+  - `tag_categories` — list of category structs, each with `.id`, `.name`, and `.tags`
+  - `tag_filter` — map with keys `:include` (`%{category_id => [tag_id]}`) and
+    `:show_untagged` (list of category ids)
+  - `on_toggle_tag` — `phx-click` event name for toggling a tag
+  - `on_toggle_untagged` — `phx-click` event name for toggling the "Untagged" button
+
+  Both events receive `phx-value-category_id` and `phx-value-tag_id` (tag events only).
+  """
+  attr :tag_categories, :list, required: true
+  attr :tag_filter, :map, required: true
+  attr :on_toggle_tag, :string, required: true
+  attr :on_toggle_untagged, :string, required: true
+
+  def tag_filter_facets(assigns) do
+    ~H"""
+    <%= for category <- @tag_categories do %>
+      <% active_tags = Map.get(@tag_filter.include, category.id, []) %>
+      <% facet_active = active_tags != [] %>
+      <% show_untagged = category.id in @tag_filter.show_untagged %>
+      <div class="flex items-start gap-1 flex-wrap">
+        <span class="text-xs text-base-content/50 w-auto mr-1 mt-0.5">{category.name}</span>
+        <%= for tag <- category.tags do %>
+          <button
+            phx-click={@on_toggle_tag}
+            phx-value-category_id={category.id}
+            phx-value-tag_id={tag.id}
+            class={[
+              "btn btn-xs",
+              tag.id in active_tags && "btn-neutral",
+              tag.id not in active_tags && "btn-ghost"
+            ]}
+          >
+            {tag.name}
+          </button>
+        <% end %>
+        <button
+          phx-click={@on_toggle_untagged}
+          phx-value-category_id={category.id}
+          disabled={not facet_active}
+          class={[
+            "btn btn-xs btn-outline",
+            show_untagged && "btn-neutral",
+            not show_untagged && "btn-ghost",
+            not facet_active && "opacity-40 cursor-not-allowed"
+          ]}
+        >
+          Untagged
+        </button>
+      </div>
+    <% end %>
     """
   end
 

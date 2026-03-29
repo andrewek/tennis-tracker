@@ -1,9 +1,10 @@
 defmodule TennisTrackerWeb.PlayerCSVController do
   use TennisTrackerWeb, :controller
 
+  alias TennisTracker.Tennis
   alias TennisTracker.Tennis.PlayerFilters
 
-  @headers ~w(name ntrp_rating email phone_number eligible_18_plus eligible_40_plus eligible_55_plus)
+  @headers ~w(name ntrp_rating email phone_number)
 
   def export(conn, params) do
     current_user = conn.assigns.current_user
@@ -11,10 +12,10 @@ defmodule TennisTrackerWeb.PlayerCSVController do
 
     name_search = params["name"] || ""
     ntrp_filter = PlayerFilters.parse_list_param(params["ntrp"])
-    bracket_filter = PlayerFilters.parse_list_param(params["bracket"])
+    tag_filter = parse_tag_filter(params["tags"], group.id, current_user)
 
     players =
-      PlayerFilters.fetch_players(name_search, ntrp_filter, bracket_filter,
+      PlayerFilters.fetch_players(name_search, ntrp_filter, tag_filter,
         tenant: group.id,
         actor: current_user
       )
@@ -29,21 +30,46 @@ defmodule TennisTrackerWeb.PlayerCSVController do
     |> send_resp(200, csv)
   end
 
+  defp parse_tag_filter(nil, _group_id, _actor), do: %{include: %{}, show_untagged: []}
+
+  defp parse_tag_filter(tag_ids, group_id, actor) when is_list(tag_ids) do
+    all_tags =
+      Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: actor)
+      |> Enum.flat_map(& &1.tags)
+
+    valid_tag_ids = MapSet.new(all_tags, & &1.id)
+
+    include =
+      tag_ids
+      |> Enum.filter(&MapSet.member?(valid_tag_ids, &1))
+      |> Enum.reduce(%{}, fn tag_id, acc ->
+        tag = Enum.find(all_tags, &(&1.id == tag_id))
+        category_id = tag && tag.tag_category_id
+
+        if category_id do
+          Map.update(acc, category_id, [tag_id], &[tag_id | &1])
+        else
+          acc
+        end
+      end)
+
+    %{include: include, show_untagged: []}
+  end
+
+  defp parse_tag_filter(tag_id, group_id, actor) when is_binary(tag_id),
+    do: parse_tag_filter([tag_id], group_id, actor)
+
   defp player_row(player) do
     [
       player.name,
       player.ntrp_rating,
       player.email,
-      player.phone_number,
-      player.eligible_18_plus,
-      player.eligible_40_plus,
-      player.eligible_55_plus
+      player.phone_number
     ]
     |> Enum.map(&csv_value/1)
   end
 
   defp csv_value(nil), do: ""
-  defp csv_value(v) when is_boolean(v), do: to_string(v)
   defp csv_value(%Decimal{} = v), do: Decimal.to_string(v)
 
   defp csv_value(v) when is_binary(v) do

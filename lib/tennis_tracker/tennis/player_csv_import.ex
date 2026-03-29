@@ -4,10 +4,9 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
   alias TennisTracker.Tennis
   alias TennisTracker.Repo
 
-  @known_columns ~w(name email phone_number ntrp_rating eligible_18_plus eligible_40_plus eligible_55_plus)
+  @known_columns ~w(name email phone_number ntrp_rating)
   @required_columns ~w(name)
   @valid_ntrp ~w(2.5 3.0 3.5 4.0 4.5 5.0)
-  @boolean_columns ~w(eligible_18_plus eligible_40_plus eligible_55_plus)
 
   @spec import_csv(binary(), keyword()) ::
           {:ok, non_neg_integer()}
@@ -94,14 +93,6 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
       {:error, :row_error, line,
        "ntrp_rating #{inspect(value)} is not valid (must be one of 2.5, 3.0, 3.5, 4.0, 4.5, 5.0)"}
     end
-  end
-
-  defp coerce_field(col, "", _line) when col in @boolean_columns, do: {:ok, nil}
-  defp coerce_field(col, "true", _line) when col in @boolean_columns, do: {:ok, true}
-  defp coerce_field(col, "false", _line) when col in @boolean_columns, do: {:ok, false}
-
-  defp coerce_field(col, value, line) when col in @boolean_columns do
-    {:error, :row_error, line, "#{col} must be \"true\" or \"false\", got #{inspect(value)}"}
   end
 
   defp insert_all(params_list, opts) do

@@ -1,0 +1,125 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"uuid_generate_v7()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": "group_id",
+          "global": true,
+          "strategy": "attribute"
+        },
+        "name": "season_rules_default_tags_season_rules_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "public",
+        "table": "season_rules"
+      },
+      "scale": null,
+      "size": null,
+      "source": "season_rules_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": "group_id",
+          "global": true,
+          "strategy": "attribute"
+        },
+        "name": "season_rules_default_tags_tag_id_fkey",
+        "on_delete": "delete",
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "public",
+        "table": "tags"
+      },
+      "scale": null,
+      "size": null,
+      "source": "tag_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "group_id",
+      "type": "uuid"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [],
+  "create_table_options": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "E7885A66B56A14179F8FDCF4881FD848A5EB66E7AA217D14BEECBDE12A7FAA48",
+  "identities": [
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "season_rules_default_tags_unique_season_rules_tag_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "season_rules_id"
+        },
+        {
+          "type": "atom",
+          "value": "tag_id"
+        }
+      ],
+      "name": "unique_season_rules_tag",
+      "nils_distinct?": true,
+      "where": null
+    }
+  ],
+  "multitenancy": {
+    "attribute": "group_id",
+    "global": true,
+    "strategy": "attribute"
+  },
+  "repo": "Elixir.TennisTracker.Repo",
+  "schema": null,
+  "table": "season_rules_default_tags"
+}

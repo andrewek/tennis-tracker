@@ -111,9 +111,6 @@ defmodule TennisTracker.Factory do
       email: "player#{n}@example.com",
       phone_number: "555-#{String.pad_leading(to_string(rem(n, 10_000)), 4, "0")}",
       ntrp_rating: Decimal.new("3.5"),
-      eligible_18_plus: true,
-      eligible_40_plus: false,
-      eligible_55_plus: false,
       group_id: grp.id
     }
 
@@ -125,11 +122,6 @@ defmodule TennisTracker.Factory do
   end
 
   defp player_trait(:unrated), do: %{ntrp_rating: nil}
-  defp player_trait(:eligible_40_plus), do: %{eligible_40_plus: true}
-  defp player_trait(:eligible_55_plus), do: %{eligible_55_plus: true}
-
-  defp player_trait(:ineligible),
-    do: %{eligible_18_plus: false, eligible_40_plus: false, eligible_55_plus: false}
 
   # ---------------------------------------------------------------------------
   # TeamType

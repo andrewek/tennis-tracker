@@ -41,7 +41,7 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
     end
 
     test "does not show pseudo team memberships", %{conn: conn, group: grp, user: usr} do
-      player = Factory.player(group: grp, name: "Bench Player", eligible_18_plus: true)
+      player = Factory.player(group: grp, name: "Bench Player")
       tt = Factory.team_type(group: grp, name: "18+ 4.0")
       {:ok, pseudo_team} = Tennis.ensure_pseudo_team(tt.id, 2026, tenant: grp.id, actor: usr)
 
