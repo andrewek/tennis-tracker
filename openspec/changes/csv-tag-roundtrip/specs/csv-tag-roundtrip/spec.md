@@ -112,20 +112,24 @@ The import SHALL trim leading and trailing whitespace from all header names and 
 - **THEN** the category is resolved as `"Age Group"` and the tag as `"40+"` after trimming each segment
 
 ### Requirement: Successful import returns player, auto-created category, and auto-created tag counts
-On success, `import_csv/2` SHALL return `{:ok, %{players: N, categories_created: X, tags_created: Y}}` where `N` is the number of players created, `X` is the number of `TagCategory` records auto-created during resolution, and `Y` is the number of `Tag` records auto-created during resolution. Records that were found and reused are not counted in either field. This result is surfaced in the import UI as a success message (e.g., "Created 18 players. Created 2 tag categories. Created 7 tags.").
+On success, `import_csv/2` SHALL return `{:ok, %{players: N, categories_created: X, tags_created: Y}}` where `N` is the number of players created, `X` is the number of `TagCategory` records auto-created during resolution, and `Y` is the number of `Tag` records auto-created during resolution. Records that were found and reused are not counted in either field. The import UI SHALL surface any non-zero counts in the success message (e.g., "Created 18 players. Created 2 tag categories. Created 7 tags."). Zero counts for categories and tags MAY be suppressed — the UI is not required to say "Created 0 tag categories" when no auto-creation occurred.
 
 #### Scenario: Import with no new categories or tags reports zero for both counts
 - **WHEN** all tag headers matched existing categories and tags and no auto-creation occurred
 - **THEN** the result is `{:ok, %{players: N, categories_created: 0, tags_created: 0}}`
+- **AND** the UI success message SHALL include the player count and MAY omit mention of tag categories and tags
 
 #### Scenario: Import with auto-created categories and tags reports counts separately
 - **WHEN** 2 new `TagCategory` records and 7 new `Tag` records were auto-created during resolution and 18 players were imported
 - **THEN** the result is `{:ok, %{players: 18, categories_created: 2, tags_created: 7}}`
+- **AND** the UI success message SHALL include all three counts
 
 #### Scenario: New tag under existing category increments only tags_created
 - **WHEN** a CSV header resolves to an existing category but a new tag is created within it
 - **THEN** `categories_created` is 0 and `tags_created` is 1
+- **AND** the UI success message SHALL include the tag count and MAY omit mention of tag categories
 
 #### Scenario: Import with no tag columns reports zero for both counts
 - **WHEN** the CSV has no tag columns
 - **THEN** the result is `{:ok, %{players: N, categories_created: 0, tags_created: 0}}`
+- **AND** the UI success message SHALL include the player count and MAY omit mention of tag categories and tags
