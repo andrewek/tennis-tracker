@@ -23,8 +23,6 @@ In no particular order. Crossed out when done.
    seeded there.
 1. Explore adding free-text Notes to Player records — useful for narrative context
    tags cannot capture (e.g. "think she'll be a 3.0", "contact info coming soon").
-1. ~Revisit tags in CSV import/export — tags are currently excluded from CSV; decide
-   on format (e.g. pipe-separated values in a single column) and implement.~
 1. CSV import always creates new players — re-importing to the same group will
    produce duplicates. Explore upsert (match by name or email) as a future improvement.
 1. Tags auto-created during CSV import are not rolled back if player inserts later
@@ -149,3 +147,5 @@ In no particular order. Crossed out when done.
 1. ~Build better seed data given the new multi-tenancy setup: create at least one
    Group with realistic team types, teams, players, and matches so the app is
    immediately explorable after `mix ecto.reset`.~
+1. ~Revisit tags in CSV import/export — tags are currently excluded from CSV; decide
+   on format (e.g. pipe-separated values in a single column) and implement.~
