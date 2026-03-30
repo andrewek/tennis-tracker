@@ -1,10 +1,29 @@
 defmodule TennisTrackerWeb.PlayerCSVControllerTest do
   use TennisTrackerWeb.ConnCase, async: true
 
+  alias TennisTracker.Tennis
+  alias TennisTracker.Tennis.{Tag, TagCategory}
+
   setup :setup_group
 
   setup %{conn: conn, user: user} do
     {:ok, conn: log_in_user(conn, user)}
+  end
+
+  defp create_category(grp, name) do
+    Ash.create!(TagCategory, %{name: name, group_id: grp.id},
+      domain: Tennis,
+      tenant: grp.id,
+      authorize?: false
+    )
+  end
+
+  defp create_tag(grp, category, name) do
+    Ash.create!(Tag, %{name: name, group_id: grp.id, tag_category_id: category.id},
+      domain: Tennis,
+      tenant: grp.id,
+      authorize?: false
+    )
   end
 
   defp parse_csv(body) do
@@ -30,7 +49,10 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
              ]
     end
 
-    test "returns header row with correct columns", %{conn: conn, group: grp} do
+    test "returns header row with base columns when group has no tags", %{
+      conn: conn,
+      group: grp
+    } do
       conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv")
 
       [header_line | _] = String.split(conn.resp_body, "\n")
@@ -83,6 +105,72 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
       names = Enum.map(rows, & &1["name"])
 
       assert names == Enum.sort(names)
+    end
+
+    test "export with tags produces correct tag columns in header", %{
+      conn: conn,
+      group: grp
+    } do
+      cat = create_category(grp, "Age Group")
+      create_tag(grp, cat, "18+")
+      create_tag(grp, cat, "40+")
+
+      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv")
+      [header_line | _] = String.split(conn.resp_body, "\n")
+
+      assert header_line == "name,ntrp_rating,email,phone_number,tag:Age Group:18+,tag:Age Group:40+"
+    end
+
+    test "player with a tag has \"true\" in the corresponding column", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      cat = create_category(grp, "Age Group")
+      tag = create_tag(grp, cat, "40+")
+      player = Factory.player(group: grp, name: "Alice")
+      Tennis.add_player_tag(player.id, tag.id, tenant: grp.id, actor: usr)
+
+      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv")
+      rows = parse_csv(conn.resp_body)
+      alice_row = Enum.find(rows, &(&1["name"] == "Alice"))
+
+      assert alice_row["tag:Age Group:40+"] == "true"
+    end
+
+    test "player without a tag has empty string in the corresponding column", %{
+      conn: conn,
+      group: grp
+    } do
+      cat = create_category(grp, "Age Group")
+      create_tag(grp, cat, "40+")
+      _player = Factory.player(group: grp, name: "Alice")
+
+      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv")
+      rows = parse_csv(conn.resp_body)
+      alice_row = Enum.find(rows, &(&1["name"] == "Alice"))
+
+      assert alice_row["tag:Age Group:40+"] == ""
+    end
+
+    test "export with active tag filter returns only matching players", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      cat = create_category(grp, "Age Group")
+      tag = create_tag(grp, cat, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+      _bob = Factory.player(group: grp, name: "Bob")
+
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv?tags[]=#{tag.id}")
+      rows = parse_csv(conn.resp_body)
+      names = Enum.map(rows, & &1["name"])
+
+      assert "Alice" in names
+      refute "Bob" in names
     end
   end
 end

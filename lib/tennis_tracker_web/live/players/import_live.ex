@@ -71,9 +71,9 @@ defmodule TennisTrackerWeb.Players.ImportLive do
       end)
 
     case result do
-      [{:ok, count}] ->
+      [{:ok, %{players: count, categories_created: cats, tags_created: tags}}] ->
         socket
-        |> put_flash(:info, "Imported #{count} player(s).")
+        |> put_flash(:info, build_import_message(count, cats, tags))
         |> push_navigate(to: ~p"/g/#{group_slug}/players")
         |> noreply()
 
@@ -100,6 +100,20 @@ defmodule TennisTrackerWeb.Players.ImportLive do
         |> assign(:error, "Please select a CSV file.")
         |> noreply()
     end
+  end
+
+  defp build_import_message(count, 0, 0) do
+    "Created #{count} player(s)."
+  end
+
+  defp build_import_message(count, cats, tags) do
+    [
+      "Created #{count} player(s).",
+      if(cats > 0, do: "Created #{cats} tag categor#{if cats == 1, do: "y", else: "ies"}."),
+      if(tags > 0, do: "Created #{tags} tag(s).")
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
   end
 
   defp upload_error_to_string(:too_large), do: "File is too large (max 1 MB)."

@@ -25,6 +25,58 @@ defmodule TennisTracker.Tennis.TaggingTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Colon prohibition validation — task 1.3
+  # ---------------------------------------------------------------------------
+
+  describe "TagCategory name colon prohibition" do
+    test "rejects category name containing a colon", %{group: grp} do
+      assert {:error, error} =
+               Ash.create(TagCategory, %{name: "Age:Group", group_id: grp.id},
+                 domain: Tennis,
+                 tenant: grp.id,
+                 authorize?: false
+               )
+
+      assert Exception.message(error) =~ "cannot contain ':'"
+    end
+
+    test "accepts category name without a colon", %{group: grp} do
+      assert {:ok, _category} =
+               Ash.create(TagCategory, %{name: "Age Group", group_id: grp.id},
+                 domain: Tennis,
+                 tenant: grp.id,
+                 authorize?: false
+               )
+    end
+  end
+
+  describe "Tag name colon prohibition" do
+    test "rejects tag name containing a colon", %{group: grp} do
+      category = create_category(grp)
+
+      assert {:error, error} =
+               Ash.create(Tag, %{name: "40:plus", group_id: grp.id, tag_category_id: category.id},
+                 domain: Tennis,
+                 tenant: grp.id,
+                 authorize?: false
+               )
+
+      assert Exception.message(error) =~ "cannot contain ':'"
+    end
+
+    test "accepts tag name without a colon", %{group: grp} do
+      category = create_category(grp)
+
+      assert {:ok, _tag} =
+               Ash.create(Tag, %{name: "40+", group_id: grp.id, tag_category_id: category.id},
+                 domain: Tennis,
+                 tenant: grp.id,
+                 authorize?: false
+               )
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # TagCategory tests
   # ---------------------------------------------------------------------------
 

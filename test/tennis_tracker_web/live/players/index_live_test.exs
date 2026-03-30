@@ -233,4 +233,53 @@ defmodule TennisTrackerWeb.Players.IndexLiveTest do
       assert unrated_pos < low_pos
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Task 2.7 — Export link encodes filter params
+  # ---------------------------------------------------------------------------
+
+  describe "Export CSV link href" do
+    test "export link with no active filters has no query params", %{conn: conn, group: grp} do
+      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players")
+
+      expected_href = "/g/#{grp.slug}/players/export.csv"
+      assert html =~ ~s(href="#{expected_href}")
+    end
+
+    test "export link encodes active tag filter params", %{conn: conn, group: grp, user: usr} do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice")
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players")
+
+      html = render_click(view, "toggle_tag", %{"category_id" => category.id, "tag_id" => tag.id})
+
+      # tags[] is URL-encoded as tags%5B%5D
+      assert html =~ "tags%5B%5D=#{tag.id}"
+    end
+
+    test "export link encodes combined name, NTRP, and tag filters", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      category = create_category(grp, "Age Group")
+      tag = create_tag(grp, category, "40+")
+      alice = Factory.player(group: grp, name: "Alice", ntrp_rating: Decimal.new("3.5"))
+      Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
+
+      # Load with all three filters active via URL
+      {:ok, _view, html} =
+        live(
+          conn,
+          ~p"/g/#{grp.slug}/players?name=Alice&ntrp=3.5&tags[]=#{tag.id}"
+        )
+
+      assert html =~ "name=Alice"
+      assert html =~ "ntrp=3.5"
+      assert html =~ "tags%5B%5D=#{tag.id}"
+    end
+  end
 end

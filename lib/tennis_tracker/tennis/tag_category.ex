@@ -73,6 +73,12 @@ defmodule TennisTracker.Tennis.TagCategory do
     end
   end
 
+  validations do
+    validate match(:name, ~r/^[^:]+$/) do
+      message("cannot contain ':'")
+    end
+  end
+
   identities do
     identity(:unique_name_per_group, [:group_id, :name])
   end
