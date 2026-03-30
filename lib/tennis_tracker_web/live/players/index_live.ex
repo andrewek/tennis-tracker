@@ -25,7 +25,8 @@ defmodule TennisTrackerWeb.Players.IndexLive do
       |> Ash.Query.for_read(:read, %{}, actor: current_user)
       |> Ash.count!(domain: Tennis, tenant: group_id)
 
-    tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+    tag_categories =
+      Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
 
     socket
     |> stream(:players, [])

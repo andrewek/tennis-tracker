@@ -14,7 +14,8 @@ defmodule TennisTrackerWeb.Settings.SeasonRules.FormLive do
       |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
       |> ok()
     else
-      tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+      tag_categories =
+        Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
 
       socket
       |> assign(:form, nil)

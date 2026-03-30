@@ -11,7 +11,12 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
   @valid_ntrp ~w(2.5 3.0 3.5 4.0 4.5 5.0)
 
   @spec import_csv(binary(), keyword()) ::
-          {:ok, %{players: non_neg_integer(), categories_created: non_neg_integer(), tags_created: non_neg_integer()}}
+          {:ok,
+           %{
+             players: non_neg_integer(),
+             categories_created: non_neg_integer(),
+             tags_created: non_neg_integer()
+           }}
           | {:error, :invalid_headers, [String.t()]}
           | {:error, :missing_required_headers, [String.t()]}
           | {:error, :row_error, pos_integer(), String.t()}
@@ -125,7 +130,7 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
       headers
       |> Enum.zip(padded)
       |> Enum.reduce_while({:ok, {%{}, []}}, fn {header, raw_value},
-                                                 {:ok, {params, tag_header_strings}} ->
+                                                {:ok, {params, tag_header_strings}} ->
         value = String.trim(raw_value)
 
         if String.starts_with?(header, "tag:") do
@@ -136,9 +141,14 @@ defmodule TennisTracker.Tennis.PlayerCsvImport do
           end
         else
           case coerce_field(header, value, line) do
-            {:ok, nil} -> {:cont, {:ok, {params, tag_header_strings}}}
-            {:ok, coerced} -> {:cont, {:ok, {Map.put(params, header, coerced), tag_header_strings}}}
-            error -> {:halt, error}
+            {:ok, nil} ->
+              {:cont, {:ok, {params, tag_header_strings}}}
+
+            {:ok, coerced} ->
+              {:cont, {:ok, {Map.put(params, header, coerced), tag_header_strings}}}
+
+            error ->
+              {:halt, error}
           end
         end
       end)

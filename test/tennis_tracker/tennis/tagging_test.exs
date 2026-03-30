@@ -353,5 +353,4 @@ defmodule TennisTracker.Tennis.TaggingTest do
       assert result == []
     end
   end
-
 end

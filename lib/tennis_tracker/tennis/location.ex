@@ -126,6 +126,10 @@ defmodule TennisTracker.Tennis.Location do
     end
   end
 
+  identities do
+    identity(:unique_name_per_group, [:name, :group_id])
+  end
+
   calculations do
     calculate(
       :formatted_address,
@@ -140,10 +144,6 @@ defmodule TennisTracker.Tennis.Location do
         )
       )
     )
-  end
-
-  identities do
-    identity :unique_name_per_group, [:name, :group_id]
   end
 
   multitenancy do

@@ -26,7 +26,8 @@ defmodule TennisTrackerWeb.Players.FormLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+    tag_categories =
+      Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
 
     {form, player_id, selected_tag_ids} =
       case socket.assigns.live_action do
@@ -167,8 +168,14 @@ defmodule TennisTrackerWeb.Players.FormLive do
         removed = current_tag_ids -- submitted_tag_ids
 
         tag_errors =
-          (Enum.map(added, &Tennis.add_player_tag(player.id, &1, tenant: group_id, actor: current_user)) ++
-             Enum.map(removed, &Tennis.remove_player_tag(player.id, &1, tenant: group_id, actor: current_user)))
+          (Enum.map(
+             added,
+             &Tennis.add_player_tag(player.id, &1, tenant: group_id, actor: current_user)
+           ) ++
+             Enum.map(
+               removed,
+               &Tennis.remove_player_tag(player.id, &1, tenant: group_id, actor: current_user)
+             ))
           |> Enum.filter(&match?({:error, _}, &1))
 
         socket =

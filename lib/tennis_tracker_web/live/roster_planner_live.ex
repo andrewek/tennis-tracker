@@ -18,7 +18,8 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
     team_types = Tennis.list_team_types!(tenant: group_id, actor: current_user)
     planning_contexts = Tennis.list_planning_contexts(tenant: group_id, actor: current_user)
 
-    tag_categories = Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
+    tag_categories =
+      Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
 
     socket
     |> assign(:page_title, "Roster Planner")

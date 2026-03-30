@@ -118,7 +118,8 @@ defmodule TennisTrackerWeb.PlayerCSVControllerTest do
       conn = get(conn, ~p"/g/#{grp.slug}/players/export.csv")
       [header_line | _] = String.split(conn.resp_body, "\n")
 
-      assert header_line == "name,ntrp_rating,email,phone_number,tag:Age Group:18+,tag:Age Group:40+"
+      assert header_line ==
+               "name,ntrp_rating,email,phone_number,tag:Age Group:18+,tag:Age Group:40+"
     end
 
     test "player with a tag has \"true\" in the corresponding column", %{

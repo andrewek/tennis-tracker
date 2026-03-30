@@ -121,5 +121,4 @@ defmodule TennisTracker.Tennis.PlayerFilters do
       end
     end)
   end
-
 end

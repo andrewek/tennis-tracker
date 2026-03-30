@@ -76,12 +76,6 @@ defmodule TennisTracker.Tennis.Tag do
     end
   end
 
-  validations do
-    validate match(:name, ~r/^[^:]+$/) do
-      message("cannot contain ':'")
-    end
-  end
-
   actions do
     read :read do
       primary?(true)
@@ -100,6 +94,12 @@ defmodule TennisTracker.Tennis.Tag do
 
     destroy :destroy do
       primary?(true)
+    end
+  end
+
+  validations do
+    validate match(:name, ~r/^[^:]+$/) do
+      message("cannot contain ':'")
     end
   end
 
