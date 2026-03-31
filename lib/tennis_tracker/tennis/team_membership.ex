@@ -108,6 +108,12 @@ defmodule TennisTracker.Tennis.TeamMembership do
       filter(expr(team_type_id == ^arg(:team_type_id) and season_year == ^arg(:season_year)))
     end
 
+    read :for_team do
+      argument(:team_id, :uuid, allow_nil?: false)
+
+      filter(expr(team_id == ^arg(:team_id)))
+    end
+
     create :create do
       primary?(true)
       accept([:player_id, :team_id, :team_type_id, :season_year, :group_id])

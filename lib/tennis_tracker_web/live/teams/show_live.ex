@@ -65,9 +65,6 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     socket |> assign(:selected_player, nil) |> noreply()
   end
 
-  defp format_home_or_away(:home, opponent), do: "HOME v. #{opponent}"
-  defp format_home_or_away(:away, opponent), do: "AWAY v. #{opponent}"
-
   def render(assigns) do
     ~H"""
     <Layouts.app

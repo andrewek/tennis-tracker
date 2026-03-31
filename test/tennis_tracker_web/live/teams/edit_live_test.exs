@@ -32,7 +32,7 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
 
       view
       |> form("form[phx-submit='save_team']", %{
-        "form" => %{
+        "team_form" => %{
           "name" => "New Name",
           "default_timezone" => "America/Los_Angeles"
         }
@@ -51,7 +51,7 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
 
       view
       |> form("form[phx-submit='save_team']", %{
-        "form" => %{"name" => "", "default_timezone" => "America/Chicago"}
+        "team_form" => %{"name" => "", "default_timezone" => "America/Chicago"}
       })
       |> render_submit()
 
@@ -98,7 +98,7 @@ defmodule TennisTrackerWeb.Teams.EditLiveTest do
 
       view
       |> form("form[phx-submit='save_match']", %{
-        "form" => %{
+        "match_form" => %{
           "opponent" => "New Rival",
           "home_or_away" => "home",
           "match_date" => Date.to_iso8601(future_date),

@@ -90,6 +90,7 @@ defmodule TennisTracker.Tennis.Team do
     has_many :memberships, TennisTracker.Tennis.TeamMembership
     has_many :matches, TennisTracker.Tennis.Match
     has_many :team_roles, TennisTracker.Tennis.TeamRole
+    has_many :lineup_slots, TennisTracker.Tennis.TeamLineupSlot
   end
 
   actions do

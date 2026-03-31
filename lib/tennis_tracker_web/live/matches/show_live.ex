@@ -4,10 +4,16 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
   import TennisTrackerWeb.MatchHelpers
 
   alias TennisTracker.Tennis
+  alias TennisTracker.Tennis.MatchLineupAssignment
+  alias TennisTrackerWeb.LineupFormatter
 
   def mount(_params, _session, socket) do
     socket
     |> assign(:match, nil)
+    |> assign(:lineup_slots, [])
+    |> assign(:assignments, [])
+    |> assign(:lineup_text, "")
+    |> assign(:can_edit_lineup, false)
     |> ok()
   end
 
@@ -15,29 +21,55 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    case Ash.get(Tennis.Match, id, domain: Tennis, tenant: group_id, actor: current_user) do
-      {:ok, match} ->
-        case Ash.load(match, [:team, location: [:formatted_address]],
-               domain: Tennis,
-               tenant: group_id,
-               actor: current_user
-             ) do
-          {:ok, match} ->
-            socket |> assign(:match, match) |> noreply()
+    with {:ok, match} <-
+           Ash.get(Tennis.Match, id, domain: Tennis, tenant: group_id, actor: current_user),
+         {:ok, match} <-
+           Ash.load(match, [:team, location: [:formatted_address]],
+             domain: Tennis,
+             tenant: group_id,
+             actor: current_user
+           ) do
+      lineup_slots =
+        Tennis.list_lineup_slots_for_team!(match.team.id,
+          tenant: group_id,
+          actor: current_user
+        )
 
-          {:error, _} ->
-            socket
-            |> put_flash(:error, "Match not found.")
-            |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
-            |> noreply()
-        end
+      assignments =
+        Tennis.list_assignments_for_match!(match.id,
+          tenant: group_id,
+          actor: current_user,
+          load: [:player, :team_lineup_slot]
+        )
 
+      can_edit_lineup =
+        Ash.can?(
+          {MatchLineupAssignment, :create, %{group_id: group_id, match_id: match.id}},
+          current_user,
+          domain: Tennis,
+          tenant: group_id
+        )
+
+      lineup_text = LineupFormatter.format(match, lineup_slots, assignments)
+
+      socket
+      |> assign(:match, match)
+      |> assign(:lineup_slots, lineup_slots)
+      |> assign(:assignments, assignments)
+      |> assign(:can_edit_lineup, can_edit_lineup)
+      |> assign(:lineup_text, lineup_text)
+      |> noreply()
+    else
       {:error, _} ->
         socket
         |> put_flash(:error, "Match not found.")
         |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}/teams")
         |> noreply()
     end
+  end
+
+  def handle_event("clipboard_copied", _params, socket) do
+    socket |> put_flash(:info, "Copied!") |> noreply()
   end
 
   def render(assigns) do
@@ -49,11 +81,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
       current_group_role={@current_group_role}
     >
       <.page_header
-        title={
-          if @match.home_or_away == :home,
-            do: "HOME vs. #{@match.opponent}",
-            else: "AWAY vs. #{@match.opponent}"
-        }
+        title={format_home_or_away(@match.home_or_away, @match.opponent)}
         back_href={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}"}
         back_label={@match.team.name}
       >
@@ -75,7 +103,8 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
         </:actions>
       </.page_header>
 
-      <div class="max-w-lg">
+      <div class="max-w-lg space-y-6">
+        <%!-- Match details --%>
         <div class="bg-base-200 rounded-lg p-5 space-y-4">
           <div>
             <p class="text-xs text-base-content/50 uppercase tracking-wide mb-1">Date & Time</p>
@@ -108,8 +137,93 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
             <% end %>
           </div>
         </div>
+
+        <%!-- Lineup section --%>
+        <div class="bg-base-200 rounded-lg p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold">Lineup</h2>
+            <div class="flex items-center gap-2">
+              <.link
+                :if={@can_edit_lineup}
+                navigate={~p"/g/#{@current_group.slug}/matches/#{@match.id}/lineup-edit"}
+                class="btn btn-xs btn-ghost"
+              >
+                Edit Lineup
+              </.link>
+              <button
+                id="copy-lineup-btn"
+                phx-hook=".CopyLineup"
+                data-lineup-textarea-id="lineup-text-area"
+                class="btn btn-xs btn-outline"
+              >
+                Copy Lineup
+              </button>
+            </div>
+          </div>
+
+          <%!-- Empty state: no slots defined --%>
+          <div :if={@lineup_slots == []}>
+            <p class="text-sm text-base-content/50">No lineup slots defined for this team.</p>
+            <.link
+              :if={@can_edit_lineup}
+              navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}/edit"}
+              class="text-sm text-primary hover:underline mt-1 inline-block"
+            >
+              Define slots on the team page
+            </.link>
+          </div>
+
+          <%!-- Slot assignment list --%>
+          <div :if={@lineup_slots != []} class="space-y-3">
+            <%= for slot <- @lineup_slots do %>
+              <div>
+                <p class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
+                  {slot.name}
+                </p>
+                <% slot_players =
+                  @assignments
+                  |> Enum.filter(&(&1.team_lineup_slot_id == slot.id))
+                  |> Enum.map(& &1.player)
+                  |> Enum.sort_by(& &1.name) %>
+                <%= if slot_players == [] do %>
+                  <p class="text-sm text-base-content/40">—</p>
+                <% else %>
+                  <p :for={player <- slot_players} class="text-sm">{player.name}</p>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+
+          <%!-- Hidden textarea for clipboard fallback --%>
+          <textarea
+            id="lineup-text-area"
+            class="hidden w-full mt-4 p-2 text-sm font-mono border rounded resize-none"
+            rows="10"
+            readonly
+          >{@lineup_text}</textarea>
+        </div>
       </div>
     </Layouts.app>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyLineup">
+      export default {
+        mounted() {
+          this.el.addEventListener("click", (e) => {
+            e.preventDefault()
+            const textareaId = this.el.dataset.lineupTextareaId
+            const textarea = document.getElementById(textareaId)
+            if (!textarea) return
+
+            navigator.clipboard.writeText(textarea.value).then(() => {
+              this.pushEvent("clipboard_copied", {})
+            }).catch(() => {
+              textarea.classList.remove("hidden")
+              textarea.select()
+            })
+          })
+        }
+      }
+    </script>
     """
   end
 end

@@ -21,6 +21,12 @@ defmodule TennisTrackerWeb.MatchHelpers do
   end
 
   @doc """
+  Formats a home/away label for a match. e.g. "HOME v. Opponent" or "AWAY v. Opponent".
+  """
+  def format_home_or_away(:home, opponent), do: "HOME v. #{opponent}"
+  def format_home_or_away(:away, opponent), do: "AWAY v. #{opponent}"
+
+  @doc """
   Parses date and time strings with a timezone and returns {:ok, utc_datetime} or {:error, reason}.
   Handles ambiguous/gap times from DST transitions.
   """

@@ -11,6 +11,7 @@ defmodule TennisTrackerWeb.BoardComponents do
   attr :count, :integer, required: true
   attr :target_id, :string, required: true
   attr :violations, :list, default: []
+  attr :drop_event, :string, default: nil
   slot :header_actions
   slot :inner_block, required: true
 
@@ -21,6 +22,7 @@ defmodule TennisTrackerWeb.BoardComponents do
       class="flex-shrink-0 w-56 bg-base-200 rounded-lg p-2 flex flex-col"
       phx-hook="DropZone"
       data-target-id={@target_id}
+      data-drop-event={@drop_event}
     >
       <%!-- Column header --%>
       <div class="flex items-center justify-between mb-2 px-1">

@@ -9,7 +9,8 @@ defmodule TennisTracker.Tennis do
     SeasonRules,
     SeasonRulesDefaultTag,
     Player,
-    PlayerTag
+    PlayerTag,
+    MatchLineupAssignment
   }
 
   admin do
@@ -302,6 +303,54 @@ defmodule TennisTracker.Tennis do
     end
   end
 
+  @doc """
+  Assigns a player to a lineup slot for a match, or updates the slot if already assigned.
+  Uses upsert on the :player_per_match identity.
+  """
+  def assign_to_slot(match_id, player_id, slot_id, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    MatchLineupAssignment
+    |> Ash.Changeset.for_create(
+      :create,
+      %{
+        match_id: match_id,
+        player_id: player_id,
+        team_lineup_slot_id: slot_id,
+        group_id: tenant
+      },
+      domain: __MODULE__,
+      actor: actor,
+      tenant: tenant
+    )
+    |> Ash.create(
+      upsert?: true,
+      upsert_identity: :player_per_match,
+      upsert_fields: [:team_lineup_slot_id]
+    )
+  end
+
+  @doc """
+  Removes a player's lineup assignment for a match.
+  """
+  def unassign_from_lineup(match_id, player_id, opts \\ []) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    assignment =
+      MatchLineupAssignment
+      |> Ash.Query.for_read(:read, %{}, actor: actor)
+      |> Ash.Query.filter(match_id == ^match_id and player_id == ^player_id)
+      |> Ash.read_one!(domain: __MODULE__, tenant: tenant)
+
+    if assignment do
+      Ash.destroy(assignment, domain: __MODULE__, actor: actor, tenant: tenant)
+    else
+      {:ok, nil}
+    end
+  end
+
   defp sync_add_default_tags(tag_ids, season_rules_id, tenant, actor) do
     Enum.reduce_while(tag_ids, :ok, fn tag_id, :ok ->
       result =
@@ -433,9 +482,24 @@ defmodule TennisTracker.Tennis do
 
     resource TennisTracker.Tennis.TeamMembership do
       define(:list_real_memberships_for_player, action: :for_player, args: [:player_id])
+      define(:list_memberships_for_team, action: :for_team, args: [:team_id])
       define(:create_team_membership, action: :create)
       define(:update_team_membership, action: :update)
       define(:destroy_team_membership, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.TeamLineupSlot do
+      define(:list_lineup_slots_for_team, action: :for_team, args: [:team_id])
+      define(:create_lineup_slot, action: :create)
+      define(:update_lineup_slot, action: :update)
+      define(:delete_lineup_slot, action: :destroy)
+    end
+
+    resource TennisTracker.Tennis.MatchLineupAssignment do
+      define(:list_assignments_for_match, action: :for_match, args: [:match_id])
+      define(:create_lineup_assignment, action: :create)
+      define(:update_lineup_assignment, action: :update)
+      define(:destroy_lineup_assignment, action: :destroy)
     end
 
     resource TennisTracker.Tennis.TeamRole do
