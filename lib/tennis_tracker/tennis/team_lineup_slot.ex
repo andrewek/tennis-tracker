@@ -99,6 +99,27 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
       primary?(true)
       accept([:name, :expected_count, :include_in_clipboard, :team_id, :group_id])
 
+      validate(fn changeset, context ->
+        name = Ash.Changeset.get_attribute(changeset, :name)
+        team_id = Ash.Changeset.get_attribute(changeset, :team_id)
+        tenant = context.tenant
+
+        if name && team_id && tenant do
+          existing =
+            TennisTracker.Tennis.TeamLineupSlot
+            |> Ash.Query.filter(team_id == ^team_id and name == ^name)
+            |> Ash.read_one!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+
+          if existing do
+            {:error, field: :name, message: "has already been taken"}
+          else
+            :ok
+          end
+        else
+          :ok
+        end
+      end)
+
       change(fn changeset, context ->
         team_id = Ash.Changeset.get_attribute(changeset, :team_id)
         tenant = context.tenant
