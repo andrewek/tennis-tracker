@@ -73,6 +73,13 @@ defmodule TennisTracker.Tennis.Team do
       default("America/Chicago")
     end
 
+    attribute :lineup_assignment_mode, :atom do
+      allow_nil?(false)
+      public?(true)
+      default(:one_per_match)
+      constraints(one_of: [:one_per_match, :one_per_column, :many_per_match])
+    end
+
     attribute :group_id, :uuid do
       allow_nil?(false)
       public?(true)
@@ -91,6 +98,7 @@ defmodule TennisTracker.Tennis.Team do
     has_many :matches, TennisTracker.Tennis.Match
     has_many :team_roles, TennisTracker.Tennis.TeamRole
     has_many :lineup_slots, TennisTracker.Tennis.TeamLineupSlot
+    has_many :lineup_columns, TennisTracker.Tennis.TeamLineupColumn
   end
 
   actions do
@@ -118,7 +126,7 @@ defmodule TennisTracker.Tennis.Team do
 
     update :update do
       primary?(true)
-      accept([:name, :default_timezone])
+      accept([:name, :default_timezone, :lineup_assignment_mode])
     end
 
     destroy :destroy do

@@ -1,4 +1,4 @@
-defmodule TennisTracker.Tennis.TeamLineupSlot do
+defmodule TennisTracker.Tennis.TeamLineupColumn do
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
@@ -9,7 +9,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
   require Ash.Query
 
   postgres do
-    table("team_lineup_slots")
+    table("team_lineup_columns")
     repo(TennisTracker.Repo)
   end
 
@@ -42,30 +42,13 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
     attribute :name, :string do
       allow_nil?(false)
       public?(true)
-      constraints(min_length: 1, max_length: 12)
-    end
-
-    attribute :expected_count, :integer do
-      allow_nil?(true)
-      public?(true)
+      constraints(min_length: 1, max_length: 50)
     end
 
     attribute :sort_order, :integer do
       allow_nil?(false)
       public?(true)
       default(0)
-    end
-
-    attribute :include_in_clipboard, :boolean do
-      allow_nil?(false)
-      public?(true)
-      default(true)
-    end
-
-    attribute :is_exclusion_slot, :boolean do
-      allow_nil?(false)
-      public?(true)
-      default(false)
     end
 
     attribute :group_id, :uuid do
@@ -82,10 +65,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
       public?(true)
     end
 
-    belongs_to :team_lineup_column, TennisTracker.Tennis.TeamLineupColumn do
-      allow_nil?(true)
-      public?(true)
-    end
+    has_many :lineup_slots, TennisTracker.Tennis.TeamLineupSlot
   end
 
   actions do
@@ -108,54 +88,24 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
 
     create :create do
       primary?(true)
-
-      accept([
-        :name,
-        :expected_count,
-        :include_in_clipboard,
-        :is_exclusion_slot,
-        :team_lineup_column_id,
-        :team_id,
-        :group_id
-      ])
-
-      validate(fn changeset, context ->
-        name = Ash.Changeset.get_attribute(changeset, :name)
-        team_id = Ash.Changeset.get_attribute(changeset, :team_id)
-        tenant = context.tenant
-
-        if name && team_id && tenant do
-          existing =
-            TennisTracker.Tennis.TeamLineupSlot
-            |> Ash.Query.filter(team_id == ^team_id and name == ^name)
-            |> Ash.read_one!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
-
-          if existing do
-            {:error, field: :name, message: "has already been taken"}
-          else
-            :ok
-          end
-        else
-          :ok
-        end
-      end)
+      accept([:name, :team_id, :group_id])
 
       change(fn changeset, context ->
         team_id = Ash.Changeset.get_attribute(changeset, :team_id)
         tenant = context.tenant
 
         if team_id && tenant do
-          max_slot =
-            TennisTracker.Tennis.TeamLineupSlot
+          max_column =
+            TennisTracker.Tennis.TeamLineupColumn
             |> Ash.Query.filter(team_id == ^team_id)
             |> Ash.Query.sort(sort_order: :desc)
             |> Ash.Query.limit(1)
             |> Ash.read_one!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
 
           next_sort_order =
-            case max_slot do
+            case max_column do
               nil -> 0
-              slot -> slot.sort_order + 1
+              col -> col.sort_order + 1
             end
 
           Ash.Changeset.force_change_attribute(changeset, :sort_order, next_sort_order)
@@ -167,15 +117,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
 
     update :update do
       primary?(true)
-
-      accept([
-        :name,
-        :expected_count,
-        :include_in_clipboard,
-        :is_exclusion_slot,
-        :team_lineup_column_id,
-        :sort_order
-      ])
+      accept([:name, :sort_order])
     end
 
     destroy :destroy do
@@ -184,7 +126,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
   end
 
   identities do
-    identity(:unique_slot_name_per_team, [:team_id, :name])
+    identity(:unique_column_name_per_team, [:team_id, :name])
   end
 
   multitenancy do

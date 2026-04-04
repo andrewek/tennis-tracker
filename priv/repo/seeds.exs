@@ -15,6 +15,8 @@ alias TennisTracker.Tennis.{
   Player,
   Team,
   TeamType,
+  TeamLineupColumn,
+  TeamLineupSlot,
   SeasonRules,
   Location,
   TeamMembership,
@@ -314,13 +316,81 @@ upsert_player_tag = fn player, tag, tenant ->
   end
 end
 
+upsert_lineup_column = fn attrs, tenant ->
+  existing =
+    TeamLineupColumn
+    |> Ash.Query.filter(team_id == ^attrs.team_id and name == ^attrs.name)
+    |> Ash.read_one!(domain: Tennis, tenant: tenant, authorize?: false)
+
+  case existing do
+    nil ->
+      TeamLineupColumn
+      |> Ash.Changeset.for_create(:create, Map.put(attrs, :group_id, tenant),
+        domain: Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.create!(authorize?: false)
+
+    col ->
+      col
+  end
+end
+
+upsert_lineup_slot = fn attrs, tenant ->
+  existing =
+    TeamLineupSlot
+    |> Ash.Query.filter(team_id == ^attrs.team_id and name == ^attrs.name)
+    |> Ash.read_one!(domain: Tennis, tenant: tenant, authorize?: false)
+
+  case existing do
+    nil ->
+      TeamLineupSlot
+      |> Ash.Changeset.for_create(:create, Map.put(attrs, :group_id, tenant),
+        domain: Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.create!(authorize?: false)
+
+    slot ->
+      slot
+  end
+end
+
+seed_40_lineup = fn team, tenant ->
+  singles_col = upsert_lineup_column.(%{name: "Singles", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "#1 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
+
+  doubles_col = upsert_lineup_column.(%{name: "Doubles", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "#1 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+  upsert_lineup_slot.(%{name: "#2 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+  upsert_lineup_slot.(%{name: "#3 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+
+  reserve_col = upsert_lineup_column.(%{name: "Reserve", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "Sub", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: false}, tenant)
+end
+
+seed_18_lineup = fn team, tenant ->
+  singles_col = upsert_lineup_column.(%{name: "Singles", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "#1 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
+  upsert_lineup_slot.(%{name: "#2 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
+
+  doubles_col = upsert_lineup_column.(%{name: "Doubles", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "#1 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+  upsert_lineup_slot.(%{name: "#2 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+  upsert_lineup_slot.(%{name: "#3 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+
+  reserve_col = upsert_lineup_column.(%{name: "Reserve", team_id: team.id}, tenant)
+  upsert_lineup_slot.(%{name: "Sub", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: false}, tenant)
+  upsert_lineup_slot.(%{name: "Out", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: true, include_in_clipboard: false}, tenant)
+end
+
 preset_taxonomy = [
   {"Age Group", ["18+", "40+", "55+", "65+", "70+"]},
   {"League Gender", ["Men's Leagues", "Women's Leagues", "Mixed Leagues"]},
-  {"NTRP", ["Can Play Up"]},
   {"Availability", ["Limited Availability", "Medical Hold", "Inactive"]},
-  {"Role", ["Willing to Captain", "Sub Only", "Roster Fill Only"]},
-  {"Pipeline", ["Prospective"]}
+  {"Role", ["Willing to Captain", "Sub Only", "Roster Fill Only", "Can Play Up", "Prospect"]}
 ]
 
 seed_preset_tags = fn tenant ->
@@ -603,26 +673,26 @@ main_player_defs = [
       {"Age Group", "18+"},
       {"Age Group", "40+"},
       {"Age Group", "55+"},
-      {"NTRP", "Can Play Up"}
+      {"Role", "Can Play Up"}
     ]
   },
   # 5: 18+, 40+ | Can Play Up
   %{
     name: "Roger Reed",
     ntrp: "4.0",
-    tags: [{"Age Group", "18+"}, {"Age Group", "40+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Age Group", "40+"}, {"Role", "Can Play Up"}]
   },
   # 6: 18+ | Can Play Up
   %{
     name: "Steve Saul",
     ntrp: "4.0",
-    tags: [{"Age Group", "18+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Can Play Up"}]
   },
   # 7: 18+ | Can Play Up
   %{
     name: "Tim Todd",
     ntrp: "4.0",
-    tags: [{"Age Group", "18+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Can Play Up"}]
   },
   # 8: 18+, 40+, 55+ | Medical Hold, Roster Fill Only
   %{
@@ -667,7 +737,7 @@ main_player_defs = [
   %{
     name: "Yancy York",
     ntrp: "4.0",
-    tags: [{"Age Group", "18+"}, {"Pipeline", "Prospective"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Prospect"}]
   },
   # 13–18: 40+ (players 13-18); 16-18 also 55+
   %{
@@ -762,26 +832,26 @@ main_player_defs = [
       {"Age Group", "18+"},
       {"Age Group", "40+"},
       {"Age Group", "55+"},
-      {"NTRP", "Can Play Up"}
+      {"Role", "Can Play Up"}
     ]
   },
   # 5: 18+, 40+ | Can Play Up
   %{
     name: "Sam Tate",
     ntrp: "3.5",
-    tags: [{"Age Group", "18+"}, {"Age Group", "40+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Age Group", "40+"}, {"Role", "Can Play Up"}]
   },
   # 6: 18+ | Can Play Up
   %{
     name: "Tom Urry",
     ntrp: "3.5",
-    tags: [{"Age Group", "18+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Can Play Up"}]
   },
   # 7: 18+ | Can Play Up
   %{
     name: "Udo Vale",
     ntrp: "3.5",
-    tags: [{"Age Group", "18+"}, {"NTRP", "Can Play Up"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Can Play Up"}]
   },
   # 8: 18+, 40+, 55+ | Medical Hold, Roster Fill Only
   %{
@@ -826,7 +896,7 @@ main_player_defs = [
   %{
     name: "Zach Able",
     ntrp: "3.5",
-    tags: [{"Age Group", "18+"}, {"Pipeline", "Prospective"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Prospect"}]
   },
   # 13–18: 40+ (16-18 also 55+)
   %{
@@ -905,7 +975,7 @@ IO.puts("Main group: player tags assigned.")
 tag_18_eligible = find_tag.(main_tenant, "Age Group", "18+")
 tag_40_eligible = find_tag.(main_tenant, "Age Group", "40+")
 tag_medical_hold = find_tag.(main_tenant, "Availability", "Medical Hold")
-tag_can_play_up = find_tag.(main_tenant, "NTRP", "Can Play Up")
+tag_can_play_up = find_tag.(main_tenant, "Role", "Can Play Up")
 
 # Helper: does player have a tag?
 has_tag? = fn player, tag ->
@@ -1053,6 +1123,19 @@ players_35
 |> Enum.each(&upsert_membership.(&1.player, main_team_40_35, main_tenant))
 
 IO.puts("Main group: teams and memberships seeded.")
+
+# ==============================================================================
+# Main Group: Lineup columns and slots (18+ teams only)
+# ==============================================================================
+
+Enum.each(
+  [main_team_18_45, main_team_18_40_a, main_team_18_40_b, main_team_18_35_a, main_team_18_35_b],
+  &seed_18_lineup.(&1, main_tenant)
+)
+
+seed_40_lineup.(main_team_40_35, main_tenant)
+
+IO.puts("Main group: lineup columns and slots seeded.")
 
 # ==============================================================================
 # Main Group: SeasonRules default tags
@@ -1577,7 +1660,7 @@ unassigned_player_defs = [
   %{
     name: "Ross Penn",
     ntrp: "4.5",
-    tags: [{"Age Group", "18+"}, {"Pipeline", "Prospective"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Prospect"}]
   },
   %{name: "Sam Quinn", ntrp: "4.0", tags: [{"Age Group", "18+"}]},
   %{
@@ -1588,7 +1671,7 @@ unassigned_player_defs = [
   %{
     name: "Ulf Stone",
     ntrp: "4.0",
-    tags: [{"Age Group", "18+"}, {"Pipeline", "Prospective"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Prospect"}]
   },
   %{name: "Vern Tate", ntrp: "3.5", tags: [{"Age Group", "18+"}]},
   %{
@@ -1599,7 +1682,7 @@ unassigned_player_defs = [
   %{
     name: "Xen Voss",
     ntrp: "3.5",
-    tags: [{"Age Group", "18+"}, {"Pipeline", "Prospective"}]
+    tags: [{"Age Group", "18+"}, {"Role", "Prospect"}]
   }
 ]
 

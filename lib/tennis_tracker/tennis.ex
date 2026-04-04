@@ -488,6 +488,13 @@ defmodule TennisTracker.Tennis do
       define(:destroy_team_membership, action: :destroy)
     end
 
+    resource TennisTracker.Tennis.TeamLineupColumn do
+      define(:list_lineup_columns_for_team, action: :for_team, args: [:team_id])
+      define(:create_lineup_column, action: :create)
+      define(:update_lineup_column, action: :update)
+      define(:delete_lineup_column, action: :destroy)
+    end
+
     resource TennisTracker.Tennis.TeamLineupSlot do
       define(:list_lineup_slots_for_team, action: :for_team, args: [:team_id])
       define(:create_lineup_slot, action: :create)
