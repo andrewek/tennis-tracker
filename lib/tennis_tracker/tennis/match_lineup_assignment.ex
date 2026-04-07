@@ -6,6 +6,8 @@ defmodule TennisTracker.Tennis.MatchLineupAssignment do
     notifiers: [Ash.Notifier.PubSub],
     extensions: [AshAdmin.Resource]
 
+  require Ash.Query
+
   postgres do
     table("match_lineup_assignments")
     repo(TennisTracker.Repo)
@@ -89,6 +91,58 @@ defmodule TennisTracker.Tennis.MatchLineupAssignment do
     create :create do
       primary?(true)
       accept([:match_id, :player_id, :team_lineup_slot_id, :group_id])
+
+      change(fn changeset, context ->
+        Ash.Changeset.before_action(changeset, fn changeset ->
+          slot_id = Ash.Changeset.get_attribute(changeset, :team_lineup_slot_id)
+          match_id = Ash.Changeset.get_attribute(changeset, :match_id)
+          player_id = Ash.Changeset.get_attribute(changeset, :player_id)
+          tenant = context.tenant
+
+          if slot_id && match_id && player_id && tenant do
+            slot =
+              Ash.get!(TennisTracker.Tennis.TeamLineupSlot, slot_id,
+                domain: TennisTracker.Tennis,
+                tenant: tenant,
+                authorize?: false
+              )
+
+            existing =
+              TennisTracker.Tennis.MatchLineupAssignment
+              |> Ash.Query.filter(match_id == ^match_id and player_id == ^player_id)
+              |> Ash.Query.load(:team_lineup_slot)
+              |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+
+            if slot.is_exclusion_slot do
+              existing
+              |> Enum.reject(& &1.team_lineup_slot.is_exclusion_slot)
+              |> Enum.each(
+                &Ash.destroy!(&1,
+                  domain: TennisTracker.Tennis,
+                  authorize?: false,
+                  tenant: tenant
+                )
+              )
+
+              changeset
+            else
+              case Enum.find(existing, & &1.team_lineup_slot.is_exclusion_slot) do
+                nil ->
+                  apply_mode_constraint(changeset, existing, slot, match_id, tenant)
+
+                _excl ->
+                  Ash.Changeset.add_error(changeset,
+                    field: :player_id,
+                    message:
+                      "is excluded from this match and cannot be assigned to a playing slot"
+                  )
+              end
+            end
+          else
+            changeset
+          end
+        end)
+      end)
     end
 
     update :update do
@@ -102,12 +156,58 @@ defmodule TennisTracker.Tennis.MatchLineupAssignment do
   end
 
   identities do
-    identity(:player_per_match, [:match_id, :player_id])
+    identity(:player_per_slot_per_match, [:match_id, :player_id, :team_lineup_slot_id])
   end
 
   multitenancy do
     strategy(:attribute)
     attribute(:group_id)
     global?(true)
+  end
+
+  defp apply_mode_constraint(changeset, existing, target_slot, match_id, tenant) do
+    match =
+      Ash.get!(TennisTracker.Tennis.Match, match_id,
+        domain: TennisTracker.Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
+
+    team =
+      Ash.get!(TennisTracker.Tennis.Team, match.team_id,
+        domain: TennisTracker.Tennis,
+        tenant: tenant,
+        authorize?: false
+      )
+
+    case team.lineup_assignment_mode do
+      :one_per_match ->
+        if existing == [] do
+          changeset
+        else
+          Ash.Changeset.add_error(changeset,
+            field: :player_id,
+            message: "already has an assignment for this match"
+          )
+        end
+
+      :one_per_column ->
+        same_column =
+          Enum.find(existing, fn a ->
+            a.team_lineup_slot.team_lineup_column_id == target_slot.team_lineup_column_id
+          end)
+
+        if same_column do
+          Ash.Changeset.add_error(changeset,
+            field: :player_id,
+            message: "already has an assignment in this column for this match"
+          )
+        else
+          changeset
+        end
+
+      :many_per_match ->
+        changeset
+    end
   end
 end

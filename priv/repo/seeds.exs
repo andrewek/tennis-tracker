@@ -360,30 +360,128 @@ end
 
 seed_40_lineup = fn team, tenant ->
   singles_col = upsert_lineup_column.(%{name: "Singles", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "#1 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "#1 Singles",
+      team_id: team.id,
+      expected_count: 1,
+      team_lineup_column_id: singles_col.id
+    },
+    tenant
+  )
 
   doubles_col = upsert_lineup_column.(%{name: "Doubles", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "#1 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
-  upsert_lineup_slot.(%{name: "#2 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
-  upsert_lineup_slot.(%{name: "#3 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "#1 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
+
+  upsert_lineup_slot.(
+    %{
+      name: "#2 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
+
+  upsert_lineup_slot.(
+    %{
+      name: "#3 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
 
   reserve_col = upsert_lineup_column.(%{name: "Reserve", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "Sub", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: false}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "Sub",
+      team_id: team.id,
+      team_lineup_column_id: reserve_col.id,
+      is_exclusion_slot: false
+    },
+    tenant
+  )
 end
 
 seed_18_lineup = fn team, tenant ->
   singles_col = upsert_lineup_column.(%{name: "Singles", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "#1 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
-  upsert_lineup_slot.(%{name: "#2 Singles", team_id: team.id, expected_count: 1, team_lineup_column_id: singles_col.id}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "#1 Singles",
+      team_id: team.id,
+      expected_count: 1,
+      team_lineup_column_id: singles_col.id
+    },
+    tenant
+  )
+
+  upsert_lineup_slot.(
+    %{
+      name: "#2 Singles",
+      team_id: team.id,
+      expected_count: 1,
+      team_lineup_column_id: singles_col.id
+    },
+    tenant
+  )
 
   doubles_col = upsert_lineup_column.(%{name: "Doubles", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "#1 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
-  upsert_lineup_slot.(%{name: "#2 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
-  upsert_lineup_slot.(%{name: "#3 Doubles", team_id: team.id, expected_count: 2, team_lineup_column_id: doubles_col.id}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "#1 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
+
+  upsert_lineup_slot.(
+    %{
+      name: "#2 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
+
+  upsert_lineup_slot.(
+    %{
+      name: "#3 Doubles",
+      team_id: team.id,
+      expected_count: 2,
+      team_lineup_column_id: doubles_col.id
+    },
+    tenant
+  )
 
   reserve_col = upsert_lineup_column.(%{name: "Reserve", team_id: team.id}, tenant)
-  upsert_lineup_slot.(%{name: "Sub", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: false}, tenant)
-  upsert_lineup_slot.(%{name: "Out", team_id: team.id, team_lineup_column_id: reserve_col.id, is_exclusion_slot: true, include_in_clipboard: false}, tenant)
+
+  upsert_lineup_slot.(
+    %{
+      name: "Sub",
+      team_id: team.id,
+      team_lineup_column_id: reserve_col.id,
+      is_exclusion_slot: false
+    },
+    tenant
+  )
 end
 
 preset_taxonomy = [

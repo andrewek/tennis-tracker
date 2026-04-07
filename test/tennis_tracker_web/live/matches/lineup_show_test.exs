@@ -2,23 +2,11 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
   use TennisTrackerWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import TennisTrackerWeb.LineupTestHelpers
 
   alias TennisTracker.Tennis
 
   setup :setup_group_with_owner
-
-  defp setup_captain(grp, team) do
-    captain = Factory.user()
-    Factory.group_membership(group: grp, user: captain)
-    Factory.team_role(group: grp, user: captain, team: team, traits: [:captain])
-    captain
-  end
-
-  defp setup_member(grp) do
-    member = Factory.user()
-    Factory.group_membership(group: grp, user: member)
-    member
-  end
 
   # ---------------------------------------------------------------------------
   # 4.1 + 4.2: Read-only lineup renders correctly
@@ -29,29 +17,35 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
 
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "No lineup slots defined"
+      assert has_element?(view, "#lineup-empty-state")
     end
 
     test "renders slots and assigned players", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
       player = Factory.player(group: grp, name: "Rafael Nadal")
+      reserve_col = get_reserve_col(grp, team)
 
       slot =
         Tennis.create_lineup_slot!(
-          %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           authorize?: false
         )
 
       Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "#1 Singles"
-      assert html =~ "Rafael Nadal"
+      assert has_element?(view, "#lineup-slot-#{slot.id}")
+      assert has_element?(view, "#lineup-player-#{player.id}")
     end
 
     test "shows empty slot marker when slot has no assignments", %{
@@ -61,17 +55,24 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
     } do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
+      reserve_col = get_reserve_col(grp, team)
 
-      Tennis.create_lineup_slot!(
-        %{name: "D1", team_id: team.id, group_id: grp.id},
-        tenant: grp.id,
-        authorize?: false
-      )
+      slot =
+        Tennis.create_lineup_slot!(
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          authorize?: false
+        )
 
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "D1"
-      assert html =~ "—"
+      assert has_element?(view, "#lineup-slot-#{slot.id}")
+      assert has_element?(view, "#lineup-slot-#{slot.id}", "—")
     end
   end
 
@@ -122,10 +123,10 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       match = Factory.match(group: grp, team: team)
       captain = setup_captain(grp, team)
 
-      {:ok, view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, captain), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "No lineup slots defined"
+      assert has_element?(view, "#lineup-empty-state")
       assert has_element?(view, "a[href*='/teams/#{team.id}/edit']")
     end
 
@@ -137,9 +138,9 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       match = Factory.match(group: grp, team: team)
       member = setup_member(grp)
 
-      {:ok, view, html} = live(log_in_user(conn, member), ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(log_in_user(conn, member), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "No lineup slots defined"
+      assert has_element?(view, "#lineup-empty-state")
       refute has_element?(view, "a[href*='/teams/#{team.id}/edit']")
     end
   end
@@ -153,9 +154,9 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
 
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "Copy Lineup"
+      assert has_element?(view, "#copy-lineup-btn")
     end
 
     test "lineup text textarea is hidden by default", %{conn: conn, group: grp, user: usr} do
@@ -175,7 +176,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
 
       render_click(view, "clipboard_copied", %{})
 
-      assert render(view) =~ "Copied!"
+      assert has_element?(view, "#flash-info", "Copied!")
     end
 
     test "clipboard fallback: hidden textarea contains lineup text for manual copy", %{
@@ -185,21 +186,23 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
     } do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
+      reserve_col = get_reserve_col(grp, team)
 
       Tennis.create_lineup_slot!(
-        %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+        %{
+          name: "#1 Singles",
+          team_id: team.id,
+          group_id: grp.id,
+          team_lineup_column_id: reserve_col.id
+        },
         tenant: grp.id,
         authorize?: false
       )
 
       {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      # textarea is hidden by default (JS clipboard API not available in tests)
       assert has_element?(view, "textarea#lineup-text-area.hidden")
-
-      # textarea contains formatted lineup text so manual copy would work if revealed
-      textarea_text = view |> element("textarea#lineup-text-area") |> render()
-      assert textarea_text =~ "#1 Singles"
+      assert has_element?(view, "textarea#lineup-text-area", "#1 Singles")
     end
   end
 end

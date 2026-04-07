@@ -12,7 +12,11 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
     captain_user = Factory.user()
     Factory.group_membership(group: grp, user: captain_user)
     Factory.team_role(group: grp, user: captain_user, team: team, traits: [:captain])
-    {:ok, team: team, member: member_user, captain: captain_user}
+
+    [reserve_col] =
+      Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+
+    {:ok, team: team, member: member_user, captain: captain_user, reserve_col: reserve_col}
   end
 
   # ---------------------------------------------------------------------------
@@ -20,10 +24,15 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
   # ---------------------------------------------------------------------------
 
   describe "create" do
-    test "owner can create a slot", %{group: grp, user: usr, team: team} do
+    test "owner can create a slot", %{group: grp, user: usr, team: team, reserve_col: reserve_col} do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -34,10 +43,21 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert is_nil(slot.expected_count)
     end
 
-    test "captain can create a slot", %{group: grp, captain: captain, team: team} do
+    test "captain can create a slot", %{
+      group: grp,
+      captain: captain,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "#1 Doubles", expected_count: 2, team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Doubles",
+            expected_count: 2,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: captain
         )
@@ -46,10 +66,20 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert slot.expected_count == 2
     end
 
-    test "non-captain member cannot create a slot", %{group: grp, member: member, team: team} do
+    test "non-captain member cannot create a slot", %{
+      group: grp,
+      member: member,
+      team: team,
+      reserve_col: reserve_col
+    } do
       result =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: member
         )
@@ -57,10 +87,20 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert {:error, _} = result
     end
 
-    test "include_in_clipboard defaults to true", %{group: grp, user: usr, team: team} do
+    test "include_in_clipboard defaults to true", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "Out", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -68,10 +108,21 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert slot.include_in_clipboard == true
     end
 
-    test "can set include_in_clipboard to false", %{group: grp, user: usr, team: team} do
+    test "can set include_in_clipboard to false", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "Out", include_in_clipboard: false, team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            include_in_clipboard: false,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -79,10 +130,10 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert slot.include_in_clipboard == false
     end
 
-    test "rejects blank name", %{group: grp, user: usr, team: team} do
+    test "rejects blank name", %{group: grp, user: usr, team: team, reserve_col: reserve_col} do
       result =
         Tennis.create_lineup_slot(
-          %{name: "", team_id: team.id, group_id: grp.id},
+          %{name: "", team_id: team.id, group_id: grp.id, team_lineup_column_id: reserve_col.id},
           tenant: grp.id,
           actor: usr
         )
@@ -90,10 +141,20 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert {:error, _} = result
     end
 
-    test "rejects name longer than 12 chars", %{group: grp, user: usr, team: team} do
+    test "rejects name longer than 12 chars", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       result =
         Tennis.create_lineup_slot(
-          %{name: "TooLongSlotX!", team_id: team.id, group_id: grp.id},
+          %{
+            name: "TooLongSlotX!",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -101,17 +162,43 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert {:error, _} = result
     end
 
-    test "rejects duplicate name within same team", %{group: grp, user: usr, team: team} do
+    test "rejects slot without a column", %{group: grp, user: usr, team: team} do
+      result =
+        Tennis.create_lineup_slot(
+          %{name: "S1", team_id: team.id, group_id: grp.id},
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert {:error, _} = result
+    end
+
+    test "rejects duplicate name within same team", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, _} =
         Tennis.create_lineup_slot(
-          %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       result =
         Tennis.create_lineup_slot(
-          %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -119,19 +206,35 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert {:error, _} = result
     end
 
-    test "same name allowed on different teams", %{group: grp, user: usr, team: team} do
+    test "same name allowed on different teams", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       team2 = Factory.team(group: grp)
+      [col2] = Tennis.list_lineup_columns_for_team!(team2.id, tenant: grp.id, authorize?: false)
 
       {:ok, _} =
         Tennis.create_lineup_slot(
-          %{name: "#1 Singles", team_id: team.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       {:ok, slot2} =
         Tennis.create_lineup_slot(
-          %{name: "#1 Singles", team_id: team2.id, group_id: grp.id},
+          %{
+            name: "#1 Singles",
+            team_id: team2.id,
+            group_id: grp.id,
+            team_lineup_column_id: col2.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -139,31 +242,74 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert slot2.name == "#1 Singles"
     end
 
-    test "sort_order is auto-assigned starting at 0", %{group: grp, user: usr, team: team} do
+    test "sort_order is auto-assigned after the existing Out slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      # "Out" exclusion slot is at sort_order 0 (auto-provisioned)
       {:ok, slot1} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       {:ok, slot2} =
         Tennis.create_lineup_slot(
-          %{name: "D1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       {:ok, slot3} =
         Tennis.create_lineup_slot(
-          %{name: "D2", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D2",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
-      assert slot1.sort_order == 0
-      assert slot2.sort_order == 1
-      assert slot3.sort_order == 2
+      assert slot1.sort_order == 1
+      assert slot2.sort_order == 2
+      assert slot3.sort_order == 3
+    end
+
+    test "rejects second exclusion slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      result =
+        Tennis.create_lineup_slot(
+          %{
+            name: "Sick",
+            is_exclusion_slot: true,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert {:error, _} = result
     end
   end
 
@@ -172,43 +318,63 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
   # ---------------------------------------------------------------------------
 
   describe "list_lineup_slots_for_team" do
-    test "returns slots ordered by sort_order", %{group: grp, user: usr, team: team} do
+    test "includes the auto-provisioned Out slot plus added slots in sort_order", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, _} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       {:ok, _} =
         Tennis.create_lineup_slot(
-          %{name: "D1", team_id: team.id, group_id: grp.id},
-          tenant: grp.id,
-          actor: usr
-        )
-
-      {:ok, _} =
-        Tennis.create_lineup_slot(
-          %{name: "D2", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
       names = Enum.map(slots, & &1.name)
-      assert names == ["S1", "D1", "D2"]
+      assert names == ["Out", "S1", "D1"]
     end
 
-    test "member can read slots", %{group: grp, member: member, team: team, user: usr} do
+    test "member can read slots", %{
+      group: grp,
+      member: member,
+      team: team,
+      user: usr,
+      reserve_col: reserve_col
+    } do
       {:ok, _} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: member)
-      assert length(slots) == 1
+      # "Out" exclusion slot + "S1"
+      assert length(slots) == 2
     end
   end
 
@@ -217,10 +383,15 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
   # ---------------------------------------------------------------------------
 
   describe "update" do
-    test "owner can update a slot", %{group: grp, user: usr, team: team} do
+    test "owner can update a slot", %{group: grp, user: usr, team: team, reserve_col: reserve_col} do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -231,10 +402,21 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert updated.name == "S2"
     end
 
-    test "captain can update a slot", %{group: grp, captain: captain, team: team, user: usr} do
+    test "captain can update a slot", %{
+      group: grp,
+      captain: captain,
+      team: team,
+      user: usr,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -248,10 +430,21 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert updated.include_in_clipboard == false
     end
 
-    test "non-captain member cannot update", %{group: grp, member: member, team: team, user: usr} do
+    test "non-captain member cannot update", %{
+      group: grp,
+      member: member,
+      team: team,
+      user: usr,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -266,23 +459,45 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
   # ---------------------------------------------------------------------------
 
   describe "delete" do
-    test "owner can delete a slot", %{group: grp, user: usr, team: team} do
+    test "owner can delete a non-exclusion slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       assert :ok = Tennis.delete_lineup_slot!(slot, tenant: grp.id, actor: usr)
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
-      assert slots == []
+      # Only the auto-provisioned "Out" slot remains
+      assert [%{name: "Out"}] = slots
     end
 
-    test "captain can delete a slot", %{group: grp, captain: captain, team: team, user: usr} do
+    test "captain can delete a non-exclusion slot", %{
+      group: grp,
+      captain: captain,
+      team: team,
+      user: usr,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -290,15 +505,35 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert :ok = Tennis.delete_lineup_slot!(slot, tenant: grp.id, actor: captain)
     end
 
-    test "non-captain member cannot delete", %{group: grp, member: member, team: team, user: usr} do
+    test "non-captain member cannot delete", %{
+      group: grp,
+      member: member,
+      team: team,
+      user: usr,
+      reserve_col: reserve_col
+    } do
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       result = Tennis.delete_lineup_slot(slot, tenant: grp.id, actor: member)
+      assert {:error, _} = result
+    end
+
+    test "exclusion slot cannot be deleted", %{group: grp, user: usr, team: team} do
+      [out_slot] =
+        Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+        |> Enum.filter(& &1.is_exclusion_slot)
+
+      result = Tennis.delete_lineup_slot(out_slot, tenant: grp.id, actor: usr)
       assert {:error, _} = result
     end
   end

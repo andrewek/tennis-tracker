@@ -34,6 +34,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
           tenant: group_id,
           actor: current_user
         )
+        |> Enum.reject(& &1.is_exclusion_slot)
 
       assignments =
         Tennis.list_assignments_for_match!(match.id,
@@ -162,7 +163,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
           </div>
 
           <%!-- Empty state: no slots defined --%>
-          <div :if={@lineup_slots == []}>
+          <div :if={@lineup_slots == []} id="lineup-empty-state">
             <p class="text-sm text-base-content/50">No lineup slots defined for this team.</p>
             <.link
               :if={@can_edit_lineup}
@@ -176,7 +177,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
           <%!-- Slot assignment list --%>
           <div :if={@lineup_slots != []} class="space-y-3">
             <%= for slot <- @lineup_slots do %>
-              <div>
+              <div id={"lineup-slot-#{slot.id}"}>
                 <p class="text-xs font-semibold text-base-content/60 uppercase tracking-wide">
                   {slot.name}
                 </p>
@@ -188,7 +189,13 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
                 <%= if slot_players == [] do %>
                   <p class="text-sm text-base-content/40">—</p>
                 <% else %>
-                  <p :for={player <- slot_players} class="text-sm">{player.name}</p>
+                  <p
+                    :for={player <- slot_players}
+                    id={"lineup-player-#{player.id}"}
+                    class="text-sm"
+                  >
+                    {player.name}
+                  </p>
                 <% end %>
               </div>
             <% end %>

@@ -2,26 +2,17 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
   use TennisTrackerWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import TennisTrackerWeb.LineupTestHelpers
 
   alias TennisTracker.Tennis
 
   setup :setup_group_with_owner
 
-  defp setup_captain(grp, team) do
-    captain = Factory.user()
-    Factory.group_membership(group: grp, user: captain)
-    Factory.team_role(group: grp, user: captain, team: team, traits: [:captain])
-    captain
-  end
-
-  defp setup_member(grp) do
-    member = Factory.user()
-    Factory.group_membership(group: grp, user: member)
-    member
-  end
-
   defp create_slot(grp, team, name, opts \\ []) do
-    attrs = %{name: name, team_id: team.id, group_id: grp.id}
+    col =
+      Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false) |> hd()
+
+    attrs = %{name: name, team_id: team.id, group_id: grp.id, team_lineup_column_id: col.id}
     attrs = if ec = opts[:expected_count], do: Map.put(attrs, :expected_count, ec), else: attrs
 
     Tennis.create_lineup_slot!(attrs, tenant: grp.id, authorize?: false)
@@ -77,10 +68,10 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
 
-      {:ok, view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      assert html =~ "No lineup slots defined"
+      assert has_element?(view, "#lineup-empty-state")
       assert has_element?(view, "a[href*='/teams/#{team.id}/edit']")
     end
   end
@@ -168,8 +159,6 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
         "target_id" => slot.id
       })
 
-      html = render(view)
-      assert html =~ "Andy Murray"
       refute has_element?(view, "#col-available #player-#{player.id}")
       assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
     end
@@ -214,12 +203,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
     } do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
-      create_slot(grp, team, "D1", expected_count: 2)
+      slot = create_slot(grp, team, "D1", expected_count: 2)
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      assert html =~ "Expected 2, have 0"
+      assert has_element?(view, "#col-#{slot.id}", "Expected 2, have 0")
     end
 
     test "no warning when assignment count matches expected_count", %{
@@ -235,21 +224,21 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
 
       Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      refute html =~ "Expected 1, have 1"
+      refute has_element?(view, "#col-#{slot.id}", "Expected")
     end
 
     test "no warning when expected_count is nil", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
-      create_slot(grp, team, "S1")
+      slot = create_slot(grp, team, "S1")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      refute html =~ "Expected"
+      refute has_element?(view, "#col-#{slot.id}", "Expected")
     end
   end
 

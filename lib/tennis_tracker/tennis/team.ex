@@ -30,8 +30,17 @@ defmodule TennisTracker.Tennis.Team do
       authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
     end
 
-    policy action_type([:update, :destroy]) do
+    policy action(:update) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+
+    policy action(:destroy) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+
+    policy action(:update_assignment_mode) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+      authorize_if(TennisTracker.Policies.IsTeamCaptainOfSelf)
     end
   end
 
@@ -122,11 +131,79 @@ defmodule TennisTracker.Tennis.Team do
     create :create do
       primary?(true)
       accept([:name, :season_year, :is_pseudo, :team_type_id, :group_id])
+
+      change(fn changeset, context ->
+        Ash.Changeset.after_action(changeset, fn _changeset, team ->
+          unless team.is_pseudo do
+            tenant = team.group_id
+
+            col =
+              TennisTracker.Tennis.TeamLineupColumn
+              |> Ash.Changeset.for_create(
+                :create,
+                %{name: "Reserve", team_id: team.id, group_id: tenant},
+                domain: TennisTracker.Tennis,
+                tenant: tenant,
+                authorize?: false
+              )
+              |> Ash.create!()
+
+            TennisTracker.Tennis.TeamLineupSlot
+            |> Ash.Changeset.for_create(
+              :create,
+              %{
+                name: "Out",
+                is_exclusion_slot: true,
+                include_in_clipboard: false,
+                team_id: team.id,
+                team_lineup_column_id: col.id,
+                group_id: tenant
+              },
+              domain: TennisTracker.Tennis,
+              tenant: tenant,
+              authorize?: false
+            )
+            |> Ash.create!()
+          end
+
+          {:ok, team}
+        end)
+      end)
+    end
+
+    update :update_assignment_mode do
+      require_atomic?(false)
+      accept([:lineup_assignment_mode])
+
+      validate(fn changeset, context ->
+        if Ash.Changeset.changing_attribute?(changeset, :lineup_assignment_mode) do
+          new_mode = Ash.Changeset.get_attribute(changeset, :lineup_assignment_mode)
+          team = changeset.data
+          tenant = context.tenant
+
+          check_mode_change(new_mode, team, tenant)
+        else
+          :ok
+        end
+      end)
     end
 
     update :update do
       primary?(true)
+      require_atomic?(false)
       accept([:name, :default_timezone, :lineup_assignment_mode])
+
+      validate(fn changeset, context ->
+        if Ash.Changeset.changing_attribute?(changeset, :lineup_assignment_mode) do
+          new_mode = Ash.Changeset.get_attribute(changeset, :lineup_assignment_mode)
+          team = changeset.data
+          tenant = context.tenant
+
+          check_mode_change(new_mode, team, tenant)
+        else
+          :ok
+        end
+      end)
     end
 
     destroy :destroy do
@@ -179,5 +256,70 @@ defmodule TennisTracker.Tennis.Team do
     strategy(:attribute)
     attribute(:group_id)
     global?(true)
+  end
+
+  defp check_mode_change(:many_per_match, _team, _tenant), do: :ok
+
+  defp check_mode_change(:one_per_match, team, tenant) do
+    if has_multi_assignment_violations?(team.id, tenant) do
+      {:error,
+       field: :lineup_assignment_mode,
+       message:
+         "cannot change to one_per_match: some matches have players with multiple assignments. Resolve conflicts first."}
+    else
+      :ok
+    end
+  end
+
+  defp check_mode_change(:one_per_column, team, tenant) do
+    if has_same_column_violations?(team.id, tenant) do
+      {:error,
+       field: :lineup_assignment_mode,
+       message:
+         "cannot change to one_per_column: some matches have players with multiple assignments in the same column. Resolve conflicts first."}
+    else
+      :ok
+    end
+  end
+
+  defp has_multi_assignment_violations?(team_id, tenant) do
+    require Ash.Query
+
+    match_ids =
+      TennisTracker.Tennis.Match
+      |> Ash.Query.filter(team_id == ^team_id)
+      |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+      |> Enum.map(& &1.id)
+
+    if match_ids == [] do
+      false
+    else
+      TennisTracker.Tennis.MatchLineupAssignment
+      |> Ash.Query.filter(match_id in ^match_ids)
+      |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+      |> Enum.group_by(&{&1.match_id, &1.player_id})
+      |> Enum.any?(fn {_, assignments} -> length(assignments) > 1 end)
+    end
+  end
+
+  defp has_same_column_violations?(team_id, tenant) do
+    require Ash.Query
+
+    match_ids =
+      TennisTracker.Tennis.Match
+      |> Ash.Query.filter(team_id == ^team_id)
+      |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+      |> Enum.map(& &1.id)
+
+    if match_ids == [] do
+      false
+    else
+      TennisTracker.Tennis.MatchLineupAssignment
+      |> Ash.Query.filter(match_id in ^match_ids)
+      |> Ash.Query.load(:team_lineup_slot)
+      |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+      |> Enum.group_by(&{&1.match_id, &1.player_id, &1.team_lineup_slot.team_lineup_column_id})
+      |> Enum.any?(fn {_, assignments} -> length(assignments) > 1 end)
+    end
   end
 end

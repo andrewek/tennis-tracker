@@ -57,11 +57,78 @@ defmodule TennisTrackerWeb.BoardComponents do
     """
   end
 
+  # ---------------------------------------------------------------------------
+  # Grouped column layout components (task 4.1/4.2)
+  # ---------------------------------------------------------------------------
+
+  attr :id, :string, required: true
+  attr :column_name, :string, required: true
+  slot :inner_block, required: true
+
+  def lineup_column_group(assigns) do
+    ~H"""
+    <div id={@id} class="flex-shrink-0 w-56 bg-base-200 rounded-lg p-2 flex flex-col">
+      <div class="font-semibold text-sm px-1 mb-2">{@column_name}</div>
+      <div class="flex flex-col gap-2 flex-1 overflow-y-auto min-h-0">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :count, :integer, required: true
+  attr :target_id, :string, required: true
+  attr :violations, :list, default: []
+  attr :drop_event, :string, default: nil
+  attr :assign_event, :string, default: nil
+  slot :inner_block, required: true
+
+  def lineup_slot_zone(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class="bg-base-100/60 rounded p-1 min-h-[2.5rem]"
+      phx-hook="DropZone"
+      data-target-id={@target_id}
+      data-drop-event={@drop_event}
+      phx-click={@assign_event}
+      phx-value-slot_id={@target_id}
+    >
+      <div class="flex items-center justify-between px-1 mb-1">
+        <span class="text-xs font-medium text-base-content/70">{@title}</span>
+        <span class="badge badge-xs badge-ghost">{@count}</span>
+      </div>
+      <div :if={@violations != []} class="mb-1 space-y-0.5">
+        <div
+          :for={v <- @violations}
+          class={[
+            "text-xs px-1.5 py-0.5 rounded border-l-2 text-base-content",
+            v.level == :warning && "bg-warning/15 border-warning",
+            v.level == :caution && "bg-info/15 border-info"
+          ]}
+        >
+          {v.message}
+        </div>
+      </div>
+      <div class="space-y-1">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  # ---------------------------------------------------------------------------
+  # Player card
+  # ---------------------------------------------------------------------------
+
   attr :player, :map, required: true
   attr :has_violation, :boolean, default: false
   attr :selected, :boolean, default: false
   attr :readonly, :boolean, default: false
-  attr :on_click, :string, default: "select_player"
+  attr :on_click, :any, default: "select_player"
+  attr :column_badges, :list, default: []
 
   def player_card(assigns) do
     ~H"""
@@ -81,6 +148,9 @@ defmodule TennisTrackerWeb.BoardComponents do
     >
       <span class="truncate">{@player.name}</span>
       <div class="flex items-center gap-1 ml-1 flex-shrink-0">
+        <span :for={badge <- @column_badges} class="badge badge-xs badge-outline opacity-60">
+          {badge}
+        </span>
         <span :if={@player.ntrp_rating} class="text-xs text-base-content/50">
           {@player.ntrp_rating}
         </span>

@@ -5,6 +5,7 @@ defmodule TennisTracker.Tennis do
 
   alias TennisTracker.Tennis.{
     Team,
+    Match,
     TeamMembership,
     SeasonRules,
     SeasonRulesDefaultTag,
@@ -304,31 +305,103 @@ defmodule TennisTracker.Tennis do
   end
 
   @doc """
-  Assigns a player to a lineup slot for a match, or updates the slot if already assigned.
-  Uses upsert on the :player_per_match identity.
+  Assigns a player to a lineup slot for a match.
+
+  For :one_per_match teams: updates the player's existing assignment in place if found,
+  otherwise creates a new one. This ensures only one assignment per player per match.
+
+  For :one_per_column and :many_per_match teams: always creates a new assignment.
+  The mode-aware validation in MatchLineupAssignment.create enforces the constraint.
+
+  ## Mode-constraint enforcement layers
+
+  Assignment mode constraints are enforced at three levels:
+
+    1. **MatchLineupAssignment.create** (`apply_mode_constraint/5`) — authoritative DB-level
+       enforcement. Runs inside a before_action and always rejects invalid assignments
+       regardless of how they were submitted.
+
+    2. **Tennis.assign_to_slot/4** (this function) — domain-level pre-check for
+       :one_per_match. Issues an update instead of a create when the player already has an
+       assignment, keeping the identity constraint clean.
+
+    3. **LineupEditLive.do_slot_assignment/6** — UI-level pre-check. For :one_per_column,
+       destroys the existing same-column assignment before creating the new one so the
+       board reflects a clean move rather than an error. For :many_per_match, skips
+       creation when the player is already in the target slot.
+
+  Layers 2 and 3 are optimistic helpers; layer 1 is the enforcer.
   """
   def assign_to_slot(match_id, player_id, slot_id, opts \\ []) do
     tenant = Keyword.fetch!(opts, :tenant)
     actor = Keyword.fetch!(opts, :actor)
 
-    MatchLineupAssignment
-    |> Ash.Changeset.for_create(
-      :create,
-      %{
-        match_id: match_id,
-        player_id: player_id,
-        team_lineup_slot_id: slot_id,
-        group_id: tenant
-      },
-      domain: __MODULE__,
-      actor: actor,
-      tenant: tenant
-    )
-    |> Ash.create(
-      upsert?: true,
-      upsert_identity: :player_per_match,
-      upsert_fields: [:team_lineup_slot_id]
-    )
+    match =
+      Ash.get!(Match, match_id, domain: __MODULE__, tenant: tenant, actor: actor)
+
+    team =
+      Ash.get!(Team, match.team_id, domain: __MODULE__, tenant: tenant, actor: actor)
+
+    case team.lineup_assignment_mode do
+      :one_per_match ->
+        existing =
+          MatchLineupAssignment
+          |> Ash.Query.filter(match_id == ^match_id and player_id == ^player_id)
+          |> Ash.Query.load(:team_lineup_slot)
+          |> Ash.read_one!(domain: __MODULE__, tenant: tenant, authorize?: false)
+
+        if existing do
+          target_slot =
+            Ash.get!(TennisTracker.Tennis.TeamLineupSlot, slot_id,
+              domain: __MODULE__,
+              tenant: tenant,
+              authorize?: false
+            )
+
+          if existing.team_lineup_slot.is_exclusion_slot && !target_slot.is_exclusion_slot do
+            {:error, :player_excluded}
+          else
+            existing
+            |> Ash.Changeset.for_update(:update, %{team_lineup_slot_id: slot_id},
+              domain: __MODULE__,
+              actor: actor,
+              tenant: tenant
+            )
+            |> Ash.update()
+          end
+        else
+          MatchLineupAssignment
+          |> Ash.Changeset.for_create(
+            :create,
+            %{
+              match_id: match_id,
+              player_id: player_id,
+              team_lineup_slot_id: slot_id,
+              group_id: tenant
+            },
+            domain: __MODULE__,
+            actor: actor,
+            tenant: tenant
+          )
+          |> Ash.create()
+        end
+
+      _mode ->
+        MatchLineupAssignment
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            match_id: match_id,
+            player_id: player_id,
+            team_lineup_slot_id: slot_id,
+            group_id: tenant
+          },
+          domain: __MODULE__,
+          actor: actor,
+          tenant: tenant
+        )
+        |> Ash.create()
+    end
   end
 
   @doc """
@@ -338,17 +411,18 @@ defmodule TennisTracker.Tennis do
     tenant = Keyword.fetch!(opts, :tenant)
     actor = Keyword.fetch!(opts, :actor)
 
-    assignment =
+    assignments =
       MatchLineupAssignment
       |> Ash.Query.for_read(:read, %{}, actor: actor)
       |> Ash.Query.filter(match_id == ^match_id and player_id == ^player_id)
-      |> Ash.read_one!(domain: __MODULE__, tenant: tenant)
+      |> Ash.read!(domain: __MODULE__, tenant: tenant)
 
-    if assignment do
-      Ash.destroy(assignment, domain: __MODULE__, actor: actor, tenant: tenant)
-    else
-      {:ok, nil}
-    end
+    Enum.reduce_while(assignments, :ok, fn assignment, :ok ->
+      case Ash.destroy(assignment, domain: __MODULE__, actor: actor, tenant: tenant) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 
   defp sync_add_default_tags(tag_ids, season_rules_id, tenant, actor) do
@@ -477,6 +551,7 @@ defmodule TennisTracker.Tennis do
       define(:get_team, action: :read, get_by: [:id])
       define(:create_team, action: :create)
       define(:update_team, action: :update)
+      define(:update_team_assignment_mode, action: :update_assignment_mode)
       define(:destroy_team, action: :destroy)
     end
 

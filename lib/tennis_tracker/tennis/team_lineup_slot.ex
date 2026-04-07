@@ -11,6 +11,10 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
   postgres do
     table("team_lineup_slots")
     repo(TennisTracker.Repo)
+
+    references do
+      reference(:team, on_delete: :delete)
+    end
   end
 
   policies do
@@ -140,6 +144,37 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
         end
       end)
 
+      validate(fn changeset, _context ->
+        column_id = Ash.Changeset.get_attribute(changeset, :team_lineup_column_id)
+
+        if is_nil(column_id) do
+          {:error, field: :team_lineup_column_id, message: "is required"}
+        else
+          :ok
+        end
+      end)
+
+      validate(fn changeset, context ->
+        is_excl = Ash.Changeset.get_attribute(changeset, :is_exclusion_slot)
+        team_id = Ash.Changeset.get_attribute(changeset, :team_id)
+        tenant = context.tenant
+
+        if is_excl && team_id && tenant do
+          existing_excl =
+            TennisTracker.Tennis.TeamLineupSlot
+            |> Ash.Query.filter(team_id == ^team_id and is_exclusion_slot == true)
+            |> Ash.read_one!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
+
+          if existing_excl do
+            {:error, field: :is_exclusion_slot, message: "team already has an exclusion slot"}
+          else
+            :ok
+          end
+        else
+          :ok
+        end
+      end)
+
       change(fn changeset, context ->
         team_id = Ash.Changeset.get_attribute(changeset, :team_id)
         tenant = context.tenant
@@ -167,6 +202,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
 
     update :update do
       primary?(true)
+      require_atomic?(false)
 
       accept([
         :name,
@@ -176,10 +212,33 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
         :team_lineup_column_id,
         :sort_order
       ])
+
+      validate(fn changeset, _context ->
+        if Ash.Changeset.changing_attribute?(changeset, :team_lineup_column_id) do
+          column_id = Ash.Changeset.get_attribute(changeset, :team_lineup_column_id)
+
+          if is_nil(column_id) do
+            {:error, field: :team_lineup_column_id, message: "is required"}
+          else
+            :ok
+          end
+        else
+          :ok
+        end
+      end)
     end
 
     destroy :destroy do
       primary?(true)
+      require_atomic?(false)
+
+      validate(fn changeset, _context ->
+        if changeset.data && changeset.data.is_exclusion_slot do
+          {:error, field: :base, message: "cannot delete the team's exclusion slot"}
+        else
+          :ok
+        end
+      end)
     end
   end
 

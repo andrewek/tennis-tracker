@@ -2,25 +2,9 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
   use TennisTrackerWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import TennisTrackerWeb.LineupTestHelpers
 
   alias TennisTracker.Tennis
-
-  # ---------------------------------------------------------------------------
-  # Setup helpers
-  # ---------------------------------------------------------------------------
-
-  defp setup_captain(grp, team) do
-    captain = Factory.user()
-    Factory.group_membership(group: grp, user: captain)
-    Factory.team_role(group: grp, user: captain, team: team, traits: [:captain])
-    captain
-  end
-
-  defp setup_member(grp) do
-    member = Factory.user()
-    Factory.group_membership(group: grp, user: member)
-    member
-  end
 
   # ---------------------------------------------------------------------------
   # Authorization: section visibility
@@ -31,18 +15,18 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
     test "owner sees slot management section", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
-      assert html =~ "Lineup Slots"
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      assert has_element?(view, "#slots-management-section")
     end
 
     test "captain sees slot management section", %{conn: conn, group: grp} do
       team = Factory.team(group: grp)
       captain = setup_captain(grp, team)
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(log_in_user(conn, captain), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
-      assert html =~ "Lineup Slots"
+      assert has_element?(view, "#slots-management-section")
     end
 
     test "non-captain member does not see slot management section", %{conn: conn, group: grp} do
@@ -78,9 +62,8 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       })
       |> render_submit()
 
-      html = render(view)
-      assert html =~ "#1 Singles"
-      assert html =~ "Slot added"
+      assert has_element?(view, "[id^='slot-']", "#1 Singles")
+      assert has_element?(view, "#flash-info", "Slot added")
     end
 
     test "captain can add a slot", %{conn: conn, group: grp} do
@@ -98,14 +81,17 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       })
       |> render_submit()
 
-      html = render(view)
-      assert html =~ "D1"
+      assert has_element?(view, "[id^='slot-']", "D1")
     end
 
-    test "shows empty state before adding", %{conn: conn, group: grp, user: usr} do
+    test "shows auto-provisioned Out slot before adding any slots", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
       team = Factory.team(group: grp)
-      {:ok, _view, html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
-      assert html =~ "No lineup slots defined"
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      assert has_element?(view, "[id^='slot-']", "Out")
     end
 
     test "add form disappears after cancel", %{conn: conn, group: grp, user: usr} do
@@ -128,10 +114,16 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
     test "owner can edit an existing slot", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
 
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -148,9 +140,8 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       })
       |> render_submit()
 
-      html = render(view)
-      assert html =~ "S2"
-      assert html =~ "Slot updated"
+      assert has_element?(view, "#slot-#{slot.id}", "S2")
+      assert has_element?(view, "#flash-info", "Slot updated")
     end
   end
 
@@ -163,10 +154,16 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
     test "owner can delete a slot", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
 
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -182,7 +179,7 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       view |> element("button[phx-click='delete_slot']") |> render_click()
 
       refute has_element?(view, "#slot-#{slot.id}")
-      assert render(view) =~ "Slot deleted"
+      assert has_element?(view, "#flash-info", "Slot deleted")
     end
   end
 
@@ -195,17 +192,28 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
     test "move slot down changes order", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
 
       {:ok, slot1} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
 
       {:ok, slot2} =
         Tennis.create_lineup_slot(
-          %{name: "D1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )
@@ -225,28 +233,32 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
     test "first slot has no move-up button", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
-
-      {:ok, slot} =
-        Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
-          tenant: grp.id,
-          actor: usr
-        )
+      # The "Out" slot is auto-provisioned with sort_order 0 and is the first slot.
+      # Get that slot's id to verify it has no move-up button.
+      [out_slot] =
+        Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+        |> Enum.filter(& &1.is_exclusion_slot)
 
       {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 
       refute has_element?(
                view,
-               "button[phx-click='move_slot_up'][phx-value-slot_id='#{slot.id}']"
+               "button[phx-click='move_slot_up'][phx-value-slot_id='#{out_slot.id}']"
              )
     end
 
     test "last slot has no move-down button", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
 
       {:ok, slot} =
         Tennis.create_lineup_slot(
-          %{name: "S1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           actor: usr
         )

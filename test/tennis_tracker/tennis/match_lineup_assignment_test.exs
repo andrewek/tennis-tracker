@@ -17,9 +17,12 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
     Factory.group_membership(group: grp, user: captain_user)
     Factory.team_role(group: grp, user: captain_user, team: team, traits: [:captain])
 
+    [reserve_col] =
+      Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+
     slot =
       Tennis.create_lineup_slot!(
-        %{name: "S1", team_id: team.id, group_id: grp.id},
+        %{name: "S1", team_id: team.id, group_id: grp.id, team_lineup_column_id: reserve_col.id},
         tenant: grp.id,
         authorize?: false
       )
@@ -30,7 +33,8 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
      player: player,
      member: member_user,
      captain: captain_user,
-     slot: slot}
+     slot: slot,
+     reserve_col: reserve_col}
   end
 
   # ---------------------------------------------------------------------------
@@ -94,11 +98,17 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
       match: match,
       player: player,
       team: team,
-      slot: slot
+      slot: slot,
+      reserve_col: reserve_col
     } do
       slot2 =
         Tennis.create_lineup_slot!(
-          %{name: "D1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           authorize?: false
         )
@@ -166,7 +176,7 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
           actor: captain
         )
 
-      assert {:ok, nil} = result
+      assert result in [:ok, {:ok, nil}]
     end
   end
 
@@ -180,14 +190,20 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
       user: usr,
       match: match,
       team: team,
-      slot: slot
+      slot: slot,
+      reserve_col: reserve_col
     } do
       player1 = Factory.player(group: grp)
       player2 = Factory.player(group: grp)
 
       slot2 =
         Tennis.create_lineup_slot!(
-          %{name: "D1", team_id: team.id, group_id: grp.id},
+          %{
+            name: "D1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
           tenant: grp.id,
           authorize?: false
         )

@@ -11,6 +11,10 @@ defmodule TennisTracker.Tennis.TeamLineupColumn do
   postgres do
     table("team_lineup_columns")
     repo(TennisTracker.Repo)
+
+    references do
+      reference(:team, on_delete: :delete)
+    end
   end
 
   policies do
