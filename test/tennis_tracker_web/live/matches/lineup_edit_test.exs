@@ -243,6 +243,237 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Tap-to-assign modal
+  # ---------------------------------------------------------------------------
+
+  describe "tap-to-assign modal" do
+    test "tapping a player card in Available opens the modal", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Modal Available Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(view, "h3", player.name)
+      assert has_element?(view, "a[href='/g/#{grp.slug}/players/#{player.id}']")
+    end
+
+    test "tapping a player card in a slot opens the modal", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Modal Slot Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(view, "h3", player.name)
+      assert has_element?(view, "a[href='/g/#{grp.slug}/players/#{player.id}']")
+    end
+
+    test "Available player: Available button is filled, slot buttons are outline", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Unassigned Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(
+               view,
+               "button.btn-primary:not(.btn-outline)[phx-value-target_id='available']"
+             )
+
+      assert has_element?(view, "button.btn-outline[phx-value-target_id='#{slot.id}']")
+    end
+
+    test "assigned player: current slot button is filled, Available and other slots are outline",
+         %{
+           conn: conn,
+           group: grp,
+           user: usr
+         } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Assigned Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      assert has_element?(
+               view,
+               "button.btn-primary:not(.btn-outline)[phx-value-target_id='#{slot.id}']"
+             )
+
+      assert has_element?(view, "button.btn-outline[phx-value-target_id='available']")
+    end
+
+    test "tapping a slot button assigns the player and closes the modal", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Assign Via Modal Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+      assert has_element?(view, "h3", player.name)
+
+      render_click(view, "move_lineup_player", %{
+        "player_id" => player.id,
+        "target_id" => slot.id
+      })
+
+      refute has_element?(view, "h3", player.name)
+      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+    end
+
+    test "tapping the Available button unassigns the player and closes the modal", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Unassign Via Modal Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+      assert has_element?(view, "h3", player.name)
+
+      render_click(view, "move_lineup_player", %{
+        "player_id" => player.id,
+        "target_id" => "available"
+      })
+
+      refute has_element?(view, "h3", player.name)
+      assert has_element?(view, "#col-available #player-#{player.id}")
+    end
+
+    test "dismissing the modal via close button makes no assignment change", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Close Button Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      Tennis.assign_to_slot(match.id, player.id, slot.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+      assert has_element?(view, "h3", player.name)
+
+      render_click(view, "deselect_player", %{})
+
+      refute has_element?(view, "h3", player.name)
+      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+    end
+
+    test "tapping a player card while a modal is already open switches to the new player",
+         %{
+           conn: conn,
+           group: grp,
+           user: usr
+         } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player1 = Factory.player(group: grp, name: "First Modal Player")
+      player2 = Factory.player(group: grp, name: "Second Modal Player")
+      Factory.team_membership(group: grp, team: team, player: player1)
+      Factory.team_membership(group: grp, team: team, player: player2)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player1.id})
+      assert has_element?(view, "h3", player1.name)
+
+      render_click(view, "select_player", %{"player_id" => player2.id})
+
+      assert has_element?(view, "h3", player2.name)
+      refute has_element?(view, "h3", player1.name)
+    end
+
+    test "moving a player from an exclusion slot to a playing slot succeeds", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = Factory.match(group: grp, team: team)
+      player = Factory.player(group: grp, name: "Excluded Player")
+      Factory.team_membership(group: grp, team: team, player: player)
+      playing_slot = create_slot(grp, team, "S1")
+
+      excl_slot =
+        Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+        |> Enum.find(& &1.is_exclusion_slot)
+
+      Tennis.assign_to_slot(match.id, player.id, excl_slot.id, tenant: grp.id, actor: usr)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "select_player", %{"player_id" => player.id})
+
+      render_click(view, "move_lineup_player", %{
+        "player_id" => player.id,
+        "target_id" => playing_slot.id
+      })
+
+      assert has_element?(view, "#col-#{playing_slot.id} #player-#{player.id}")
+      refute has_element?(view, "#col-#{excl_slot.id} #player-#{player.id}")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Real-time sync (PubSub)
   # ---------------------------------------------------------------------------
 

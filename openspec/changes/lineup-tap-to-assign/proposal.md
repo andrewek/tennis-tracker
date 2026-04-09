@@ -18,7 +18,7 @@ None.
 
 ### Modified Capabilities
 
-- `match-lineup`: Replace the in-progress select-then-tap implementation with the modal pattern. Update the four tap-to-assign scenarios to reflect the new interaction.
+- `match-lineup`: Replace the in-progress select-then-tap implementation with the modal pattern. Update the five tap-to-assign scenarios to reflect the new interaction.
 
 ## Impact
 

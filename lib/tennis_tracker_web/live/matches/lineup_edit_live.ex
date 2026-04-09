@@ -88,8 +88,10 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
            actor: current_user
          ) do
       result when result in [:ok, {:ok, nil}] ->
-        # Board reload driven by PubSub notification
-        socket |> noreply()
+        socket
+        |> assign(:selected_player_id, nil)
+        |> load_board(group_id, current_user)
+        |> noreply()
 
       {:error, _} ->
         socket |> put_flash(:error, "Could not update lineup.") |> noreply()
@@ -109,10 +111,16 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
 
     case result do
       {:ok, _} ->
-        socket |> noreply()
+        socket
+        |> assign(:selected_player_id, nil)
+        |> load_board(group_id, current_user)
+        |> noreply()
 
       :ok ->
-        socket |> noreply()
+        socket
+        |> assign(:selected_player_id, nil)
+        |> load_board(group_id, current_user)
+        |> noreply()
 
       {:error, _} ->
         socket |> put_flash(:error, "Could not update lineup.") |> noreply()
@@ -120,41 +128,11 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
   end
 
   def handle_event("select_player", %{"player_id" => player_id}, socket) do
-    current = socket.assigns.selected_player_id
-    new_id = if current == player_id, do: nil, else: player_id
-    socket |> assign(:selected_player_id, new_id) |> noreply()
+    socket |> assign(:selected_player_id, player_id) |> noreply()
   end
 
-  def handle_event("assign_selected_player", %{"slot_id" => slot_id}, socket) do
-    selected_player_id = socket.assigns.selected_player_id
-
-    if selected_player_id do
-      group_id = socket.assigns.current_group_id
-      current_user = socket.assigns.current_user
-      match = socket.assigns.match
-
-      result =
-        do_slot_assignment(socket, match.id, selected_player_id, slot_id, group_id, current_user)
-
-      case result do
-        r when r in [{:ok, :no_change}, {:ok, nil}] ->
-          socket |> assign(:selected_player_id, nil) |> noreply()
-
-        {:ok, _} ->
-          socket |> assign(:selected_player_id, nil) |> noreply()
-
-        :ok ->
-          socket |> assign(:selected_player_id, nil) |> noreply()
-
-        {:error, _} ->
-          socket
-          |> assign(:selected_player_id, nil)
-          |> put_flash(:error, "Could not assign player.")
-          |> noreply()
-      end
-    else
-      socket |> noreply()
-    end
+  def handle_event("deselect_player", _params, socket) do
+    socket |> assign(:selected_player_id, nil) |> noreply()
   end
 
   # ---------------------------------------------------------------------------
@@ -268,63 +246,77 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
   defp do_slot_assignment(socket, match_id, player_id, slot_id, group_id, current_user) do
     mode = socket.assigns.mode
 
-    case mode do
-      :one_per_match ->
-        Tennis.assign_to_slot(match_id, player_id, slot_id,
-          tenant: group_id,
-          actor: current_user
-        )
-
-      :one_per_column ->
-        target_slot = Enum.find(socket.assigns.lineup_slots, &(&1.id == slot_id))
-
-        if target_slot do
-          existing_in_column =
-            Enum.find(socket.assigns.assignments, fn a ->
-              a.player_id == player_id &&
-                !a.team_lineup_slot.is_exclusion_slot &&
-                a.team_lineup_slot.team_lineup_column_id == target_slot.team_lineup_column_id
-            end)
-
-          cond do
-            existing_in_column && existing_in_column.team_lineup_slot_id == slot_id ->
-              {:ok, :no_change}
-
-            existing_in_column ->
-              Tennis.destroy_lineup_assignment!(existing_in_column,
-                tenant: group_id,
-                actor: current_user
-              )
-
-              Tennis.assign_to_slot(match_id, player_id, slot_id,
-                tenant: group_id,
-                actor: current_user
-              )
-
-            true ->
-              Tennis.assign_to_slot(match_id, player_id, slot_id,
-                tenant: group_id,
-                actor: current_user
-              )
-          end
-        else
-          {:error, :slot_not_found}
+    # Remove any exclusion slot (Out/Sub) assignments before reassigning.
+    # This allows tap-to-assign to move a player from an exclusion slot to any other slot.
+    excl_result =
+      socket.assigns.assignments
+      |> Enum.filter(&(&1.player_id == player_id && &1.team_lineup_slot.is_exclusion_slot))
+      |> Enum.reduce_while(:ok, fn assignment, :ok ->
+        case Tennis.destroy_lineup_assignment(assignment, tenant: group_id, actor: current_user) do
+          :ok -> {:cont, :ok}
+          error -> {:halt, error}
         end
+      end)
 
-      :many_per_match ->
-        already_in_slot =
-          Enum.any?(socket.assigns.assignments, fn a ->
-            a.player_id == player_id && a.team_lineup_slot_id == slot_id
-          end)
-
-        if already_in_slot do
-          {:ok, :no_change}
-        else
+    with :ok <- excl_result do
+      case mode do
+        :one_per_match ->
           Tennis.assign_to_slot(match_id, player_id, slot_id,
             tenant: group_id,
             actor: current_user
           )
-        end
+
+        :one_per_column ->
+          target_slot = Enum.find(socket.assigns.lineup_slots, &(&1.id == slot_id))
+
+          if target_slot do
+            existing_in_column =
+              Enum.find(socket.assigns.assignments, fn a ->
+                a.player_id == player_id &&
+                  !a.team_lineup_slot.is_exclusion_slot &&
+                  a.team_lineup_slot.team_lineup_column_id == target_slot.team_lineup_column_id
+              end)
+
+            cond do
+              existing_in_column && existing_in_column.team_lineup_slot_id == slot_id ->
+                {:ok, :no_change}
+
+              existing_in_column ->
+                Tennis.destroy_lineup_assignment!(existing_in_column,
+                  tenant: group_id,
+                  actor: current_user
+                )
+
+                Tennis.assign_to_slot(match_id, player_id, slot_id,
+                  tenant: group_id,
+                  actor: current_user
+                )
+
+              true ->
+                Tennis.assign_to_slot(match_id, player_id, slot_id,
+                  tenant: group_id,
+                  actor: current_user
+                )
+            end
+          else
+            {:error, :slot_not_found}
+          end
+
+        :many_per_match ->
+          already_in_slot =
+            Enum.any?(socket.assigns.assignments, fn a ->
+              a.player_id == player_id && a.team_lineup_slot_id == slot_id
+            end)
+
+          if already_in_slot do
+            {:ok, :no_change}
+          else
+            Tennis.assign_to_slot(match_id, player_id, slot_id,
+              tenant: group_id,
+              actor: current_user
+            )
+          end
+      end
     end
   end
 
@@ -407,7 +399,6 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
               :for={player <- @available}
               player={player}
               readonly={false}
-              selected={@selected_player_id == player.id}
               column_badges={Map.get(@player_column_assignments, player.id, [])}
             />
           </.board_column>
@@ -433,19 +424,69 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
                   target_id={slot.id}
                   violations={slot_violations(slot, @assignments)}
                   drop_event="move_lineup_player"
-                  assign_event="assign_selected_player"
                 >
                   <.player_card
                     :for={player <- slot_players}
                     player={player}
                     readonly={false}
-                    selected={@selected_player_id == player.id}
                   />
                 </.lineup_slot_zone>
               <% end %>
             </.lineup_column_group>
           <% end %>
         </div>
+
+        <%!-- Tap-to-assign: player detail modal --%>
+        <% selected_player =
+          @selected_player_id &&
+            (Enum.find(@available, &(&1.id == @selected_player_id)) ||
+               @assignments
+               |> Enum.find(&(&1.player_id == @selected_player_id))
+               |> then(&(&1 && &1.player))) %>
+        <.player_detail_modal
+          :if={selected_player}
+          player={selected_player}
+          group_slug={@current_group.slug}
+          on_close={JS.push("deselect_player")}
+        >
+          <:actions>
+            <% current_slot_ids =
+              @assignments
+              |> Enum.filter(&(&1.player_id == @selected_player_id))
+              |> Enum.map(& &1.team_lineup_slot_id) %>
+            <% in_available = current_slot_ids == [] %>
+            <button
+              phx-click="move_lineup_player"
+              phx-value-player_id={selected_player.id}
+              phx-value-target_id="available"
+              class={[
+                "btn btn-sm w-full",
+                if(in_available, do: "btn-primary", else: "btn-outline btn-primary")
+              ]}
+            >
+              Available
+            </button>
+            <%= for column <- @lineup_columns do %>
+              <% col_slots = Enum.filter(@lineup_slots, &(&1.team_lineup_column_id == column.id)) %>
+              <%= for slot <- col_slots do %>
+                <button
+                  phx-click="move_lineup_player"
+                  phx-value-player_id={selected_player.id}
+                  phx-value-target_id={slot.id}
+                  class={[
+                    "btn btn-sm w-full",
+                    if(slot.id in current_slot_ids,
+                      do: "btn-primary",
+                      else: "btn-outline btn-primary"
+                    )
+                  ]}
+                >
+                  {column.name} - {slot.name}
+                </button>
+              <% end %>
+            <% end %>
+          </:actions>
+        </.player_detail_modal>
       </div>
     </Layouts.app>
     """

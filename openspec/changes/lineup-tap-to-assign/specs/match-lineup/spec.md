@@ -7,7 +7,7 @@ On any device, a captain SHALL be able to assign players via a modal interaction
 - **WHEN** a captain taps a player card anywhere on the board (in the Available column or already in a slot)
 - **THEN** a modal SHALL open showing the player's name and one button per lineup slot plus an Available button
 - **AND** slot buttons SHALL be labeled `{column_name} - {slot_name}` (e.g. "Singles - #1")
-- **AND** the button corresponding to the player's current location (the assigned slot, or Available if the player is unassigned) SHALL be visually distinct from all other buttons (e.g. filled vs. outline styling)
+- **AND** the button corresponding to the player's current location (the assigned slot, or Available if the player is unassigned) SHALL be styled filled (`btn-primary`); all other buttons SHALL be styled as colored outline (`btn-outline btn-primary`)
 - **AND** no assignment SHALL be made as a result of opening the modal alone
 
 #### Scenario: Tap slot button in modal assigns the player
@@ -20,6 +20,11 @@ On any device, a captain SHALL be able to assign players via a modal interaction
 - **THEN** all playing-slot assignments for that player in this match SHALL be removed
 - **AND** the player SHALL reappear in the Available column
 - **AND** the modal SHALL close
+
+#### Scenario: Tap a second player card while modal is open
+- **WHEN** a captain taps a different player card while the modal is already open
+- **THEN** the modal SHALL update to show the new player
+- **NOTE** In real browsers, the modal overlay (fixed full-screen backdrop) intercepts pointer events on background cards, so this scenario is enforced client-side; if a `select_player` event fires for a second player, the server always switches the modal to the new player
 
 #### Scenario: Dismiss modal without action
 - **WHEN** a captain dismisses the modal without tapping a slot or Available button (e.g. taps the close button or outside the modal)

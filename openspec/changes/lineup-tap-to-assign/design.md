@@ -34,9 +34,9 @@ The roster planner solves the same problem with `player_detail_modal`: tapping a
 
 ### Current slot visual differentiation
 
-**Decision**: Buttons for slots the selected player is currently assigned to use `btn-primary` (filled). All other slot buttons use `btn-outline btn-primary`. The Available button uses `btn-outline` (no color modifier) when the player has any slot assignment, and `btn-primary` when the player is already fully unassigned (i.e. in Available).
+**Decision**: Two visual states only — current location (the assigned slot, or Available if the player is unassigned) uses `btn-primary` (filled); all other buttons use `btn-outline btn-primary` (colored outline). This applies uniformly: slot buttons and the Available button follow the same rule.
 
-**Rationale**: Mirrors the roster planner convention where the current destination button is visually distinct. The captain can see at a glance where the player is and tap another slot to move them.
+**Rationale**: Simpler than a three-state model. The captain can see at a glance where the player currently is; all other destinations look the same, reducing visual noise.
 
 ### All moves route through `move_lineup_player`
 
@@ -52,9 +52,9 @@ The roster planner solves the same problem with `player_detail_modal`: tapping a
 
 ### `select_player` becomes open-modal; add `deselect_player`
 
-**Decision**: Update `handle_event("select_player")` to unconditionally set `selected_player_id` (remove the toggle). Add `handle_event("deselect_player")` that sets `selected_player_id` to `nil`. Pass `on_close={JS.push("deselect_player")}` to the modal.
+**Decision**: Update `handle_event("select_player")` to set `selected_player_id` only when it is currently `nil` (i.e. no modal is open). If a modal is already open, the event is a no-op. Add `handle_event("deselect_player")` that sets `selected_player_id` to `nil`. Pass `on_close={JS.push("deselect_player")}` to the modal.
 
-**Rationale**: Toggling was only useful in the select-then-tap model. With a modal, the close button handles deselection.
+**Rationale**: Toggling was only useful in the select-then-tap model. With a modal, the close button handles deselection. Ignoring taps on other player cards while the modal is open prevents accidental player switches — the captain must explicitly dismiss the modal before selecting a different player.
 
 ## Risks / Trade-offs
 
