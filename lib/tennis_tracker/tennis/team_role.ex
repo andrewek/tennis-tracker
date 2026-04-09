@@ -18,14 +18,17 @@ defmodule TennisTracker.Tennis.TeamRole do
     policy action_type(:read) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
       authorize_if(expr(user_id == ^actor(:id)))
+      authorize_if(TennisTracker.Policies.IsGroupMember)
     end
 
     policy action_type(:create) do
       authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+      authorize_if(TennisTracker.Policies.IsTeamCaptainForTeamRoleCheck)
     end
 
     policy action_type([:update, :destroy]) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
+      authorize_if(TennisTracker.Policies.IsTeamCaptain)
     end
   end
 
@@ -69,6 +72,11 @@ defmodule TennisTracker.Tennis.TeamRole do
     read :for_team do
       argument(:team_id, :uuid, allow_nil?: false)
       filter(expr(team_id == ^arg(:team_id)))
+    end
+
+    read :captains_for_team do
+      argument(:team_id, :uuid, allow_nil?: false)
+      filter(expr(team_id == ^arg(:team_id) and role == :captain))
     end
 
     read :for_user do

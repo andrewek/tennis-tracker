@@ -19,6 +19,10 @@ defmodule TennisTracker.Accounts.User do
     bypass actor_attribute_equals(:role, :admin) do
       authorize_if(always())
     end
+
+    policy action_type(:read) do
+      authorize_if(actor_present())
+    end
   end
 
   admin do
@@ -60,6 +64,11 @@ defmodule TennisTracker.Accounts.User do
       sensitive?(true)
     end
 
+    attribute :name, :string do
+      allow_nil?(true)
+      public?(true)
+    end
+
     attribute :role, :atom do
       constraints(one_of: [:admin, :member])
       default(:member)
@@ -76,6 +85,10 @@ defmodule TennisTracker.Accounts.User do
       argument(:subject, :string, allow_nil?: false)
       get?(true)
       prepare(AshAuthentication.Preparations.FilterBySubject)
+    end
+
+    update :update_profile do
+      accept([:name])
     end
 
     update :update_role do

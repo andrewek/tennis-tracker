@@ -586,7 +586,10 @@ defmodule TennisTracker.Tennis do
 
     resource TennisTracker.Tennis.TeamRole do
       define(:create_team_role, action: :create)
+      define(:update_team_role_role, action: :update)
+      define(:destroy_team_role, action: :destroy)
       define(:list_team_roles_for_team, action: :for_team, args: [:team_id])
+      define(:list_captains_for_team, action: :captains_for_team, args: [:team_id])
       define(:list_team_roles_for_user, action: :for_user, args: [:user_id])
     end
   end

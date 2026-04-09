@@ -30,7 +30,7 @@ git status --short
 
 ### 2. Read relevant project conventions
 
-Read `CLAUDE.md` and `AGENTS.md` (if present) to ground your review in the project's established conventions. Pay particular attention to:
+Read `CLAUDE.md`, `AGENTS.md` (if present), and `.claude/skills/liveview-testing/SKILL.md` to ground your review in the project's established conventions. Pay particular attention to:
 - LiveView conventions (streams, forms, navigation)
 - Ash conventions (domain calls, policies, multitenancy, query patterns)
 - Testing conventions
@@ -142,7 +142,13 @@ Format your findings as follows. If a category has no findings, omit it entirely
 
 ### Summary
 
-One paragraph summarizing the overall quality of the change: what's done well, the most important issues to address before merging, and anything that looks intentional but surprising.
+An itemized list of all findings across all categories, sorted by severity (most critical first). Each item should reference its category and include the file/line. Follow with one sentence on overall quality and anything that looks intentional but surprising.
+
+Example format:
+
+- **[Convention Violation — Critical]** `path/to/file.ex:42` — Brief description.
+- **[Test Quality — Major]** `test/path/to/test.exs:34` — Brief description.
+- **[Dead Code — Minor]** `path/to/file.ex:17` — Brief description.
 
 ---
 

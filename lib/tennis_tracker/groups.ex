@@ -17,6 +17,12 @@ defmodule TennisTracker.Groups do
     resource TennisTracker.Groups.GroupMembership do
       define(:create_group_membership, action: :create)
       define(:list_group_memberships_for_user, action: :for_user, args: [:user_id])
+      define(:list_group_memberships_for_group, action: :for_group, args: [:group_id])
+
+      define(:list_candidate_members_for_team,
+        action: :candidate_members_for_team,
+        args: [:group_id, :team_id]
+      )
     end
   end
 

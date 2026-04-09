@@ -18,6 +18,7 @@ defmodule TennisTracker.Groups.GroupMembership do
     policy action_type(:read) do
       authorize_if(expr(user_id == ^actor(:id)))
       authorize_if(TennisTracker.Policies.IsGroupOwner)
+      authorize_if(TennisTracker.Policies.IsGroupMember)
     end
 
     policy action_type(:create) do
@@ -64,6 +65,29 @@ defmodule TennisTracker.Groups.GroupMembership do
     read :for_user do
       argument(:user_id, :uuid, allow_nil?: false)
       filter(expr(user_id == ^arg(:user_id)))
+    end
+
+    read :for_group do
+      argument(:group_id, :uuid, allow_nil?: false)
+      filter(expr(group_id == ^arg(:group_id)))
+      prepare(fn query, _ -> Ash.Query.load(query, :user) end)
+    end
+
+    read :candidate_members_for_team do
+      argument(:group_id, :uuid, allow_nil?: false)
+      argument(:team_id, :uuid, allow_nil?: false)
+
+      filter(
+        expr(
+          group_id == ^arg(:group_id) and
+            not exists(
+              TennisTracker.Tennis.TeamRole,
+              team_id == ^arg(:team_id) and user_id == parent(user_id) and role == :captain
+            )
+        )
+      )
+
+      prepare(fn query, _ -> Ash.Query.load(query, :user) end)
     end
 
     read :groups_for_user do

@@ -14,6 +14,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
     |> assign(:can_edit_team, false)
     |> stream(:upcoming_matches, [])
     |> stream(:past_matches, [])
+    |> stream(:captains, [])
     |> ok()
   end
 
@@ -40,12 +41,20 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
             load: [:location]
           )
 
+        captains =
+          Tennis.list_captains_for_team!(team.id,
+            tenant: group_id,
+            actor: current_user,
+            load: [:user]
+          )
+
         socket
         |> assign(:team, team)
         |> assign(:players, players)
         |> assign(:can_edit_team, can_edit_team)
         |> stream(:upcoming_matches, upcoming, reset: true)
         |> stream(:past_matches, past, reset: true)
+        |> stream(:captains, captains, reset: true)
         |> noreply()
 
       {:error, _} ->
@@ -117,6 +126,28 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
               />
             </div>
           <% end %>
+        </div>
+
+        <%!-- Captains card --%>
+        <div class="bg-base-200 rounded-lg p-4 min-w-48">
+          <h2 class="font-semibold mb-3">Captains</h2>
+
+          <div id="captains-list" phx-update="stream" class="space-y-1">
+            <div
+              :for={{dom_id, role} <- @streams.captains}
+              id={dom_id}
+              class="text-sm py-1"
+            >
+              {role.user.name || role.user.email}
+            </div>
+          </div>
+
+          <p
+            :if={@streams.captains.inserts == []}
+            class="text-sm text-base-content/50"
+          >
+            No captains assigned.
+          </p>
         </div>
 
         <%!-- Match schedule card --%>

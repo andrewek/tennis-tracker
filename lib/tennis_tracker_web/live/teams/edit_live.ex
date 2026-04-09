@@ -4,7 +4,10 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   import TennisTrackerWeb.MatchHelpers
 
   alias TennisTracker.Tennis
-  alias TennisTracker.Tennis.{Match, TeamLineupColumn, TeamLineupSlot, Team}
+  alias TennisTracker.Tennis.{Match, TeamLineupColumn, TeamLineupSlot, Team, TeamRole}
+  alias TennisTracker.Groups
+
+  require Ash.Query
 
   @us_timezones [
     {"Eastern", "America/New_York"},
@@ -42,6 +45,11 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     |> assign(:slot_to_delete, nil)
     |> stream(:upcoming_matches, [])
     |> stream(:past_matches, [])
+    |> stream(:captains, [])
+    |> assign(:remove_pending_role, nil)
+    |> assign(:candidate_user_id, nil)
+    |> assign(:candidate_members, [])
+    |> assign(:can_manage_captains, false)
     |> ok()
   end
 
@@ -69,7 +77,15 @@ defmodule TennisTrackerWeb.Teams.EditLive do
             tenant: group_id
           )
 
-        if can_update_team or can_manage_slots do
+        can_manage_captains =
+          Ash.can?(
+            {TeamRole, :create, %{team_id: team.id, group_id: group_id}},
+            current_user,
+            domain: Tennis,
+            tenant: group_id
+          )
+
+        if can_update_team or can_manage_slots or can_manage_captains do
           {:ok, team} =
             Ash.load(team, [:team_type], domain: Tennis, tenant: group_id, actor: current_user)
 
@@ -114,17 +130,33 @@ defmodule TennisTrackerWeb.Teams.EditLive do
               |> to_form()
             end
 
+          captains =
+            Tennis.list_captains_for_team!(team.id,
+              tenant: group_id,
+              actor: current_user,
+              load: [:user]
+            )
+
+          candidate_members =
+            Groups.list_candidate_members_for_team!(group_id, team.id,
+              tenant: group_id,
+              actor: current_user
+            )
+
           socket
           |> assign(:team, team)
           |> assign(:team_form, team_form)
           |> assign(:can_update_team, can_update_team)
           |> assign(:team_timezone, team.default_timezone || "America/Chicago")
           |> assign(:can_manage_slots, can_manage_slots)
+          |> assign(:can_manage_captains, can_manage_captains)
           |> assign(:assignment_mode_form, assignment_mode_form)
           |> assign(:lineup_columns, lineup_columns)
           |> assign(:lineup_slots, lineup_slots)
           |> stream(:upcoming_matches, upcoming, reset: true)
           |> stream(:past_matches, past, reset: true)
+          |> stream(:captains, captains, reset: true)
+          |> assign(:candidate_members, candidate_members)
           |> noreply()
         else
           socket
@@ -682,6 +714,114 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   end
 
   # ---------------------------------------------------------------------------
+  # Captain management events
+  # ---------------------------------------------------------------------------
+
+  def handle_event("select_captain_candidate", %{"user_id" => user_id}, socket) do
+    socket |> assign(:candidate_user_id, user_id) |> noreply()
+  end
+
+  def handle_event("add_captain", _params, socket) do
+    candidate_user_id = socket.assigns.candidate_user_id
+
+    if is_nil(candidate_user_id) or candidate_user_id == "" do
+      socket |> noreply()
+    else
+      group_id = socket.assigns.current_group_id
+      current_user = socket.assigns.current_user
+      team = socket.assigns.team
+
+      existing_role =
+        TeamRole
+        |> Ash.Query.filter(team_id == ^team.id and user_id == ^candidate_user_id)
+        |> Ash.read_one!(domain: Tennis, tenant: group_id, actor: current_user)
+
+      result =
+        if existing_role && existing_role.role == :member do
+          Tennis.update_team_role_role!(existing_role, %{role: :captain},
+            tenant: group_id,
+            actor: current_user
+          )
+
+          :ok
+        else
+          case Tennis.create_team_role(
+                 %{
+                   user_id: candidate_user_id,
+                   team_id: team.id,
+                   group_id: group_id,
+                   role: :captain
+                 },
+                 tenant: group_id,
+                 actor: current_user
+               ) do
+            {:ok, _} -> :ok
+            {:error, reason} -> {:error, reason}
+          end
+        end
+
+      case result do
+        :ok ->
+          socket
+          |> reload_captains_and_candidates()
+          |> assign(:candidate_user_id, nil)
+          |> noreply()
+
+        {:error, _} ->
+          socket
+          |> put_flash(:error, "Could not add captain. Please refresh the page.")
+          |> noreply()
+      end
+    end
+  end
+
+  def handle_event("remove_captain", %{"team_role_id" => team_role_id}, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+
+    role =
+      Ash.get!(TennisTracker.Tennis.TeamRole, team_role_id,
+        domain: Tennis,
+        tenant: group_id,
+        actor: current_user
+      )
+
+    {:ok, role} = Ash.load(role, [:user], domain: Tennis, tenant: group_id, actor: current_user)
+
+    socket |> assign(:remove_pending_role, role) |> noreply()
+  end
+
+  def handle_event("confirm_remove_entirely", _params, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    role = socket.assigns.remove_pending_role
+
+    Tennis.destroy_team_role!(role, tenant: group_id, actor: current_user)
+
+    socket
+    |> assign(:remove_pending_role, nil)
+    |> reload_captains_and_candidates()
+    |> noreply()
+  end
+
+  def handle_event("confirm_convert_to_member", _params, socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    role = socket.assigns.remove_pending_role
+
+    Tennis.update_team_role_role!(role, %{role: :member}, tenant: group_id, actor: current_user)
+
+    socket
+    |> assign(:remove_pending_role, nil)
+    |> reload_captains_and_candidates()
+    |> noreply()
+  end
+
+  def handle_event("cancel_remove", _params, socket) do
+    socket |> assign(:remove_pending_role, nil) |> noreply()
+  end
+
+  # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
 
@@ -718,6 +858,29 @@ defmodule TennisTrackerWeb.Teams.EditLive do
     else
       socket |> noreply()
     end
+  end
+
+  defp reload_captains_and_candidates(socket) do
+    group_id = socket.assigns.current_group_id
+    current_user = socket.assigns.current_user
+    team = socket.assigns.team
+
+    captains =
+      Tennis.list_captains_for_team!(team.id,
+        tenant: group_id,
+        actor: current_user,
+        load: [:user]
+      )
+
+    candidate_members =
+      Groups.list_candidate_members_for_team!(group_id, team.id,
+        tenant: group_id,
+        actor: current_user
+      )
+
+    socket
+    |> stream(:captains, captains, reset: true)
+    |> assign(:candidate_members, candidate_members)
   end
 
   defp load_lineup_columns(team_id, group_id, current_user) do
@@ -1123,6 +1286,63 @@ defmodule TennisTrackerWeb.Teams.EditLive do
           </div>
         </div>
 
+        <%!-- Captains section (group owners + team captains) --%>
+        <div :if={@can_manage_captains} class="bg-base-200 rounded-lg p-4 w-full max-w-sm">
+          <h2 class="font-semibold mb-3">Captains</h2>
+
+          <%!-- Captain list --%>
+          <div id="captains-list" phx-update="stream" class="space-y-1 mb-3">
+            <div
+              :for={{dom_id, role} <- @streams.captains}
+              id={dom_id}
+              class="bg-base-100 rounded px-3 py-2 text-sm flex items-center justify-between"
+            >
+              <span>{role.user.name || role.user.email}</span>
+              <button
+                phx-click="remove_captain"
+                phx-value-team_role_id={role.id}
+                class="btn btn-xs btn-ghost text-error"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+
+          <p
+            :if={@streams.captains.inserts == []}
+            class="text-sm text-base-content/50 mb-3"
+          >
+            No captains assigned.
+          </p>
+
+          <%!-- Add captain control --%>
+          <form phx-change="select_captain_candidate" phx-submit="add_captain" class="flex gap-2 items-end">
+            <div class="flex-1">
+              <select
+                class="select select-bordered select-sm w-full"
+                name="user_id"
+              >
+                <option value="">Select a member...</option>
+                <%= for membership <- @candidate_members do %>
+                  <option
+                    value={membership.user_id}
+                    selected={@candidate_user_id == membership.user_id}
+                  >
+                    {membership.user.name || membership.user.email}
+                  </option>
+                <% end %>
+              </select>
+            </div>
+            <button
+              type="submit"
+              class="btn btn-sm btn-primary"
+              disabled={is_nil(@candidate_user_id) or @candidate_user_id == ""}
+            >
+              Add Captain
+            </button>
+          </form>
+        </div>
+
         <%!-- Match schedule (owners only) --%>
         <div :if={@can_update_team} class="bg-base-200 rounded-lg p-4 w-full max-w-md">
           <div class="flex items-center justify-between mb-3">
@@ -1291,6 +1511,26 @@ defmodule TennisTrackerWeb.Teams.EditLive do
         <div class="flex gap-2">
           <button phx-click="delete_slot" class="btn btn-error flex-1">Delete</button>
           <button phx-click="hide_delete_slot_modal" class="btn btn-ghost">Cancel</button>
+        </div>
+      </.modal>
+
+      <%!-- Remove captain confirmation modal --%>
+      <.modal
+        :if={@remove_pending_role}
+        title="Remove Captain"
+        on_close={JS.push("cancel_remove")}
+      >
+        <p class="text-sm text-base-content/70 mb-6">
+          What would you like to do with <strong>{@remove_pending_role.user && (@remove_pending_role.user.name || @remove_pending_role.user.email)}</strong>?
+        </p>
+        <div class="flex flex-col gap-2">
+          <button phx-click="confirm_remove_entirely" class="btn btn-error">
+            Remove from team entirely
+          </button>
+          <button phx-click="confirm_convert_to_member" class="btn btn-warning">
+            Convert to Member
+          </button>
+          <button phx-click="cancel_remove" class="btn btn-ghost">Cancel</button>
         </div>
       </.modal>
     </Layouts.app>
