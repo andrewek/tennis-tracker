@@ -79,21 +79,35 @@ The Available column SHALL adapt its behavior based on the team's `lineup_assign
 - **WHEN** a team is in many_per_match mode
 - **THEN** all team members who are not assigned to the exclusion slot SHALL appear in the Available column regardless of how many playing slots they are assigned to
 
-### Requirement: Captain can assign a player via tap-to-assign on mobile
-On touch devices, a captain SHALL be able to assign players via a two-tap interaction: tap a player card anywhere on the board (Available column or in a slot) to select them, then tap a destination slot to assign.
+### Requirement: Captain can assign a player via tap-to-assign
+On any device, a captain SHALL be able to assign players via a modal interaction: tap a player card anywhere on the board to open a destination picker modal, then tap a button in the modal to complete the move.
 
-#### Scenario: Tap player to select
+#### Scenario: Tap player card to open modal
 - **WHEN** a captain taps a player card anywhere on the board (in the Available column or already in a slot)
-- **THEN** the player card SHALL show a selected visual state (highlighted ring)
+- **THEN** a modal SHALL open showing the player's name and one button per lineup slot plus an Available button
+- **AND** slot buttons SHALL be labeled `{column_name} - {slot_name}` (e.g. "Singles - #1")
+- **AND** the button corresponding to the player's current location (the assigned slot, or Available if the player is unassigned) SHALL be styled filled (`btn-primary`); all other buttons SHALL be styled as colored outline (`btn-outline btn-primary`)
+- **AND** no assignment SHALL be made as a result of opening the modal alone
 
-#### Scenario: Tap slot after selecting player assigns the player
-- **WHEN** a captain has a player selected and taps a slot's drop zone
-- **THEN** the player SHALL be assigned to that slot (same outcome as drag-and-drop)
-- **AND** the selected state SHALL be cleared
+#### Scenario: Tap slot button in modal assigns the player
+- **WHEN** a captain taps a slot button in the modal
+- **THEN** the selected player SHALL be assigned to that slot (same outcome as drag-and-drop)
+- **AND** the modal SHALL close
 
-#### Scenario: Tap selected player again to deselect
-- **WHEN** a captain taps the currently-selected player card again
-- **THEN** the selection SHALL be cleared with no assignment made
+#### Scenario: Tap Available button in modal unassigns the player
+- **WHEN** a captain taps the Available button in the modal
+- **THEN** all playing-slot assignments for that player in this match SHALL be removed
+- **AND** the player SHALL reappear in the Available column
+- **AND** the modal SHALL close
+
+#### Scenario: Tap a second player card while modal is open
+- **WHEN** a captain taps a different player card while the modal is already open
+- **THEN** the modal SHALL update to show the new player
+- **NOTE** In real browsers, the modal overlay (fixed full-screen backdrop) intercepts pointer events on background cards, so this scenario is enforced client-side; if a `select_player` event fires for a second player, the server always switches the modal to the new player
+
+#### Scenario: Dismiss modal without action
+- **WHEN** a captain dismisses the modal without tapping a slot or Available button (e.g. taps the close button or outside the modal)
+- **THEN** the modal SHALL close with no assignment change made
 
 ## Removed Requirements
 
