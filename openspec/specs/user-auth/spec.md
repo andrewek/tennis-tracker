@@ -67,6 +67,29 @@ Authorization SHALL use OR logic across all three axes (system admin, group role
 - **WHEN** a user with role :admin is also a GroupMembership :member for a group
 - **THEN** the system admin permissions apply (broader), not just member permissions
 
+### Requirement: User records have an optional name attribute
+The `User` resource SHALL have an optional `:name` attribute (string, nullable). No uniqueness constraint applies. When displaying a user's identity anywhere in the UI, the system SHALL use `name` if present and fall back to `email` when `name` is nil or empty.
+
+#### Scenario: User can be created without a name
+- **WHEN** a User record is created without providing a name
+- **THEN** the record is saved successfully with name nil
+
+#### Scenario: User can be created with a name
+- **WHEN** a User record is created with a name value
+- **THEN** the record is saved successfully and name is stored
+
+#### Scenario: User name can be updated
+- **WHEN** an existing User's name is updated to a new value
+- **THEN** the change is persisted
+
+#### Scenario: Display label falls back to email when name is nil
+- **WHEN** a User has name nil and is displayed in the UI
+- **THEN** the user's email is shown as the display label
+
+#### Scenario: Display label uses name when present
+- **WHEN** a User has a non-nil name and is displayed in the UI
+- **THEN** the user's name is shown as the display label
+
 ### Requirement: Unauthorized action buttons are not rendered
 If the current user does not have permission to perform an action, the UI element that triggers that action (button, link, form) SHALL NOT be rendered. Users SHALL NOT see controls for actions they cannot perform.
 
