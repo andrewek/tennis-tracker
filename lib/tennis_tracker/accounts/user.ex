@@ -23,6 +23,18 @@ defmodule TennisTracker.Accounts.User do
     policy action_type(:read) do
       authorize_if(actor_present())
     end
+
+    policy action(:update_email) do
+      authorize_if(expr(id == ^actor(:id)))
+    end
+
+    policy action(:update_profile) do
+      authorize_if(expr(id == ^actor(:id)))
+    end
+
+    policy action(:change_password) do
+      authorize_if(expr(id == ^actor(:id)))
+    end
   end
 
   admin do
@@ -89,6 +101,28 @@ defmodule TennisTracker.Accounts.User do
 
     update :update_profile do
       accept([:name])
+    end
+
+    update :update_email do
+      accept([:email])
+      validate(match(:email, ~r/^[^\s]+@[^\s]+\.[^\s]+$/))
+    end
+
+    update :change_password do
+      accept([])
+      require_atomic?(false)
+      argument(:current_password, :string, sensitive?: true, allow_nil?: false)
+      argument(:password, :string, sensitive?: true, allow_nil?: false)
+      argument(:password_confirmation, :string, sensitive?: true, allow_nil?: false)
+
+      validate(confirm(:password, :password_confirmation))
+
+      validate(
+        {AshAuthentication.Strategy.Password.PasswordValidation,
+         strategy_name: :password, password_argument: :current_password}
+      )
+
+      change({AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password})
     end
 
     update :update_role do

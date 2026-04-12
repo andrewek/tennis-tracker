@@ -88,7 +88,7 @@ defmodule TennisTrackerWeb.Layouts do
             navigate={~p"/groups"}
             class="text-xs text-primary hover:text-primary-focus font-medium px-2 py-1"
           >
-            Switch
+            Switch Organization
           </.link>
         </div>
       </div>
@@ -144,12 +144,12 @@ defmodule TennisTrackerWeb.Layouts do
             <.link navigate={~p"/admin"}>Admin</.link>
           </li>
           <li>
+            <.link navigate={~p"/account/settings/profile"}>Account Settings</.link>
+          </li>
+          <li>
             <.link href={~p"/sign-out"}>Sign out</.link>
           </li>
         </ul>
-        <div class="px-4 pb-2 pt-1">
-          <.theme_toggle />
-        </div>
       </div>
     </aside>
     """
@@ -195,26 +195,6 @@ defmodule TennisTrackerWeb.Layouts do
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>
-    """
-  end
-
-  @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
-
-  See <head> in root.html.heex which applies the theme before page load.
-  """
-  def theme_toggle(assigns) do
-    ~H"""
-    <select
-      phx-hook="ThemeSelect"
-      id="theme-select"
-      class="select select-xs w-full"
-      onchange="this.dataset.phxTheme = this.value; this.dispatchEvent(new Event('phx:set-theme', {bubbles: true}))"
-    >
-      <option value="system">System</option>
-      <option value="light">Light</option>
-      <option value="dark">Dark</option>
-    </select>
     """
   end
 end

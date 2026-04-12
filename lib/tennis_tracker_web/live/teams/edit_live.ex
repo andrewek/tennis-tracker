@@ -1316,7 +1316,11 @@ defmodule TennisTrackerWeb.Teams.EditLive do
           </p>
 
           <%!-- Add captain control --%>
-          <form phx-change="select_captain_candidate" phx-submit="add_captain" class="flex gap-2 items-end">
+          <form
+            phx-change="select_captain_candidate"
+            phx-submit="add_captain"
+            class="flex gap-2 items-end"
+          >
             <div class="flex-1">
               <select
                 class="select select-bordered select-sm w-full"

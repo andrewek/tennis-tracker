@@ -13,6 +13,7 @@ defmodule TennisTrackerWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :load_from_session
+    plug TennisTrackerWeb.Plugs.StoreLastGroup
   end
 
   pipeline :api do
@@ -75,6 +76,18 @@ defmodule TennisTrackerWeb.Router do
       live "/g/:group_slug/settings/season-rules/new", Settings.SeasonRules.FormLive, :new
       live "/g/:group_slug/settings/season-rules/:id/edit", Settings.SeasonRules.FormLive, :edit
     end
+
+    ash_authentication_live_session :account_settings_routes,
+      on_mount: [
+        {TennisTrackerWeb.LiveUserAuth, :live_user_required},
+        {TennisTrackerWeb.AccountSettingsMountHook, :load_last_group}
+      ] do
+      live "/account/settings/profile", Account.ProfileLive, :index
+      live "/account/settings/security", Account.SecurityLive, :index
+      live "/account/settings/preferences", Account.PreferencesLive, :index
+    end
+
+    get "/account/settings", RedirectController, :account_settings
 
     auth_routes AuthController, TennisTracker.Accounts.User, path: "/auth"
     sign_out_route AuthController

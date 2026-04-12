@@ -7,6 +7,9 @@ defmodule TennisTracker.Accounts do
 
   resources do
     resource TennisTracker.Accounts.Token
-    resource TennisTracker.Accounts.User
+
+    resource TennisTracker.Accounts.User do
+      define(:update_profile, action: :update_profile)
+    end
   end
 end

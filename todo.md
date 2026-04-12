@@ -2,6 +2,13 @@
 
 In no particular order. Crossed out when done.
 
+1. Build UI for group owners to add and remove group members. Currently group
+   membership can only be managed via AshAdmin or `iex`. A group settings page
+   (e.g. `/g/:group_slug/settings/members`) should let owners invite users by
+   email, change a member's role (owner ↔ member), and remove members — with
+   appropriate downstream cleanup of TeamRole records when a member is removed.
+   Separately, consider whether members can self-remove (leave a group), which
+   has the same TeamRole cleanup requirement.
 1. Build an archive/soft-delete action for SeasonRules records — currently there is
    no delete action on SeasonRules (to avoid cascading data loss); a future "archived"
    flag would let group owners hide stale season rules without destroying them or their
