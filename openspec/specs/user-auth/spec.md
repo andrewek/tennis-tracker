@@ -105,6 +105,17 @@ If the current user does not have permission to perform an action, the UI elemen
 - **WHEN** a user with GroupMembership :owner views the teams index
 - **THEN** team creation, edit, and delete controls are visible
 
+### Requirement: User can update their email address via a dedicated action
+The `User` resource SHALL expose an action that allows an authenticated user to update their own email address. The action SHALL enforce the unique email identity constraint. A policy SHALL restrict this action so that a user can only update their own email.
+
+#### Scenario: User updates email to an unused address
+- **WHEN** an authenticated user calls the update email action with a new, unused email address
+- **THEN** the user's email SHALL be updated successfully
+
+#### Scenario: Email update fails if address is already taken
+- **WHEN** an authenticated user calls the update email action with an email belonging to another user
+- **THEN** the action SHALL return a validation error and the email SHALL NOT be updated
+
 ### Requirement: Direct navigation to unauthorized forms redirects the user
 If a user navigates directly to a URL for an action they are not permitted to perform (e.g., a team edit form), the LiveView SHALL redirect them rather than render the form.
 
