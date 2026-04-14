@@ -358,7 +358,8 @@ defmodule TennisTracker.Tennis do
               authorize?: false
             )
 
-          if existing.team_lineup_slot.is_exclusion_slot && !target_slot.is_exclusion_slot do
+          if existing.team_lineup_slot.participation_type == :out &&
+               target_slot.participation_type != :out do
             {:error, :player_excluded}
           else
             existing
@@ -423,6 +424,62 @@ defmodule TennisTracker.Tennis do
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  def season_stats_for_team!(team_id, all_matches, opts) do
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.fetch!(opts, :actor)
+
+    now = DateTime.utc_now()
+    total_matches = length(all_matches)
+    matches_by_id = Map.new(all_matches, &{&1.id, &1})
+
+    assignments =
+      MatchLineupAssignment
+      |> Ash.Query.filter(match.team_id == ^team_id)
+      |> Ash.Query.load([:team_lineup_slot])
+      |> Ash.read!(domain: __MODULE__, tenant: tenant, actor: actor)
+
+    by_player =
+      Enum.group_by(assignments, & &1.player_id)
+      |> Map.new(fn {player_id, player_assignments} ->
+        stats =
+          Enum.reduce(
+            player_assignments,
+            %{played_past: 0, played_future: 0, out: 0, neutral: %{}},
+            fn a, acc ->
+              case Map.fetch(matches_by_id, a.match_id) do
+                :error ->
+                  acc
+
+                {:ok, match} ->
+                  past? = DateTime.before?(match.match_start_datetime, now)
+
+                  case a.team_lineup_slot.participation_type do
+                    :playing ->
+                      if past? do
+                        %{acc | played_past: acc.played_past + 1}
+                      else
+                        %{acc | played_future: acc.played_future + 1}
+                      end
+
+                    :out ->
+                      %{acc | out: acc.out + 1}
+
+                    :neutral ->
+                      %{
+                        acc
+                        | neutral: Map.update(acc.neutral, a.team_lineup_slot.name, 1, &(&1 + 1))
+                      }
+                  end
+              end
+            end
+          )
+
+        {player_id, stats}
+      end)
+
+    %{total_matches: total_matches, by_player: by_player}
   end
 
   defp sync_add_default_tags(tag_ids, season_rules_id, tenant, actor) do

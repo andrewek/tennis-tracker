@@ -112,6 +112,10 @@ defmodule TennisTracker.Tennis.TeamMembership do
       argument(:team_id, :uuid, allow_nil?: false)
 
       filter(expr(team_id == ^arg(:team_id)))
+
+      prepare(fn query, _ ->
+        Ash.Query.sort(query, player_name: :asc)
+      end)
     end
 
     create :create do
@@ -147,6 +151,7 @@ defmodule TennisTracker.Tennis.TeamMembership do
       )
     )
 
+    calculate(:player_name, :string, expr(player.name))
     calculate(:team_age_group, :string, expr(team.team_type.age_group))
     calculate(:team_ntrp_level, :decimal, expr(team.team_type.ntrp_level))
   end

@@ -679,8 +679,8 @@ defmodule TennisTrackerWeb.Teams.EditLive do
   def handle_event("show_delete_slot_modal", %{"slot_id" => slot_id}, socket) do
     slot = Enum.find(socket.assigns.lineup_slots, &(&1.id == slot_id))
 
-    if slot && slot.is_exclusion_slot do
-      socket |> put_flash(:error, "The exclusion slot cannot be deleted.") |> noreply()
+    if slot && slot.participation_type == :out do
+      socket |> put_flash(:error, "The out slot cannot be deleted.") |> noreply()
     else
       socket |> assign(:slot_to_delete, slot) |> noreply()
     end
@@ -1175,6 +1175,18 @@ defmodule TennisTrackerWeb.Teams.EditLive do
                 options={Enum.map(@lineup_columns, &{&1.name, &1.id})}
                 prompt="Select column..."
               />
+              <% has_out_slot = Enum.any?(@lineup_slots, &(&1.participation_type == :out)) %>
+              <.input
+                field={@slot_form[:participation_type]}
+                type="select"
+                label="Type"
+                options={[
+                  [key: "Playing", value: "playing"],
+                  [key: "Out", value: "out", disabled: has_out_slot],
+                  [key: "Neutral", value: "neutral"]
+                ]}
+                prompt="Select type..."
+              />
               <div class="flex gap-2 mt-3">
                 <button type="submit" class="btn btn-primary btn-xs">Add</button>
                 <button type="button" class="btn btn-ghost btn-xs" phx-click="close_add_slot_form">
@@ -1271,6 +1283,7 @@ defmodule TennisTrackerWeb.Teams.EditLive do
                         <.icon name="hero-pencil-square" class="size-3" />
                       </button>
                       <button
+                        :if={slot.participation_type != :out}
                         phx-click="show_delete_slot_modal"
                         phx-value-slot_id={slot.id}
                         class="btn btn-xs btn-ghost text-error"

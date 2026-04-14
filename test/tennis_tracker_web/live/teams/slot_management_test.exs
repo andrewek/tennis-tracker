@@ -103,6 +103,102 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
 
       refute has_element?(view, "form[phx-submit='save_slot']")
     end
+
+    test "participation_type select shown on slot creation form", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      view |> element("button[phx-click='open_add_slot_form']") |> render_click()
+
+      assert has_element?(view, "select[name='slot_form[participation_type]']")
+
+      assert has_element?(
+               view,
+               "select[name='slot_form[participation_type]'] option[value='playing']"
+             )
+
+      assert has_element?(
+               view,
+               "select[name='slot_form[participation_type]'] option[value='out']"
+             )
+
+      assert has_element?(
+               view,
+               "select[name='slot_form[participation_type]'] option[value='neutral']"
+             )
+    end
+
+    test ":out option is disabled in select when team already has an :out slot", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      view |> element("button[phx-click='open_add_slot_form']") |> render_click()
+
+      assert has_element?(
+               view,
+               "select[name='slot_form[participation_type]'] option[value='out'][disabled]"
+             )
+    end
+
+    test ":out option is not disabled when team has no :out slot", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+
+      # Remove the auto-provisioned out slot directly (bypass the destroy validation)
+      import Ecto.Query
+
+      TennisTracker.Repo.delete_all(
+        from(s in TennisTracker.Tennis.TeamLineupSlot,
+          where: s.team_id == ^team.id and s.participation_type == "out"
+        )
+      )
+
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      view |> element("button[phx-click='open_add_slot_form']") |> render_click()
+
+      refute has_element?(
+               view,
+               "select[name='slot_form[participation_type]'] option[value='out'][disabled]"
+             )
+    end
+
+    test "no participation_type field shown in slot edit form", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
+
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "S1",
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+
+      view
+      |> element("button[phx-click='open_edit_slot'][phx-value-slot_id='#{slot.id}']")
+      |> render_click()
+
+      refute has_element?(view, "select[name='edit_slot_form[participation_type]']")
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -181,6 +277,71 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       refute has_element?(view, "#slot-#{slot.id}")
       assert has_element?(view, "#flash-info", "Slot deleted")
     end
+
+    test "delete button absent for :out slot", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+
+      [out_slot] =
+        Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+        |> Enum.filter(&(&1.participation_type == :out))
+
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+
+      refute has_element?(
+               view,
+               "button[phx-click='show_delete_slot_modal'][phx-value-slot_id='#{out_slot.id}']"
+             )
+    end
+
+    test "delete button present for :playing slot", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
+
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "S1",
+            participation_type: :playing,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+
+      assert has_element?(
+               view,
+               "button[phx-click='show_delete_slot_modal'][phx-value-slot_id='#{slot.id}']"
+             )
+    end
+
+    test "delete button present for :neutral slot", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
+
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "Beer",
+            participation_type: :neutral,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+
+      assert has_element?(
+               view,
+               "button[phx-click='show_delete_slot_modal'][phx-value-slot_id='#{slot.id}']"
+             )
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -237,7 +398,7 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       # Get that slot's id to verify it has no move-up button.
       [out_slot] =
         Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
-        |> Enum.filter(& &1.is_exclusion_slot)
+        |> Enum.filter(&(&1.participation_type == :out))
 
       {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
 

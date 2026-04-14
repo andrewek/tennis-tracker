@@ -290,7 +290,94 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert slot3.sort_order == 3
     end
 
-    test "rejects second exclusion slot", %{
+    test "default auto-provisioned Out slot has participation_type :out", %{
+      group: grp,
+      team: team
+    } do
+      [out_slot] =
+        Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+        |> Enum.filter(&(&1.participation_type == :out))
+
+      assert out_slot.name == "Out"
+      assert out_slot.participation_type == :out
+    end
+
+    test "creating a :playing slot succeeds", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "S1",
+            participation_type: :playing,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert slot.participation_type == :playing
+    end
+
+    test "creating a :neutral slot succeeds", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "Beer",
+            participation_type: :neutral,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert slot.participation_type == :neutral
+    end
+
+    test "creating an :out slot succeeds when team has no :out slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      # Delete the auto-provisioned Out slot directly (bypass the destroy validation)
+      import Ecto.Query
+
+      TennisTracker.Repo.delete_all(
+        from(s in TennisTracker.Tennis.TeamLineupSlot,
+          where: s.team_id == ^team.id and s.participation_type == "out"
+        )
+      )
+
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "Unavail",
+            participation_type: :out,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert slot.participation_type == :out
+    end
+
+    test "rejects second out slot", %{
       group: grp,
       user: usr,
       team: team,
@@ -300,7 +387,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
         Tennis.create_lineup_slot(
           %{
             name: "Sick",
-            is_exclusion_slot: true,
+            participation_type: :out,
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -528,10 +615,54 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       assert {:error, _} = result
     end
 
-    test "exclusion slot cannot be deleted", %{group: grp, user: usr, team: team} do
+    test "delete succeeds for :playing slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "S1",
+            participation_type: :playing,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert :ok = Tennis.delete_lineup_slot!(slot, tenant: grp.id, actor: usr)
+    end
+
+    test "delete succeeds for :neutral slot", %{
+      group: grp,
+      user: usr,
+      team: team,
+      reserve_col: reserve_col
+    } do
+      {:ok, slot} =
+        Tennis.create_lineup_slot(
+          %{
+            name: "Beer",
+            participation_type: :neutral,
+            team_id: team.id,
+            group_id: grp.id,
+            team_lineup_column_id: reserve_col.id
+          },
+          tenant: grp.id,
+          actor: usr
+        )
+
+      assert :ok = Tennis.delete_lineup_slot!(slot, tenant: grp.id, actor: usr)
+    end
+
+    test "out slot cannot be deleted", %{group: grp, user: usr, team: team} do
       [out_slot] =
         Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
-        |> Enum.filter(& &1.is_exclusion_slot)
+        |> Enum.filter(&(&1.participation_type == :out))
 
       result = Tennis.delete_lineup_slot(out_slot, tenant: grp.id, actor: usr)
       assert {:error, _} = result

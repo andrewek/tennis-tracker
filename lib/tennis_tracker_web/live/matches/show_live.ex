@@ -34,7 +34,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
           tenant: group_id,
           actor: current_user
         )
-        |> Enum.reject(& &1.is_exclusion_slot)
+        |> Enum.reject(&(&1.participation_type == :out))
 
       assignments =
         Tennis.list_assignments_for_match!(match.id,

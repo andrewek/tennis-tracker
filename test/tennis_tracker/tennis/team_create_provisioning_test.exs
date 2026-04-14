@@ -29,7 +29,7 @@ defmodule TennisTracker.Tennis.TeamCreateProvisioningTest do
       assert length(slots) == 1
       out_slot = hd(slots)
       assert out_slot.name == "Out"
-      assert out_slot.is_exclusion_slot == true
+      assert out_slot.participation_type == :out
       assert out_slot.team_lineup_column_id == reserve_col.id
       assert out_slot.include_in_clipboard == false
     end

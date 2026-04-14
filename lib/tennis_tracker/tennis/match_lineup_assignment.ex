@@ -113,9 +113,9 @@ defmodule TennisTracker.Tennis.MatchLineupAssignment do
               |> Ash.Query.load(:team_lineup_slot)
               |> Ash.read!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
 
-            if slot.is_exclusion_slot do
+            if slot.participation_type == :out do
               existing
-              |> Enum.reject(& &1.team_lineup_slot.is_exclusion_slot)
+              |> Enum.reject(&(&1.team_lineup_slot.participation_type == :out))
               |> Enum.each(
                 &Ash.destroy!(&1,
                   domain: TennisTracker.Tennis,
@@ -126,7 +126,7 @@ defmodule TennisTracker.Tennis.MatchLineupAssignment do
 
               changeset
             else
-              case Enum.find(existing, & &1.team_lineup_slot.is_exclusion_slot) do
+              case Enum.find(existing, &(&1.team_lineup_slot.participation_type == :out)) do
                 nil ->
                   apply_mode_constraint(changeset, existing, slot, match_id, tenant)
 

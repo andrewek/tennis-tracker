@@ -66,10 +66,10 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
       default(true)
     end
 
-    attribute :is_exclusion_slot, :boolean do
+    attribute :participation_type, TennisTracker.Tennis.ParticipationType do
       allow_nil?(false)
       public?(true)
-      default(false)
+      default(:playing)
     end
 
     attribute :group_id, :uuid do
@@ -117,7 +117,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
         :name,
         :expected_count,
         :include_in_clipboard,
-        :is_exclusion_slot,
+        :participation_type,
         :team_lineup_column_id,
         :team_id,
         :group_id
@@ -155,18 +155,18 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
       end)
 
       validate(fn changeset, context ->
-        is_excl = Ash.Changeset.get_attribute(changeset, :is_exclusion_slot)
+        participation_type = Ash.Changeset.get_attribute(changeset, :participation_type)
         team_id = Ash.Changeset.get_attribute(changeset, :team_id)
         tenant = context.tenant
 
-        if is_excl && team_id && tenant do
-          existing_excl =
+        if participation_type == :out && team_id && tenant do
+          existing_out =
             TennisTracker.Tennis.TeamLineupSlot
-            |> Ash.Query.filter(team_id == ^team_id and is_exclusion_slot == true)
+            |> Ash.Query.filter(team_id == ^team_id and participation_type == :out)
             |> Ash.read_one!(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false)
 
-          if existing_excl do
-            {:error, field: :is_exclusion_slot, message: "team already has an exclusion slot"}
+          if existing_out do
+            {:error, field: :participation_type, message: "team already has an out slot"}
           else
             :ok
           end
@@ -208,7 +208,6 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
         :name,
         :expected_count,
         :include_in_clipboard,
-        :is_exclusion_slot,
         :team_lineup_column_id,
         :sort_order
       ])
@@ -233,8 +232,8 @@ defmodule TennisTracker.Tennis.TeamLineupSlot do
       require_atomic?(false)
 
       validate(fn changeset, _context ->
-        if changeset.data && changeset.data.is_exclusion_slot do
-          {:error, field: :base, message: "cannot delete the team's exclusion slot"}
+        if changeset.data && changeset.data.participation_type == :out do
+          {:error, field: :base, message: "cannot delete the team's out slot"}
         else
           :ok
         end

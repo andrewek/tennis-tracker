@@ -153,7 +153,7 @@ defmodule TennisTracker.Tennis.Team do
               :create,
               %{
                 name: "Out",
-                is_exclusion_slot: true,
+                participation_type: :out,
                 include_in_clipboard: false,
                 team_id: team.id,
                 team_lineup_column_id: col.id,

@@ -454,7 +454,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
 
       excl_slot =
         Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
-        |> Enum.find(& &1.is_exclusion_slot)
+        |> Enum.find(&(&1.participation_type == :out))
 
       Tennis.assign_to_slot(match.id, player.id, excl_slot.id, tenant: grp.id, actor: usr)
 
@@ -504,6 +504,277 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       # view2 should reflect the change via PubSub
       assert has_element?(view2, "#col-#{slot.id} #player-#{player.id}")
       refute has_element?(view2, "#col-available #player-#{player.id}")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Stats drawer
+  # ---------------------------------------------------------------------------
+
+  describe "stats drawer" do
+    defp future_match(grp, team) do
+      Factory.match(group: grp, team: team)
+    end
+
+    defp past_match(grp, team) do
+      Factory.match(
+        group: grp,
+        team: team,
+        match_start_datetime:
+          DateTime.utc_now() |> DateTime.add(-7, :day) |> DateTime.truncate(:second)
+      )
+    end
+
+    test "drawer is closed by default", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      refute has_element?(view, "#stats-drawer[data-open='true']")
+    end
+
+    test "toggle button opens drawer", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+      assert has_element?(view, "#stats-drawer[data-open='true']")
+    end
+
+    test "toggle button closes drawer when open", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+      render_click(view, "toggle_stats")
+      refute has_element?(view, "#stats-drawer[data-open='true']")
+    end
+
+    test "drawer shows correct planned count after assigning to a future playing slot", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+      player = Factory.player(group: grp, name: "Alice")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+
+      # Before assignment: Planned column (3rd td) shows 0
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "0")
+
+      render_click(view, "move_lineup_player", %{
+        "player_id" => player.id,
+        "target_id" => slot.id
+      })
+
+      # After assignment: Planned column shows 1, Played (past) still 0
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "1")
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "0")
+    end
+
+    test "drawer shows correct played count after assigning to a past playing slot", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = past_match(grp, team)
+      player = Factory.player(group: grp, name: "Bob")
+      Factory.team_membership(group: grp, team: team, player: player)
+      slot = create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+
+      # Before assignment: Played column (2nd td) shows 0
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "0")
+
+      render_click(view, "move_lineup_player", %{
+        "player_id" => player.id,
+        "target_id" => slot.id
+      })
+
+      # After assignment: Played column shows 1, Planned still 0
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "1")
+      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "0")
+    end
+
+    test "sorting by each option does not crash", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+
+      for sort <- ["total_asc", "total_desc", "out_desc", "name"] do
+        render_click(view, "set_stats_sort", %{"sort" => sort})
+        assert has_element?(view, "#stats-drawer[data-open='true']")
+      end
+    end
+
+    test "drawer shows a column for every neutral slot", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match = future_match(grp, team)
+
+      col =
+        Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false) |> hd()
+
+      Tennis.create_lineup_slot!(
+        %{
+          name: "Beer",
+          participation_type: :neutral,
+          team_id: team.id,
+          group_id: grp.id,
+          team_lineup_column_id: col.id
+        },
+        tenant: grp.id,
+        authorize?: false
+      )
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      render_click(view, "toggle_stats")
+      assert has_element?(view, "#stats-drawer th", "Beer")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Prev/Next navigation
+  # ---------------------------------------------------------------------------
+
+  describe "prev/next navigation" do
+    defp future_match_nav(grp, team, offset_days \\ 7) do
+      Factory.match(
+        group: grp,
+        team: team,
+        match_start_datetime:
+          DateTime.utc_now()
+          |> DateTime.add(offset_days, :day)
+          |> DateTime.truncate(:second)
+      )
+    end
+
+    test "both prev and next shown for a middle match", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      _match1 = future_match_nav(grp, team, 1)
+      match2 = future_match_nav(grp, team, 7)
+      _match3 = future_match_nav(grp, team, 14)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match2.id}/lineup-edit")
+
+      assert has_element?(view, "#prev-match-link")
+      assert has_element?(view, "#next-match-link")
+    end
+
+    test "prev absent on first match", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match1 = future_match_nav(grp, team, 1)
+      _match2 = future_match_nav(grp, team, 7)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match1.id}/lineup-edit")
+
+      refute has_element?(view, "#prev-match-link")
+      assert has_element?(view, "#next-match-link")
+    end
+
+    test "next absent on last match", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      _match1 = future_match_nav(grp, team, 1)
+      match2 = future_match_nav(grp, team, 7)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match2.id}/lineup-edit")
+
+      assert has_element?(view, "#prev-match-link")
+      refute has_element?(view, "#next-match-link")
+    end
+
+    test "neither prev nor next shown when team has exactly one match", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match = future_match_nav(grp, team)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
+
+      refute has_element?(view, "#prev-match-link")
+      refute has_element?(view, "#next-match-link")
+    end
+
+    test "next link navigates to correct adjacent match", %{conn: conn, group: grp, user: usr} do
+      team = Factory.team(group: grp)
+      match1 = future_match_nav(grp, team, 1)
+      match2 = future_match_nav(grp, team, 7)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match1.id}/lineup-edit")
+
+      assert has_element?(view, "#next-match-link")
+
+      {:ok, view2, _html} =
+        view
+        |> element("#next-match-link")
+        |> render_click()
+        |> follow_redirect(log_in_user(conn, usr))
+
+      assert has_element?(view2, "span", match2.opponent)
+    end
+
+    test "stats drawer is closed after navigating to adjacent match", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      match1 = future_match_nav(grp, team, 1)
+      _match2 = future_match_nav(grp, team, 7)
+      create_slot(grp, team, "S1")
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match1.id}/lineup-edit")
+
+      # Open the stats drawer
+      render_click(view, "toggle_stats")
+      assert has_element?(view, "#stats-drawer[data-open='true']")
+
+      # Navigate to next match — LiveView remounts, drawer resets
+      {:ok, view2, _html} =
+        view
+        |> element("#next-match-link")
+        |> render_click()
+        |> follow_redirect(log_in_user(conn, usr))
+
+      refute has_element?(view2, "#stats-drawer[data-open='true']")
     end
   end
 end

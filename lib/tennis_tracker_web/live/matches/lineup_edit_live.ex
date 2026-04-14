@@ -2,6 +2,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
   use TennisTrackerWeb, :live_view
 
   import TennisTrackerWeb.BoardComponents
+  import TennisTrackerWeb.MatchHelpers, only: [format_match_datetime: 2, format_home_or_away: 2]
 
   alias TennisTracker.Tennis
   alias TennisTracker.Tennis.MatchLineupAssignment
@@ -20,6 +21,13 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
     |> assign(:player_column_assignments, %{})
     |> assign(:mode, :one_per_match)
     |> assign(:selected_player_id, nil)
+    |> assign(:all_players, [])
+    |> assign(:stats_open, false)
+    |> assign(:stats_sort, :name)
+    |> assign(:season_stats, nil)
+    |> assign(:prev_match, nil)
+    |> assign(:next_match, nil)
+    |> assign(:neutral_slot_names, [])
     |> ok()
   end
 
@@ -135,6 +143,19 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
     socket |> assign(:selected_player_id, nil) |> noreply()
   end
 
+  def handle_event("toggle_stats", _params, socket) do
+    socket |> assign(:stats_open, !socket.assigns.stats_open) |> noreply()
+  end
+
+  def handle_event("set_stats_sort", %{"sort" => sort}, socket)
+      when sort in ~w(name total_asc total_desc out_desc) do
+    socket |> assign(:stats_sort, String.to_existing_atom(sort)) |> noreply()
+  end
+
+  def handle_event("set_stats_sort", _params, socket) do
+    socket |> noreply()
+  end
+
   # ---------------------------------------------------------------------------
   # PubSub
   # ---------------------------------------------------------------------------
@@ -182,14 +203,40 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
         load: [:player]
       )
 
-    all_players = memberships |> Enum.map(& &1.player) |> Enum.sort_by(& &1.name)
+    all_players = Enum.map(memberships, & &1.player)
+
+    all_matches =
+      Tennis.list_all_matches_for_team!(match.team.id,
+        tenant: group_id,
+        actor: current_user
+      )
+
+    current_index = Enum.find_index(all_matches, &(&1.id == match.id))
+
+    prev_match =
+      if current_index && current_index > 0, do: Enum.at(all_matches, current_index - 1)
+
+    next_match =
+      if current_index, do: Enum.at(all_matches, current_index + 1)
+
+    season_stats =
+      Tennis.season_stats_for_team!(match.team.id, all_matches,
+        tenant: group_id,
+        actor: current_user
+      )
+
+    neutral_slot_names =
+      lineup_slots
+      |> Enum.filter(&(&1.participation_type == :neutral))
+      |> Enum.map(& &1.name)
 
     excl_player_ids =
       assignments
-      |> Enum.filter(& &1.team_lineup_slot.is_exclusion_slot)
+      |> Enum.filter(&(&1.team_lineup_slot.participation_type == :out))
       |> MapSet.new(& &1.player_id)
 
-    playing_assignments = Enum.reject(assignments, & &1.team_lineup_slot.is_exclusion_slot)
+    playing_assignments =
+      Enum.reject(assignments, &(&1.team_lineup_slot.participation_type == :out))
 
     {available, player_column_assignments} =
       case mode do
@@ -240,7 +287,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
     |> assign(:lineup_slots, lineup_slots)
     |> assign(:assignments, assignments)
     |> assign(:available, available)
+    |> assign(:all_players, all_players)
     |> assign(:player_column_assignments, player_column_assignments)
+    |> assign(:prev_match, prev_match)
+    |> assign(:next_match, next_match)
+    |> assign(:season_stats, season_stats)
+    |> assign(:neutral_slot_names, neutral_slot_names)
   end
 
   defp do_slot_assignment(socket, match_id, player_id, slot_id, group_id, current_user) do
@@ -250,7 +302,9 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
     # This allows tap-to-assign to move a player from an exclusion slot to any other slot.
     excl_result =
       socket.assigns.assignments
-      |> Enum.filter(&(&1.player_id == player_id && &1.team_lineup_slot.is_exclusion_slot))
+      |> Enum.filter(
+        &(&1.player_id == player_id && &1.team_lineup_slot.participation_type == :out)
+      )
       |> Enum.reduce_while(:ok, fn assignment, :ok ->
         case Tennis.destroy_lineup_assignment(assignment, tenant: group_id, actor: current_user) do
           :ok -> {:cont, :ok}
@@ -273,7 +327,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
             existing_in_column =
               Enum.find(socket.assigns.assignments, fn a ->
                 a.player_id == player_id &&
-                  !a.team_lineup_slot.is_exclusion_slot &&
+                  a.team_lineup_slot.participation_type != :out &&
                   a.team_lineup_slot.team_lineup_column_id == target_slot.team_lineup_column_id
               end)
 
@@ -353,23 +407,72 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
     >
       <div class="flex flex-col h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] -mx-6 -my-8">
         <%!-- Header bar --%>
-        <div class="flex items-center gap-3 py-3 px-4 flex-shrink-0">
+        <div class="flex items-center gap-2 py-3 px-4 flex-shrink-0">
           <.link
             navigate={~p"/g/#{@current_group.slug}/matches/#{@match.id}"}
             class="btn btn-sm btn-ghost"
           >
             <.icon name="hero-arrow-left" class="size-4" /> Back
           </.link>
-          <span class="font-bold text-sm truncate">
+          <span class="font-bold text-sm truncate flex-1">
             Edit Lineup
             <span :if={@match} class="font-normal text-base-content/50">
               — {@match.opponent}
             </span>
           </span>
+          <%!-- Stats toggle --%>
+          <button
+            phx-click="toggle_stats"
+            class={["btn btn-sm btn-ghost gap-1", @stats_open && "btn-active"]}
+            id="stats-toggle"
+            aria-label="Toggle stats"
+          >
+            <.icon name="hero-table-cells" class="size-4" />
+            <span class="text-xs">Stats</span>
+          </button>
+        </div>
+        <%!-- Match info --%>
+        <% {date_str, time_str} = format_match_datetime(@match.match_start_datetime, @match.timezone) %>
+        <div class="flex items-center gap-1.5 px-4 pb-2 text-xs text-base-content/60 flex-shrink-0">
+          <span>{date_str}</span>
+          <span>·</span>
+          <span>{time_str}</span>
+          <span>·</span>
+          <span>{format_home_or_away(@match.home_or_away, @match.opponent)}</span>
+          <%= if @match.location do %>
+            <span>·</span>
+            <span>{@match.location.name}</span>
+          <% end %>
+        </div>
+        <%!-- Match navigation sub-bar --%>
+        <div
+          :if={@prev_match || @next_match}
+          class="flex items-center justify-between px-4 pb-2 flex-shrink-0"
+        >
+          <div>
+            <.link
+              :if={@prev_match}
+              navigate={~p"/g/#{@current_group.slug}/matches/#{@prev_match.id}/lineup-edit"}
+              class="btn btn-sm btn-ghost"
+              id="prev-match-link"
+            >
+              <.icon name="hero-arrow-left" class="size-4" /> Previous Match
+            </.link>
+          </div>
+          <div>
+            <.link
+              :if={@next_match}
+              navigate={~p"/g/#{@current_group.slug}/matches/#{@next_match.id}/lineup-edit"}
+              class="btn btn-sm btn-ghost"
+              id="next-match-link"
+            >
+              Next Match <.icon name="hero-arrow-right" class="size-4" />
+            </.link>
+          </div>
         </div>
 
         <%!-- Empty state: no playable slots --%>
-        <% has_playing_slots = Enum.any?(@lineup_slots, &(!&1.is_exclusion_slot)) %>
+        <% has_playing_slots = Enum.any?(@lineup_slots, &(&1.participation_type != :out)) %>
         <div :if={@match && not has_playing_slots} id="lineup-empty-state" class="px-4 py-6">
           <p class="text-sm text-base-content/50 mb-2">
             No lineup slots defined for this team.
@@ -382,58 +485,66 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
           </.link>
         </div>
 
-        <%!-- Board --%>
-        <div
-          :if={has_playing_slots}
-          class="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-4 px-4 items-stretch"
-        >
-          <%!-- Available column --%>
-          <.board_column
-            id="col-available"
-            title="Available"
-            count={length(@available)}
-            target_id="available"
-            drop_event="move_lineup_player"
-          >
-            <.player_card
-              :for={player <- @available}
-              player={player}
-              readonly={false}
-              column_badges={Map.get(@player_column_assignments, player.id, [])}
-            />
-          </.board_column>
-
-          <%!-- Slot columns grouped by lineup column --%>
-          <%= for column <- @lineup_columns do %>
-            <% col_slots = Enum.filter(@lineup_slots, &(&1.team_lineup_column_id == column.id)) %>
-            <.lineup_column_group
-              :if={col_slots != []}
-              id={"col-grp-#{column.id}"}
-              column_name={column.name}
+        <%!-- Board + optional stats drawer --%>
+        <div :if={has_playing_slots} class="flex-1 min-h-0 flex overflow-hidden">
+          <%!-- Board --%>
+          <div class="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-4 px-4 items-stretch">
+            <%!-- Available column --%>
+            <.board_column
+              id="col-available"
+              title="Available"
+              count={length(@available)}
+              target_id="available"
+              drop_event="move_lineup_player"
             >
-              <%= for slot <- col_slots do %>
-                <% slot_players =
-                  @assignments
-                  |> Enum.filter(&(&1.team_lineup_slot_id == slot.id))
-                  |> Enum.map(& &1.player)
-                  |> Enum.sort_by(& &1.name) %>
-                <.lineup_slot_zone
-                  id={"col-#{slot.id}"}
-                  title={slot.name}
-                  count={length(slot_players)}
-                  target_id={slot.id}
-                  violations={slot_violations(slot, @assignments)}
-                  drop_event="move_lineup_player"
-                >
-                  <.player_card
-                    :for={player <- slot_players}
-                    player={player}
-                    readonly={false}
-                  />
-                </.lineup_slot_zone>
-              <% end %>
-            </.lineup_column_group>
-          <% end %>
+              <.player_card
+                :for={player <- @available}
+                player={player}
+                readonly={false}
+                column_badges={Map.get(@player_column_assignments, player.id, [])}
+              />
+            </.board_column>
+
+            <%!-- Slot columns grouped by lineup column --%>
+            <%= for column <- @lineup_columns do %>
+              <% col_slots = Enum.filter(@lineup_slots, &(&1.team_lineup_column_id == column.id)) %>
+              <.lineup_column_group
+                :if={col_slots != []}
+                id={"col-grp-#{column.id}"}
+                column_name={column.name}
+              >
+                <%= for slot <- col_slots do %>
+                  <% slot_players =
+                    @assignments
+                    |> Enum.filter(&(&1.team_lineup_slot_id == slot.id))
+                    |> Enum.map(& &1.player)
+                    |> Enum.sort_by(& &1.name) %>
+                  <.lineup_slot_zone
+                    id={"col-#{slot.id}"}
+                    title={slot.name}
+                    count={length(slot_players)}
+                    target_id={slot.id}
+                    violations={slot_violations(slot, @assignments)}
+                    drop_event="move_lineup_player"
+                  >
+                    <.player_card
+                      :for={player <- slot_players}
+                      player={player}
+                      readonly={false}
+                    />
+                  </.lineup_slot_zone>
+                <% end %>
+              </.lineup_column_group>
+            <% end %>
+          </div>
+          <%!-- Stats drawer - always in DOM so width transition plays on open/close --%>
+          <.stats_drawer
+            stats_open={@stats_open}
+            season_stats={@season_stats}
+            stats_sort={@stats_sort}
+            all_players={@all_players}
+            neutral_slot_names={@neutral_slot_names}
+          />
         </div>
 
         <%!-- Tap-to-assign: player detail modal --%>
@@ -490,5 +601,128 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  # ---------------------------------------------------------------------------
+  # Stats drawer component
+  # ---------------------------------------------------------------------------
+
+  attr :stats_open, :boolean, required: true
+  attr :season_stats, :map, default: nil
+  attr :stats_sort, :atom, required: true
+  attr :all_players, :list, required: true
+  attr :neutral_slot_names, :list, required: true
+
+  defp stats_drawer(assigns) do
+    assigns = assign(assigns, :drawer_width, drawer_width(assigns.neutral_slot_names))
+
+    ~H"""
+    <%!-- Outer wrapper drives the width transition --%>
+    <div style={"flex-shrink: 0; overflow: hidden; transition: width 300ms cubic-bezier(0.4,0,0.2,1); width: #{if @stats_open, do: @drawer_width, else: 0}px;"}>
+      <div
+        id="stats-drawer"
+        data-open={to_string(@stats_open)}
+        class="flex flex-col h-full border-l border-base-300 bg-base-200 overflow-y-auto"
+        style={"width: #{@drawer_width}px; min-width: #{@drawer_width}px; box-shadow: -6px 0 24px rgba(0,0,0,0.25);"}
+      >
+        <%!-- Drawer header --%>
+        <div class="flex items-center justify-between px-4 py-3 border-b border-base-300 bg-base-300/40 flex-shrink-0">
+          <span class="font-semibold text-sm tracking-wide">Season Stats</span>
+          <form phx-change="set_stats_sort">
+            <.input
+              type="select"
+              id="stats-sort-select"
+              name="sort"
+              value={Atom.to_string(@stats_sort)}
+              options={[
+                {"Name A–Z", "name"},
+                {"Fewest played", "total_asc"},
+                {"Most played", "total_desc"},
+                {"Most out", "out_desc"}
+              ]}
+              class="select select-xs"
+            />
+          </form>
+        </div>
+        <%!-- Table --%>
+        <div :if={@season_stats} class="overflow-x-auto flex-1">
+          <table class="table table-xs w-full">
+            <thead class="sticky top-0 bg-base-200 z-10">
+              <tr>
+                <th class="bg-base-300/60">Name</th>
+                <th class="bg-base-300/60 text-center" title="Past matches played">Played</th>
+                <th class="bg-base-300/60 text-center" title="Future matches planned">Planned</th>
+                <th class="bg-base-300/60 text-center" title="Played + Planned out of total">Total</th>
+                <th class="bg-base-300/60 text-center">Out</th>
+                <th :for={name <- @neutral_slot_names} class="bg-base-300/60 text-center" style="min-width: 72px">{name}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for {player, idx} <- Enum.with_index(sorted_players(@all_players, @season_stats, @stats_sort)) do %>
+                <% stats =
+                  Map.get(@season_stats.by_player, player.id, %{
+                    played_past: 0,
+                    played_future: 0,
+                    out: 0,
+                    neutral: %{}
+                  }) %>
+                <% total = stats.played_past + stats.played_future %>
+                <tr
+                  id={"stats-row-#{player.id}"}
+                  class={[
+                    "hover:bg-base-300/40 transition-colors",
+                    rem(idx, 2) == 1 && "bg-base-300/20"
+                  ]}
+                >
+                  <td class="truncate max-w-[9rem] font-medium">{player.name}</td>
+                  <td class="text-center text-base-content/60">{stats.played_past}</td>
+                  <td class="text-center font-medium">{stats.played_future}</td>
+                  <td class="text-center text-base-content/70">{total} / {@season_stats.total_matches}</td>
+                  <td class={["text-center", stats.out > 0 && "text-warning font-medium"]}>{stats.out}</td>
+                  <td
+                    :for={name <- @neutral_slot_names}
+                    class="text-center text-base-content/70"
+                  >{Map.get(stats.neutral, name, 0)}</td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp drawer_width(neutral_slot_names) do
+    # Base covers Name + Played + Planned + Total + Out columns
+    # Each neutral slot adds a fixed column width
+    336 + length(neutral_slot_names) * 90
+  end
+
+  defp sorted_players(all_players, season_stats, sort) do
+    by_player = season_stats.by_player
+
+    case sort do
+      :name ->
+        Enum.sort_by(all_players, & &1.name)
+
+      :total_asc ->
+        Enum.sort_by(all_players, fn p ->
+          stats = Map.get(by_player, p.id, %{played_past: 0, played_future: 0})
+          {stats.played_past + stats.played_future, p.name}
+        end)
+
+      :total_desc ->
+        Enum.sort_by(all_players, fn p ->
+          stats = Map.get(by_player, p.id, %{played_past: 0, played_future: 0})
+          {-(stats.played_past + stats.played_future), p.name}
+        end)
+
+      :out_desc ->
+        Enum.sort_by(all_players, fn p ->
+          stats = Map.get(by_player, p.id, %{out: 0})
+          {-stats.out, p.name}
+        end)
+    end
   end
 end

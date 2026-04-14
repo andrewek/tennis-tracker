@@ -14,7 +14,7 @@ defmodule TennisTracker.Tennis.ExclusionSlotAssignmentTest do
     # Get those for use in tests.
     [exclusion_slot] =
       Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
-      |> Enum.filter(& &1.is_exclusion_slot)
+      |> Enum.filter(&(&1.participation_type == :out))
 
     [reserve_col] = Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
 
