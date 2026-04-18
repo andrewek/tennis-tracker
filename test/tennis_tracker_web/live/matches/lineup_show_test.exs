@@ -127,7 +127,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
         live(log_in_user(conn, captain), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
       assert has_element?(view, "#lineup-empty-state")
-      assert has_element?(view, "a[href*='/teams/#{team.id}/edit']")
+      assert has_element?(view, "a[href*='/teams/#{team.id}/settings']")
     end
 
     test "non-captain member sees message but no team edit link when no slots defined", %{

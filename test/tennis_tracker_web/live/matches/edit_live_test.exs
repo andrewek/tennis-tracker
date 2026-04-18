@@ -70,7 +70,7 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
       })
       |> render_submit()
 
-      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/schedule")
     end
 
     test "invalid update (blank opponent) shows validation error", %{conn: conn, group: grp} do
@@ -120,7 +120,7 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
       view |> element("button[phx-click='show_delete_modal']") |> render_click()
       view |> element("button[phx-click='delete_match']") |> render_click()
 
-      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      assert_redirect(view, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/schedule")
     end
   end
 end

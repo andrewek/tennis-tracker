@@ -106,7 +106,7 @@ defmodule TennisTrackerWeb.Matches.EditLive do
 
             socket
             |> put_flash(:info, "Match updated.")
-            |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/edit")
+            |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/settings/schedule")
             |> noreply()
 
           {:error, form} ->
@@ -133,7 +133,7 @@ defmodule TennisTrackerWeb.Matches.EditLive do
 
     socket
     |> put_flash(:info, "Match deleted.")
-    |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/edit")
+    |> push_navigate(to: ~p"/g/#{group_slug}/teams/#{team_id}/settings/schedule")
     |> noreply()
   end
 

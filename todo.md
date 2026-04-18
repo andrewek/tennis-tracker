@@ -115,6 +115,11 @@ In no particular order. Crossed out when done.
    separate board/show page, so both conform to the standard page structure used
    by the rest of the app (sidenav layout + `<.page_header>` with back link).
 
+1. Install Credo and write a custom check that bans `html =~` assertions in
+   LiveView tests. The check should flag any test file using `html =~` for
+   content assertions and enforce use of `has_element?/3` instead. Wire the
+   check into `mix precommit` so violations fail the build before tests run.
+
 ## Done
 
 1. ~It's likely that we'll need some notion of "Organization" / Groups — implemented

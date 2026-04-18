@@ -21,22 +21,20 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Edit page — captain section visibility
+  # Members page — captain section visibility
   # ---------------------------------------------------------------------------
 
-  describe "edit page — group owner" do
-    # 8.6
+  describe "members page — group owner" do
     test "sees Captains section with controls", %{conn: conn, group: grp, user: owner, team: team} do
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       assert has_element?(view, "h2", "Captains")
       assert has_element?(view, "button", "Add Captain")
     end
   end
 
-  describe "edit page — team captain" do
-    # 8.7
+  describe "members page — team captain" do
     test "sees Captains section with controls", %{
       conn: conn,
       group: grp,
@@ -44,20 +42,19 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       team: team
     } do
       conn = log_in_user(conn, captain)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       assert has_element?(view, "h2", "Captains")
       assert has_element?(view, "button", "Add Captain")
     end
   end
 
-  describe "edit page — regular group member" do
-    # 8.8
+  describe "members page — regular group member" do
     test "is redirected to show page", %{conn: conn, group: grp, member: member, team: team} do
       conn = log_in_user(conn, member)
 
       {:error, {:live_redirect, %{to: to}}} =
-        live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+        live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       assert to == ~p"/g/#{grp.slug}/teams/#{team.id}"
     end
@@ -68,7 +65,6 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   # ---------------------------------------------------------------------------
 
   describe "add_captain — no existing TeamRole" do
-    # 8.9
     test "creates a new :captain TeamRole and refreshes list", %{
       conn: conn,
       group: grp,
@@ -79,7 +75,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       Factory.group_membership(group: grp, user: target)
 
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       view |> render_hook("select_captain_candidate", %{"user_id" => target.id})
       view |> render_hook("add_captain", %{})
@@ -92,14 +88,13 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   describe "add_captain — existing :member TeamRole" do
-    # 8.10
     test "updates the role to :captain", %{conn: conn, group: grp, user: owner, team: team} do
       target = Factory.user()
       Factory.group_membership(group: grp, user: target)
       Factory.team_role(group: grp, user: target, team: team, role: :member)
 
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       view |> render_hook("select_captain_candidate", %{"user_id" => target.id})
       view |> render_hook("add_captain", %{})
@@ -110,7 +105,6 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   describe "add_captain — no candidate selected" do
-    # 8.10a
     test "is a no-op when candidate_user_id is nil", %{
       conn: conn,
       group: grp,
@@ -118,7 +112,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       team: team
     } do
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       roles_before = Tennis.list_captains_for_team!(team.id, tenant: grp.id, authorize?: false)
 
@@ -134,7 +128,6 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   # ---------------------------------------------------------------------------
 
   describe "removal modal — remove from team entirely" do
-    # 8.11
     test "destroys the TeamRole", %{
       conn: conn,
       group: grp,
@@ -143,7 +136,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       captain: captain
     } do
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       [role] = Tennis.list_captains_for_team!(team.id, tenant: grp.id, authorize?: false)
 
@@ -156,7 +149,6 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   describe "removal modal — convert to member" do
-    # 8.12
     test "updates the role to :member", %{
       conn: conn,
       group: grp,
@@ -165,7 +157,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       captain: captain
     } do
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       [role] = Tennis.list_captains_for_team!(team.id, tenant: grp.id, authorize?: false)
 
@@ -181,10 +173,9 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   describe "removal modal — cancel" do
-    # 8.13
     test "makes no changes to TeamRole", %{conn: conn, group: grp, user: owner, team: team} do
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       roles_before = Tennis.list_captains_for_team!(team.id, tenant: grp.id, authorize?: false)
       [role] = roles_before
@@ -207,7 +198,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       team: team
     } do
       conn = log_in_user(conn, captain)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       [role] = Tennis.list_captains_for_team!(team.id, tenant: grp.id, authorize?: false)
 
@@ -220,11 +211,10 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Show page — captains section
+  # Show page — captains section (unchanged)
   # ---------------------------------------------------------------------------
 
   describe "show page — captains section" do
-    # 8.14
     test "any group member sees captain names", %{
       conn: conn,
       group: grp,
@@ -239,7 +229,6 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       assert has_element?(view, "#captains-list", captain.name || to_string(captain.email))
     end
 
-    # 8.15
     test "shows empty state when no captains assigned", %{conn: conn, group: grp, user: owner} do
       team = Factory.team(group: grp)
 
@@ -252,7 +241,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
   end
 
   # ---------------------------------------------------------------------------
-  # 8.5 User.name display fallback
+  # Captain display name
   # ---------------------------------------------------------------------------
 
   describe "captain display name" do
@@ -266,7 +255,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       assert is_nil(captain.name)
 
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       assert has_element?(view, "#captains-list", to_string(captain.email))
     end
@@ -285,7 +274,7 @@ defmodule TennisTrackerWeb.Teams.CaptainManagementTest do
       Factory.team_role(group: grp, user: named_user, team: team, traits: [:captain])
 
       conn = log_in_user(conn, owner)
-      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}/settings/members")
 
       assert has_element?(view, "#captains-list", "Named Captain")
     end

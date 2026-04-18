@@ -97,10 +97,10 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
           </a>
           <.link
             :if={@can_edit_team}
-            navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/edit"}
+            navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/settings"}
             class="btn btn-sm btn-ghost"
           >
-            Edit Team
+            Team Settings
           </.link>
         </:actions>
       </.page_header>

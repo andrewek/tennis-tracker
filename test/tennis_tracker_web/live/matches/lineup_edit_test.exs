@@ -72,7 +72,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
       assert has_element?(view, "#lineup-empty-state")
-      assert has_element?(view, "a[href*='/teams/#{team.id}/edit']")
+      assert has_element?(view, "a[href*='/teams/#{team.id}/settings']")
     end
   end
 

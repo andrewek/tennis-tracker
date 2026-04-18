@@ -32,6 +32,7 @@ defmodule TennisTracker.Tennis.Team do
 
     policy action(:update) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
+      authorize_if(TennisTracker.Policies.IsTeamCaptainOfSelf)
     end
 
     policy action(:destroy) do

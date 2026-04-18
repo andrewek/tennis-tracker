@@ -84,7 +84,7 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
 
-      assert html =~ "Edit Team"
+      assert html =~ "Team Settings"
       refute html =~ "Add Match"
     end
   end

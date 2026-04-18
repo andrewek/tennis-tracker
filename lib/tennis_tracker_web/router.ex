@@ -51,7 +51,10 @@ defmodule TennisTrackerWeb.Router do
       live "/g/:group_slug", GroupHomeLive, :index
       live "/g/:group_slug/teams", Teams.IndexLive, :index
       live "/g/:group_slug/teams/:id", Teams.ShowLive, :show
-      live "/g/:group_slug/teams/:id/edit", Teams.EditLive, :edit
+      live "/g/:group_slug/teams/:id/settings", Teams.Settings.GeneralLive, :index
+      live "/g/:group_slug/teams/:id/settings/schedule", Teams.Settings.ScheduleLive, :index
+      live "/g/:group_slug/teams/:id/settings/lineup", Teams.Settings.LineupLive, :index
+      live "/g/:group_slug/teams/:id/settings/members", Teams.Settings.MembersLive, :index
 
       live "/g/:group_slug/players", Players.IndexLive, :index
       live "/g/:group_slug/players/new", Players.FormLive, :new

@@ -167,7 +167,7 @@ defmodule TennisTrackerWeb.Matches.ShowLive do
             <p class="text-sm text-base-content/50">No lineup slots defined for this team.</p>
             <.link
               :if={@can_edit_lineup}
-              navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}/edit"}
+              navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}/settings"}
               class="text-sm text-primary hover:underline mt-1 inline-block"
             >
               Define slots on the team page

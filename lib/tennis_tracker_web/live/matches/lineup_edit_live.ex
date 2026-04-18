@@ -478,7 +478,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
             No lineup slots defined for this team.
           </p>
           <.link
-            navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}/edit"}
+            navigate={~p"/g/#{@current_group.slug}/teams/#{@match.team.id}/settings"}
             class="text-sm text-primary hover:underline"
           >
             Define slots on the team page
@@ -652,9 +652,17 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
                 <th class="bg-base-300/60">Name</th>
                 <th class="bg-base-300/60 text-center" title="Past matches played">Played</th>
                 <th class="bg-base-300/60 text-center" title="Future matches planned">Planned</th>
-                <th class="bg-base-300/60 text-center" title="Played + Planned out of total">Total</th>
+                <th class="bg-base-300/60 text-center" title="Played + Planned out of total">
+                  Total
+                </th>
                 <th class="bg-base-300/60 text-center">Out</th>
-                <th :for={name <- @neutral_slot_names} class="bg-base-300/60 text-center" style="min-width: 72px">{name}</th>
+                <th
+                  :for={name <- @neutral_slot_names}
+                  class="bg-base-300/60 text-center"
+                  style="min-width: 72px"
+                >
+                  {name}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -677,12 +685,18 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
                   <td class="truncate max-w-[9rem] font-medium">{player.name}</td>
                   <td class="text-center text-base-content/60">{stats.played_past}</td>
                   <td class="text-center font-medium">{stats.played_future}</td>
-                  <td class="text-center text-base-content/70">{total} / {@season_stats.total_matches}</td>
-                  <td class={["text-center", stats.out > 0 && "text-warning font-medium"]}>{stats.out}</td>
+                  <td class="text-center text-base-content/70">
+                    {total} / {@season_stats.total_matches}
+                  </td>
+                  <td class={["text-center", stats.out > 0 && "text-warning font-medium"]}>
+                    {stats.out}
+                  </td>
                   <td
                     :for={name <- @neutral_slot_names}
                     class="text-center text-base-content/70"
-                  >{Map.get(stats.neutral, name, 0)}</td>
+                  >
+                    {Map.get(stats.neutral, name, 0)}
+                  </td>
                 </tr>
               <% end %>
             </tbody>
