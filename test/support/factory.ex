@@ -1,4 +1,6 @@
 defmodule TennisTracker.Factory do
+  @moduledoc false
+
   alias TennisTracker.{Accounts, Groups, Tennis}
   alias TennisTracker.Accounts.User
   alias TennisTracker.Groups.{Group, GroupMembership}

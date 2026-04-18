@@ -1,4 +1,6 @@
 defmodule TennisTrackerWeb.TeamComponents do
+  @moduledoc false
+
   use TennisTrackerWeb, :html
 
   @doc """

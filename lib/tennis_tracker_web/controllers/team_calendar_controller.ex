@@ -34,37 +34,33 @@ defmodule TennisTrackerWeb.TeamCalendarController do
   end
 
   defp load_team(team_id, group, current_user) do
-    try do
-      team =
-        Tennis.get_team!(team_id,
-          tenant: group.id,
-          actor: current_user,
-          load: [:display_label, :short_display_label]
-        )
+    team =
+      Tennis.get_team!(team_id,
+        tenant: group.id,
+        actor: current_user,
+        load: [:display_label, :short_display_label]
+      )
 
-      if team.is_pseudo do
-        {:error, :pseudo_team}
-      else
-        {:ok, team}
-      end
-    rescue
-      _ -> {:error, :not_found}
+    if team.is_pseudo do
+      {:error, :pseudo_team}
+    else
+      {:ok, team}
     end
+  rescue
+    _ -> {:error, :not_found}
   end
 
   defp load_matches(team_id, group, current_user) do
-    try do
-      matches =
-        Tennis.list_all_matches_for_team!(team_id,
-          tenant: group.id,
-          actor: current_user,
-          load: [location: [:formatted_address]]
-        )
+    matches =
+      Tennis.list_all_matches_for_team!(team_id,
+        tenant: group.id,
+        actor: current_user,
+        load: [location: [:formatted_address]]
+      )
 
-      {:ok, matches}
-    rescue
-      _ -> {:error, :load_failed}
-    end
+    {:ok, matches}
+  rescue
+    _ -> {:error, :load_failed}
   end
 
   defp build_ical(team, matches) do

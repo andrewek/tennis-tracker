@@ -4,7 +4,7 @@ defmodule TennisTrackerWeb.Players.FormLiveTest do
   import Phoenix.LiveViewTest
 
   alias TennisTracker.Tennis
-  alias TennisTracker.Tennis.{Tag, TagCategory, PlayerTag}
+  alias TennisTracker.Tennis.{PlayerTag, Tag, TagCategory}
 
   require Ash.Query
 

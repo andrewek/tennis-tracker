@@ -1,4 +1,6 @@
 defmodule TennisTracker.Tennis.Team do
+  @moduledoc false
+
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,
@@ -135,7 +137,7 @@ defmodule TennisTracker.Tennis.Team do
 
       change(fn changeset, context ->
         Ash.Changeset.after_action(changeset, fn _changeset, team ->
-          unless team.is_pseudo do
+          if !team.is_pseudo do
             tenant = team.group_id
 
             col =

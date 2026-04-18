@@ -78,13 +78,13 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLive do
 
     case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
       {:ok, _location} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Location saved.")
-         |> push_navigate(to: ~p"/g/#{group_slug}/settings/locations")}
+        socket
+        |> put_flash(:info, "Location saved.")
+        |> push_navigate(to: ~p"/g/#{group_slug}/settings/locations")
+        |> noreply()
 
       {:error, form} ->
-        {:noreply, assign(socket, :form, form)}
+        socket |> assign(:form, form) |> noreply()
     end
   end
 

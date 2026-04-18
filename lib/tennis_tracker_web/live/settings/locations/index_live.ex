@@ -31,12 +31,12 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
         |> assign(:confirm_location_id, nil)
         |> assign(:confirm_location_name, nil)
 
-      {:ok, socket}
+      socket |> ok()
     else
-      {:ok,
-       socket
-       |> put_flash(:error, "You don't have permission to access group settings.")
-       |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")}
+      socket
+      |> put_flash(:error, "You don't have permission to access group settings.")
+      |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
+      |> ok()
     end
   end
 
@@ -45,19 +45,19 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
   end
 
   def handle_event("request_archive", %{"id" => id, "name" => name}, socket) do
-    {:noreply,
-     socket
-     |> assign(:confirm_action, :archive)
-     |> assign(:confirm_location_id, id)
-     |> assign(:confirm_location_name, name)}
+    socket
+    |> assign(:confirm_action, :archive)
+    |> assign(:confirm_location_id, id)
+    |> assign(:confirm_location_name, name)
+    |> noreply()
   end
 
   def handle_event("request_restore", %{"id" => id, "name" => name}, socket) do
-    {:noreply,
-     socket
-     |> assign(:confirm_action, :restore)
-     |> assign(:confirm_location_id, id)
-     |> assign(:confirm_location_name, name)}
+    socket
+    |> assign(:confirm_action, :restore)
+    |> assign(:confirm_location_id, id)
+    |> assign(:confirm_location_name, name)
+    |> noreply()
   end
 
   def handle_event("confirm_action", _params, socket) do
@@ -116,19 +116,19 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
           |> put_flash(:info, "Location restored.")
       end
 
-    {:noreply,
-     socket
-     |> assign(:confirm_action, nil)
-     |> assign(:confirm_location_id, nil)
-     |> assign(:confirm_location_name, nil)}
+    socket
+    |> assign(:confirm_action, nil)
+    |> assign(:confirm_location_id, nil)
+    |> assign(:confirm_location_name, nil)
+    |> noreply()
   end
 
   def handle_event("cancel_action", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:confirm_action, nil)
-     |> assign(:confirm_location_id, nil)
-     |> assign(:confirm_location_name, nil)}
+    socket
+    |> assign(:confirm_action, nil)
+    |> assign(:confirm_location_id, nil)
+    |> assign(:confirm_location_name, nil)
+    |> noreply()
   end
 
   def render(assigns) do

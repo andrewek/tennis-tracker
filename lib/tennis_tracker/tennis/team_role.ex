@@ -1,4 +1,6 @@
 defmodule TennisTracker.Tennis.TeamRole do
+  @moduledoc false
+
   use Ash.Resource,
     domain: TennisTracker.Tennis,
     data_layer: AshPostgres.DataLayer,

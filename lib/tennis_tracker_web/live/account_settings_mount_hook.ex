@@ -38,12 +38,10 @@ defmodule TennisTrackerWeb.AccountSettingsMountHook do
   end
 
   defp load_group(slug, user) do
-    try do
-      group = Groups.get_group_by_slug!(slug, actor: user, authorize?: true)
-      {:ok, group}
-    rescue
-      _ -> {:error, :not_found}
-    end
+    group = Groups.get_group_by_slug!(slug, actor: user, authorize?: true)
+    {:ok, group}
+  rescue
+    _ -> {:error, :not_found}
   end
 
   defp resolve_group_role(_group_id, %{role: :admin}), do: :admin

@@ -10,12 +10,7 @@ defmodule TennisTrackerWeb.Settings.SeasonRules.IndexLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    unless socket.assigns.current_group_role in [:owner, :admin] do
-      socket
-      |> put_flash(:error, "You don't have permission to access group settings.")
-      |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
-      |> ok()
-    else
+    if socket.assigns.current_group_role in [:owner, :admin] do
       season_rules =
         SeasonRules
         |> Ash.Query.for_read(:read, %{}, actor: current_user)
@@ -25,6 +20,11 @@ defmodule TennisTrackerWeb.Settings.SeasonRules.IndexLive do
 
       socket
       |> assign(:season_rules, season_rules)
+      |> ok()
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to access group settings.")
+      |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
       |> ok()
     end
   end

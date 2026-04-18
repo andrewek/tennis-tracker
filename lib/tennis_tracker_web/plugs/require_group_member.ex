@@ -58,12 +58,10 @@ defmodule TennisTrackerWeb.Plugs.RequireGroupMember do
   end
 
   defp resolve_group(slug, user) do
-    try do
-      group = Groups.get_group_by_slug!(slug, actor: user, authorize?: true)
-      {:ok, group}
-    rescue
-      _ -> {:error, :group_not_found}
-    end
+    group = Groups.get_group_by_slug!(slug, actor: user, authorize?: true)
+    {:ok, group}
+  rescue
+    _ -> {:error, :group_not_found}
   end
 
   defp verify_membership(_group_id, %{role: :admin}), do: :ok

@@ -1,9 +1,9 @@
 defmodule TennisTrackerWeb.Teams.Settings.MembersLive do
   use TennisTrackerWeb, :live_view
 
+  alias TennisTracker.Groups
   alias TennisTracker.Tennis
   alias TennisTracker.Tennis.TeamRole
-  alias TennisTracker.Groups
   alias TennisTrackerWeb.TeamComponents
   alias TennisTrackerWeb.Teams.Settings.Helpers
 

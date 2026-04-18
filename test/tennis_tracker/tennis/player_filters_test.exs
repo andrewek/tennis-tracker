@@ -2,7 +2,7 @@ defmodule TennisTracker.Tennis.PlayerFiltersTest do
   use TennisTracker.DataCase, async: true
 
   alias TennisTracker.Tennis
-  alias TennisTracker.Tennis.{PlayerFilters, TagCategory, Tag}
+  alias TennisTracker.Tennis.{PlayerFilters, Tag, TagCategory}
 
   require Ash.Query
 

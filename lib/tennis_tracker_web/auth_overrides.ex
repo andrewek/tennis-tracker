@@ -1,4 +1,6 @@
 defmodule TennisTrackerWeb.AuthOverrides do
+  @moduledoc false
+
   use AshAuthentication.Phoenix.Overrides
 
   alias AshAuthentication.Phoenix.Components

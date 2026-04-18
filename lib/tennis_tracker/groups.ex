@@ -1,4 +1,6 @@
 defmodule TennisTracker.Groups do
+  @moduledoc false
+
   use Ash.Domain, extensions: [AshAdmin.Domain]
 
   require Ash.Query

@@ -1,8 +1,8 @@
 defmodule TennisTracker.Tennis.TeamCaptainPolicyTest do
   use TennisTracker.DataCase, async: true
 
-  alias TennisTracker.Tennis
   alias TennisTracker.Groups
+  alias TennisTracker.Tennis
 
   require Ash.Query
 

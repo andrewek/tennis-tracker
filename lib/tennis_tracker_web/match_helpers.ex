@@ -1,4 +1,6 @@
 defmodule TennisTrackerWeb.MatchHelpers do
+  @moduledoc false
+
   @doc """
   Formats a UTC DateTime into a {date_str, time_str} tuple in the given timezone.
   Uses abbreviated format: "Wed, Mar 4" and "10:00 AM".

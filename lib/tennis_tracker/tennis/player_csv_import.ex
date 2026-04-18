@@ -1,4 +1,6 @@
 defmodule TennisTracker.Tennis.PlayerCsvImport do
+  @moduledoc false
+
   NimbleCSV.define(TennisTracker.CSV, separator: ",", escape: "\"")
 
   require Ash.Query

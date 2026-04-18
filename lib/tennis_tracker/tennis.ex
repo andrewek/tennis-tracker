@@ -1,17 +1,19 @@
 defmodule TennisTracker.Tennis do
+  @moduledoc false
+
   use Ash.Domain, extensions: [AshAdmin.Domain]
 
   require Ash.Query
 
   alias TennisTracker.Tennis.{
-    Team,
     Match,
-    TeamMembership,
-    SeasonRules,
-    SeasonRulesDefaultTag,
+    MatchLineupAssignment,
     Player,
     PlayerTag,
-    MatchLineupAssignment
+    SeasonRules,
+    SeasonRulesDefaultTag,
+    Team,
+    TeamMembership
   }
 
   admin do
@@ -298,9 +300,8 @@ defmodule TennisTracker.Tennis do
     to_add = desired_tag_ids -- existing_tag_ids
     to_remove = existing_tag_ids -- desired_tag_ids
 
-    with :ok <- sync_add_default_tags(to_add, season_rules_id, tenant, actor),
-         :ok <- sync_remove_default_tags(to_remove, existing, tenant, actor) do
-      :ok
+    with :ok <- sync_add_default_tags(to_add, season_rules_id, tenant, actor) do
+      sync_remove_default_tags(to_remove, existing, tenant, actor)
     end
   end
 

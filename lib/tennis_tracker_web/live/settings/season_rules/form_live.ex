@@ -8,12 +8,7 @@ defmodule TennisTrackerWeb.Settings.SeasonRules.FormLive do
     group_id = socket.assigns.current_group_id
     current_user = socket.assigns.current_user
 
-    unless socket.assigns.current_group_role in [:owner, :admin] do
-      socket
-      |> put_flash(:error, "You don't have permission to access group settings.")
-      |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
-      |> ok()
-    else
+    if socket.assigns.current_group_role in [:owner, :admin] do
       tag_categories =
         Tennis.list_tag_categories!(load: [:tags], tenant: group_id, actor: current_user)
 
@@ -23,6 +18,11 @@ defmodule TennisTrackerWeb.Settings.SeasonRules.FormLive do
       |> assign(:tag_categories, tag_categories)
       |> assign(:selected_tag_ids, [])
       |> assign(:team_types, [])
+      |> ok()
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to access group settings.")
+      |> push_navigate(to: ~p"/g/#{socket.assigns.current_group.slug}")
       |> ok()
     end
   end

@@ -1,4 +1,6 @@
 defmodule TennisTracker.Accounts.User do
+  @moduledoc false
+
   use Ash.Resource,
     otp_app: :tennis_tracker,
     domain: TennisTracker.Accounts,

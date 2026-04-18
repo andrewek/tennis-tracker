@@ -1,4 +1,6 @@
 defmodule TennisTracker.Groups.GroupMembership do
+  @moduledoc false
+
   use Ash.Resource,
     domain: TennisTracker.Groups,
     data_layer: AshPostgres.DataLayer,

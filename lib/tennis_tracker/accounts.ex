@@ -1,4 +1,6 @@
 defmodule TennisTracker.Accounts do
+  @moduledoc false
+
   use Ash.Domain, otp_app: :tennis_tracker, extensions: [AshAdmin.Domain]
 
   admin do

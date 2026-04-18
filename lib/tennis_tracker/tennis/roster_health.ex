@@ -7,6 +7,8 @@ defmodule TennisTracker.Tennis.RosterHealth do
   """
 
   defmodule Violation do
+    @moduledoc false
+
     @enforce_keys [:type, :level, :message]
     defstruct [:type, :level, :message, :player_id]
 
