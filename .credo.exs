@@ -2,7 +2,12 @@
   configs: [
     %{
       name: "default",
-      plugins: [{AshCredo, []}]
+      plugins: [{AshCredo, []}],
+      checks: %{
+        enabled: [
+          {TennisTracker.CredoChecks.NoHtmlMatch, []}
+        ]
+      }
     }
   ]
 }
