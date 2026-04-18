@@ -1,273 +1,261 @@
 ## Requirements
 
-### Requirement: Team edit page is accessible at /teams/:id/edit
-The system SHALL provide a page at `/teams/:id/edit` for authenticated users. The page SHALL load the team's current name and default timezone into a form. Pseudo-teams (`is_pseudo == true`) SHALL NOT be accessible via this route. Non-existent team IDs SHALL redirect to `/` with a flash error.
+### Requirement: Team settings page is accessible at /teams/:id/settings
+The system SHALL provide a settings page at `/g/:slug/teams/:id/settings`, which serves as the General tab. Pseudo-teams (`is_pseudo == true`) SHALL NOT be accessible via this route. Non-existent team IDs SHALL redirect to the teams index with a flash error. Users who are neither a team captain nor a group owner SHALL be redirected to the team show page with a flash error.
 
-#### Scenario: Authenticated user navigates to the edit page
-- **WHEN** an authenticated user navigates to `/teams/:id/edit` for a real team
-- **THEN** the page loads and displays a form pre-populated with the team's current name and default timezone
+The legacy `/g/:slug/teams/:id/edit` route is removed.
 
-#### Scenario: Pseudo-team edit page is blocked
-- **WHEN** a user navigates to `/teams/:id/edit` where the team has `is_pseudo == true`
-- **THEN** the user is redirected to `/`
+#### Scenario: Authenticated captain navigates to the settings page
+- **WHEN** a team captain navigates to `/g/:slug/teams/:id/settings`
+- **THEN** the General tab loads with the team settings form
+
+#### Scenario: Pseudo-team settings page is blocked
+- **WHEN** a user navigates to `/g/:slug/teams/:id/settings` where the team has `is_pseudo == true`
+- **THEN** the user is redirected to the teams index
 - **THEN** a flash error message is displayed
 
-#### Scenario: Non-existent team ID redirects with flash error
-- **WHEN** a user navigates to `/teams/:id/edit` where no team with that ID exists
-- **THEN** the user is redirected to `/`
+#### Scenario: Non-captain, non-owner is redirected
+- **WHEN** a regular group member navigates to `/g/:slug/teams/:id/settings`
+- **THEN** the user is redirected to the team show page
 - **THEN** a flash error message is displayed
 
-### Requirement: Team name and default timezone can be updated from the edit page
-The page SHALL provide a form with a text input for team name and a select input for default timezone. Submitting valid values SHALL update the team and display a success flash. Submitting a blank name SHALL display a validation error without saving.
+---
 
-#### Scenario: Valid name and timezone are saved
-- **WHEN** a user updates the team name and timezone and submits the form
-- **THEN** the team record is updated
-- **THEN** a success flash message is displayed
-- **THEN** the form reflects the updated values
+### Requirement: Team settings page has a tabbed navigation layout
+The settings page SHALL render a tab bar with four tabs: General, Match Schedule, Lineup Settings, and Members. The active tab SHALL be visually distinguished. All four tabs SHALL be visible to both team captains and group owners.
+
+#### Scenario: Tab bar renders all four tabs
+- **WHEN** a captain or owner visits any team settings tab
+- **THEN** the tab bar shows General, Match Schedule, Lineup Settings, and Members tabs
+
+#### Scenario: Active tab is highlighted
+- **WHEN** a user is on the Match Schedule tab
+- **THEN** the Match Schedule tab is styled as active and the others are not
+
+#### Scenario: Clicking a tab navigates to that tab's URL
+- **WHEN** a user clicks the Lineup Settings tab
+- **THEN** the user navigates to `/g/:slug/teams/:id/settings/lineup`
+
+---
+
+### Requirement: General tab consolidates team name, timezone, and assignment mode
+The General tab (`/g/:slug/teams/:id/settings`) SHALL provide a single form containing: team name (text input), default timezone (select, same seven US zones as before), and lineup assignment mode (select). Authorization is at the action level: if the current user can perform the team update action, all three fields are editable. If the user cannot perform the update action, the entire form is rendered read-only (disabled). Use `Ash.can?` to determine editability.
+
+#### Scenario: Captain or owner with update permission sees all fields editable
+- **WHEN** a team captain or group owner visits the General tab
+- **THEN** team name, timezone, and assignment mode inputs are all rendered and editable
+
+#### Scenario: User without update permission sees the form as read-only
+- **WHEN** a user who cannot perform the team update action visits the General tab
+- **THEN** all form fields are rendered as disabled/read-only and no submit button is shown
+
+#### Scenario: Valid form submission updates the team
+- **WHEN** a user with update permission submits a valid name, timezone, and assignment mode
+- **THEN** the team is updated and a success flash is shown
 
 #### Scenario: Blank name is rejected
-- **WHEN** a user submits the team settings form with a blank name
-- **THEN** a validation error is displayed
-- **THEN** the team name is not changed
+- **WHEN** a user submits the form with a blank team name
+- **THEN** a validation error is displayed and the team name is not changed
 
-#### Scenario: Timezone select shows the seven supported US zones
-- **WHEN** the team edit page renders
-- **THEN** the timezone select contains exactly these options: Eastern (America/New_York), Central (America/Chicago), Mountain (America/Denver), Mountain - no DST (America/Phoenix), Pacific (America/Los_Angeles), Alaska (America/Anchorage), Hawaii (Pacific/Honolulu)
+---
 
-### Requirement: Match schedule is displayed and manageable from the team edit page
-The page SHALL display upcoming and past matches (same data as the team show page). Each match row SHALL have an "Edit" link to `/matches/:id/edit` and a "Delete" button. An "Add Match" button SHALL open a modal form to create a new match.
+### Requirement: Team settings page includes a lineup slot management section in the Lineup Settings tab
+The Lineup Settings tab (`/g/:slug/teams/:id/settings/lineup`) SHALL display lineup categories (TeamLineupColumns) as expanded cards. Each category card SHALL list the slots assigned to that category. The section is accessible to team captains and group owners.
 
-#### Scenario: Upcoming matches are listed
-- **WHEN** the team edit page loads for a team with upcoming matches
-- **THEN** each upcoming match is displayed with opponent, date, time, and location
+#### Scenario: Lineup Settings tab shows category cards
+- **WHEN** a captain visits the Lineup Settings tab for a team with categories and slots
+- **THEN** each category is displayed as a card with its slots listed inside
 
-#### Scenario: Add Match modal creates a new match
-- **WHEN** a user clicks "Add Match" and submits a valid form
-- **THEN** a new match is created for the team
-- **THEN** the match list refreshes to include the new match
-- **THEN** a success flash message is displayed
+#### Scenario: Empty slot list within a category shows an empty state
+- **WHEN** a category has no slots assigned to it
+- **THEN** the category card shows an empty state within the card
 
-#### Scenario: Edit link navigates to match edit page
-- **WHEN** a user clicks "Edit" on a match row
-- **THEN** the user is navigated to `/matches/:id/edit`
+#### Scenario: Empty category list shows a prompt
+- **WHEN** the team has no categories defined
+- **THEN** the Lineup Settings tab shows an empty state prompting the captain to add a category
 
-#### Scenario: Delete button removes the match and refreshes the list
-- **WHEN** a user clicks "Delete" on a match row and confirms
-- **THEN** the match is deleted
-- **THEN** the match list refreshes and no longer includes that match
-- **THEN** a flash message confirms deletion
+---
 
-### Requirement: Team edit page has a back navigation link to the team show page
-The page SHALL display a back link to `/teams/:id` so the user can return to the read-only view.
+### Requirement: Captain can add a category via modal
+An "+ Add category" button SHALL be present on the Lineup Settings tab. Clicking it SHALL open a modal with a name field. Submitting a valid name SHALL create the category and close the modal. Submitting a blank name SHALL show a validation error without closing the modal.
 
-#### Scenario: Back link is present
-- **WHEN** the team edit page renders
-- **THEN** a link back to `/teams/:id` is visible
+#### Scenario: Add category modal opens
+- **WHEN** a captain clicks the "+ Add category" button
+- **THEN** a modal opens with an empty name field
 
-### Requirement: Team edit page includes a lineup column management section
-The team edit page SHALL include a section for managing lineup columns, visible to team captains and group owners, positioned above the lineup slots section.
+#### Scenario: Valid category submission creates the category
+- **WHEN** a captain submits a valid name
+- **THEN** the category is created
+- **AND** the modal closes
+- **AND** the new category card appears in the list
 
-#### Scenario: Column management section visible to captain
-- **WHEN** a team captain visits the team edit page
-- **THEN** a lineup columns section SHALL be visible listing current columns with options to add, rename, reorder, and delete
+#### Scenario: Blank name is rejected
+- **WHEN** a captain submits the add category form with a blank name
+- **THEN** a validation error is shown and the modal remains open
 
-#### Scenario: Column management section hidden from non-captains
-- **WHEN** a regular group member visits the team edit page
-- **THEN** the column management section SHALL NOT be rendered
+---
 
-#### Scenario: Empty column list shows prompt to add first column
-- **WHEN** the team has no lineup columns defined
-- **THEN** the section SHALL show an empty state prompting the captain to add the first column
+### Requirement: Captain can edit a category via modal
+Each category card header SHALL include an edit button. Clicking it SHALL open a modal pre-populated with the category's current name. Submitting valid changes SHALL update the category and close the modal.
 
-### Requirement: Captain can add a new column from the team edit page
-The column management section SHALL include a form or inline control for creating a new TeamLineupColumn.
+#### Scenario: Edit category modal opens with current name
+- **WHEN** a captain clicks the edit button on a category card
+- **THEN** a modal opens pre-populated with the category's current name
 
-#### Scenario: Add column
-- **WHEN** a captain submits a new column name
-- **THEN** the column SHALL be created with sort_order `MAX(existing sort_orders) + 1` (or `1` if no columns exist), appended to the end of the column list, and appear in the list
+#### Scenario: Valid edit submission updates the category
+- **WHEN** a captain submits a valid updated name
+- **THEN** the category is updated
+- **AND** the modal closes
+- **AND** the card header reflects the new name
 
-### Requirement: Captain can reorder columns from the team edit page
-The column management section SHALL provide move-up and move-down controls for reordering columns.
+---
 
-#### Scenario: Reorder columns
-- **WHEN** a captain uses the move-up or move-down buttons to change the order of columns
-- **THEN** the updated sort_order values SHALL be persisted and the list SHALL reflect the new sequence
+### Requirement: Captain can delete a category
+Each category card header SHALL include a delete button. The delete button SHALL be disabled when the category has any slots assigned to it. When enabled, clicking the delete button SHALL open a confirmation modal. Confirming SHALL delete the category. Cancelling SHALL close the modal without making changes.
 
-#### Scenario: Move-up disabled for first column
-- **WHEN** a column is first in the list
-- **THEN** its move-up button SHALL be disabled
+#### Scenario: Delete button is disabled when category has slots
+- **WHEN** a category card has one or more slots
+- **THEN** the delete button in the card header is disabled
 
-#### Scenario: Move-down disabled for last column
-- **WHEN** a column is last in the list
-- **THEN** its move-down button SHALL be disabled
+#### Scenario: Delete button is enabled when category has no slots
+- **WHEN** a category card has no slots
+- **THEN** the delete button in the card header is enabled
 
-### Requirement: Captain can rename a column from the team edit page
-The column management section SHALL provide an inline edit control for renaming each column.
+#### Scenario: Confirming deletion removes the category
+- **WHEN** a captain confirms the deletion of an empty category
+- **THEN** the category is deleted
+- **AND** the modal closes
+- **AND** the category card no longer appears
 
-#### Scenario: Rename column
-- **WHEN** a captain edits a column's name and submits
-- **THEN** the updated name SHALL be persisted and reflected in the column list
+#### Scenario: Cancelling deletion leaves the category unchanged
+- **WHEN** a captain cancels the deletion
+- **THEN** the modal closes and the category remains
 
-#### Scenario: Rename to duplicate name is rejected
-- **WHEN** a captain attempts to rename a column to a name already used by another column on the same team
-- **THEN** the action SHALL be rejected with a validation error and the column SHALL retain its previous name
+---
 
-### Requirement: Captain can delete an empty column from the team edit page
-Each column in the list SHALL have a delete control. A column can only be deleted when it has no slots assigned to it.
+### Requirement: Categories can be reordered
+Each category card header SHALL include up and down reorder buttons. The up button SHALL be disabled for the first category. The down button SHALL be disabled for the last category.
 
-#### Scenario: Delete empty column
-- **WHEN** a captain deletes a column that has no slots assigned
-- **THEN** the column SHALL be destroyed
+#### Scenario: Up button is disabled for the first category
+- **WHEN** a category is first in the list
+- **THEN** the up button in its card header is disabled
 
-#### Scenario: Delete column with slots is blocked
-- **WHEN** a captain attempts to delete a column that has slots assigned to it
-- **THEN** an error SHALL be shown indicating the column cannot be deleted until all slots are reassigned or deleted
-- **AND** the column SHALL NOT be destroyed
+#### Scenario: Down button is disabled for the last category
+- **WHEN** a category is last in the list
+- **THEN** the down button in its card header is disabled
 
-### Requirement: Captain can assign a slot to a column from the team edit page
-Each slot row in the slot management section SHALL include a required column assignment dropdown. A column assignment is required; there is no uncolumned option.
+#### Scenario: Moving a category up swaps it with the one above
+- **WHEN** a captain clicks the up button on a category that is not first
+- **THEN** the category moves up one position
 
-#### Scenario: Assign slot to column
-- **WHEN** a captain selects a column for a slot using the column assignment control
-- **THEN** the slot's team_lineup_column_id SHALL be updated and the change SHALL be persisted
+#### Scenario: Moving a category down swaps it with the one below
+- **WHEN** a captain clicks the down button on a category that is not last
+- **THEN** the category moves down one position
 
-### Requirement: Team edit page includes a lineup assignment mode setting
-The team edit page SHALL include a setting for `lineup_assignment_mode`, visible and editable by team captains and group owners.
+---
 
-#### Scenario: Captain can view and change lineup assignment mode
-- **WHEN** a captain views the team edit page
-- **THEN** the current lineup_assignment_mode SHALL be shown
-- **AND** the captain SHALL be able to change it to any valid mode (:one_per_match, :one_per_column, :many_per_match)
+### Requirement: Captain can add a slot via modal from a category card
+Each category card in the Lineup Settings tab SHALL include an "+ Add slot" button. Clicking it SHALL open a modal pre-populated with that category selected. The modal SHALL include fields for name, expected_count, include_in_clipboard, participation_type, and a category dropdown (editable). Submitting valid values SHALL create the slot and close the modal. Only one slot modal SHALL be open at a time.
 
-#### Scenario: Change is persisted
-- **WHEN** a captain saves a new lineup_assignment_mode
-- **THEN** the team's lineup_assignment_mode SHALL reflect the new value
+#### Scenario: Add slot modal opens with category pre-selected
+- **WHEN** a captain clicks "+ Add slot" on a category card
+- **THEN** a modal opens with that category already selected in the category dropdown
 
-#### Scenario: Mode change blocked when existing assignments would violate the new mode
-- **WHEN** a captain attempts to change lineup_assignment_mode to a more restrictive mode and existing match assignments across the team's matches would violate the new constraint
-- **THEN** the change SHALL be rejected with a validation error
-- **AND** the team's lineup_assignment_mode SHALL retain its current value
-- **AND** the error SHALL indicate that conflicting assignments must be resolved first
+#### Scenario: Category dropdown in the add modal is editable
+- **WHEN** the add slot modal is open
+- **THEN** the captain can change the category dropdown to assign the slot to a different category
 
-#### Scenario: Mode change to many_per_match always succeeds
-- **WHEN** a captain changes lineup_assignment_mode to :many_per_match
-- **THEN** the change SHALL be accepted regardless of existing assignments
+#### Scenario: Valid slot submission creates the slot and closes the modal
+- **WHEN** a captain submits a valid slot name and participation type
+- **THEN** the slot is created
+- **AND** the modal closes
+- **AND** the new slot appears under the correct category card
 
-#### Scenario: Non-captain cannot change lineup assignment mode
-- **WHEN** a regular group member views the team edit page
-- **THEN** the lineup_assignment_mode setting SHALL NOT be rendered or editable
+#### Scenario: Opening a second slot modal closes the first
+- **WHEN** a slot add or edit modal is already open and the captain clicks "+ Add slot" on another card
+- **THEN** the first modal closes and the new modal opens
 
-### Requirement: Team edit page includes a Captains management section
-The team edit page SHALL include a "Captains" section accessible to group owners and team captains. The section SHALL list all current captains (users with a `:captain` TeamRole for this team) by display name (name if present, email otherwise). Regular group members who are not owners or captains are redirected away from the team edit page entirely; they can see the captain list on the team show page (see `team-show-page` spec).
+---
 
-#### Scenario: Group owner sees Captains section with edit controls
-- **WHEN** a group owner visits the team edit page
-- **THEN** the Captains section is rendered with the current captain list and add/remove controls
+### Requirement: Captain can edit a slot via modal from the Lineup Settings tab
+Each slot row in a category card SHALL include an edit button. Clicking it SHALL open the same slot modal loaded with the slot's current values. Submitting updates SHALL persist the changes and close the modal. If the captain changes the category dropdown, the slot SHALL move to the selected category on save.
 
-#### Scenario: Team captain sees Captains section with edit controls
-- **WHEN** a user with a :captain TeamRole for the team visits the team edit page
-- **THEN** the Captains section is rendered with the current captain list and add/remove controls
+#### Scenario: Edit slot modal opens with current values
+- **WHEN** a captain clicks the edit button on a slot
+- **THEN** the slot modal opens pre-populated with the slot's name, expected_count, include_in_clipboard, participation_type, and current category
 
-#### Scenario: Regular group member is redirected from the team edit page
-- **WHEN** a user with GroupMembership :member and no :captain TeamRole for this team navigates to the team edit URL
-- **THEN** they are redirected to the team show page
-- **AND** no edit controls are rendered
+#### Scenario: Changing category in edit modal moves the slot on save
+- **WHEN** a captain changes the category dropdown in the edit modal and saves
+- **THEN** the slot's team_lineup_column_id is updated
+- **AND** the slot appears under the new category card after the modal closes
 
-#### Scenario: Empty captains list shows an empty state
-- **WHEN** the team has no :captain TeamRole records
-- **THEN** the Captains section shows a message indicating no captains are assigned
+#### Scenario: Edit slot saves updates and closes modal
+- **WHEN** a captain edits slot fields and submits
+- **THEN** the updated values are persisted and the modal closes
 
-### Requirement: Group owner or team captain can add a captain from a group member picker
-The Captains section SHALL include an inline select control populated with group members (users with a GroupMembership for this group) who are not already `:captain` for this team, and an "Add" button. Selecting a user and clicking "Add" SHALL assign them as captain. If the selected user already has a `:member` TeamRole for the team, their role SHALL be updated to `:captain`. If they have no TeamRole for the team, a new `:captain` TeamRole SHALL be created.
+---
 
-#### Scenario: Picker shows group members not already captain
-- **WHEN** the Captains section renders
-- **THEN** the select contains only group members without a :captain TeamRole for this team
-- **AND** users already :captain are excluded from the select
+### Requirement: Captain can delete a slot from the Lineup Settings tab
+Each slot row in a category card SHALL include a delete affordance. Clicking it SHALL open a confirmation modal. Confirming SHALL delete the slot and close the modal. Cancelling SHALL close the modal without making changes. Only one confirmation modal SHALL be open at a time.
 
-#### Scenario: Adding a captain with no existing TeamRole creates one
-- **WHEN** an owner or captain selects a group member with no TeamRole for this team and clicks "Add"
-- **THEN** a new TeamRole with role :captain is created for that user and team
-- **AND** the captain list refreshes to include the new captain
-- **AND** the new captain is removed from the picker
+#### Scenario: Delete confirmation modal opens
+- **WHEN** a captain clicks the delete affordance on a slot
+- **THEN** a confirmation modal opens identifying the slot to be deleted
 
-#### Scenario: Adding a captain who has a :member TeamRole updates the role
-- **WHEN** an owner or captain selects a group member who has a :member TeamRole for this team and clicks "Add"
-- **THEN** the TeamRole role is updated to :captain
-- **AND** the captain list refreshes to include them
-- **AND** they are removed from the picker
+#### Scenario: Confirming deletion removes the slot
+- **WHEN** a captain confirms the deletion
+- **THEN** the slot is deleted
+- **AND** the modal closes
+- **AND** the slot no longer appears in the category card
 
-#### Scenario: No selection is made — Add is a no-op
-- **WHEN** the "Add" button is clicked with no user selected
-- **THEN** no TeamRole is created or updated
+#### Scenario: Cancelling deletion leaves the slot unchanged
+- **WHEN** a captain cancels the deletion
+- **THEN** the modal closes and the slot remains
 
-### Requirement: Group owner or team captain can remove a captain via confirmation modal
-Each captain row in the Captains section SHALL have a "Remove" button. Clicking it SHALL open a confirmation modal with three options: "Remove from team entirely", "Convert to Member", and "Cancel".
+---
 
-#### Scenario: Remove from team entirely destroys the TeamRole
-- **WHEN** an owner or captain clicks "Remove" for a captain and selects "Remove from team entirely"
-- **THEN** the TeamRole record is destroyed
-- **AND** the captain list refreshes and no longer includes that user
+### Requirement: Slots can be reordered within their category
+Each slot row SHALL include up and down reorder buttons. These buttons SHALL move the slot within its category only. The up button SHALL be disabled for the first slot in a category. The down button SHALL be disabled for the last slot in a category. Reordering SHALL NOT move a slot into a different category.
 
-#### Scenario: Convert to Member updates the TeamRole role
-- **WHEN** an owner or captain clicks "Remove" for a captain and selects "Convert to Member"
-- **THEN** the TeamRole role is updated to :member
-- **AND** the captain list refreshes and no longer includes that user as a captain
+#### Scenario: Up button is disabled for the first slot in a category
+- **WHEN** a slot is the first in its category card
+- **THEN** the up button is disabled
 
-#### Scenario: Cancel closes the modal without changes
-- **WHEN** an owner or captain clicks "Remove" for a captain and then selects "Cancel"
-- **THEN** the modal closes
-- **AND** no changes are made to the TeamRole
+#### Scenario: Down button is disabled for the last slot in a category
+- **WHEN** a slot is the last in its category card
+- **THEN** the down button is disabled
 
-#### Scenario: A captain can remove themselves
-- **WHEN** a captain clicks "Remove" on their own row and confirms
-- **THEN** their TeamRole is updated or destroyed per the selected option
-- **AND** on the next page interaction they no longer have captain-level access
+#### Scenario: Moving a slot up swaps it with the slot above within the same category
+- **WHEN** a captain clicks the up button on a slot that is not first in its category
+- **THEN** the slot moves up one position within that category card
 
-### Requirement: Team edit page includes a slot management section
-The team edit page SHALL include a section for managing lineup slots, accessible to team captains and group owners.
+#### Scenario: Moving a slot down swaps it with the slot below within the same category
+- **WHEN** a captain clicks the down button on a slot that is not last in its category
+- **THEN** the slot moves down one position within that category card
 
-#### Scenario: Slot management section visible to captain
-- **WHEN** a team captain visits the team edit page
-- **THEN** a lineup slots section SHALL be visible listing the current slots with options to add, edit, reorder, and delete
+---
 
-#### Scenario: Slot management section hidden from non-captains
-- **WHEN** a regular group member visits the team edit page
-- **THEN** the slot management section SHALL NOT be rendered
+### Requirement: Match schedule is displayed and manageable from the Match Schedule tab
+**URL change only.** All behavior is unchanged from the existing `team-edit-page` spec. The match schedule section moves from `/g/:slug/teams/:id/edit` to `/g/:slug/teams/:id/settings/schedule`.
 
-#### Scenario: Empty slot list shows prompt to add first slot
-- **WHEN** the team has no lineup slots defined
-- **THEN** the section SHALL show an empty state prompting the captain to add the first slot
+#### Scenario: Match Schedule tab loads at the correct URL
+- **WHEN** a captain or owner navigates to `/g/:slug/teams/:id/settings/schedule`
+- **THEN** the match schedule section renders with the team's upcoming and past matches
 
-### Requirement: Captain can add a new slot from the team edit page
-The slot management section SHALL include a form or inline control for creating a new TeamLineupSlot.
+---
 
-#### Scenario: Add slot with all fields
-- **WHEN** a captain submits a new slot with name, expected_count, and include_in_clipboard
-- **THEN** the slot SHALL be created, appended to the end of the slot list (sort_order auto-assigned), and appear in the slot list
+### Requirement: Captain management is accessible from the Members tab
+**URL change only.** All behavior is unchanged from the existing `team-edit-page` spec. The captain management section moves from `/g/:slug/teams/:id/edit` to `/g/:slug/teams/:id/settings/members`.
 
-#### Scenario: Add slot with optional expected_count omitted
-- **WHEN** a captain creates a slot without specifying expected_count
-- **THEN** the slot SHALL be created with nil expected_count (unbounded)
+#### Scenario: Members tab loads at the correct URL
+- **WHEN** a captain or owner navigates to `/g/:slug/teams/:id/settings/members`
+- **THEN** the captain management section renders with the current captain list and add/remove controls
 
-### Requirement: Captain can edit an existing slot inline
-Each slot in the list SHALL be editable inline or via an edit form.
+---
 
-#### Scenario: Edit slot fields
-- **WHEN** a captain edits a slot's name, expected_count, or include_in_clipboard flag
-- **THEN** the updated values SHALL be persisted
+### Requirement: Team settings page has a back navigation link to the team show page
+Each settings tab SHALL display a back link to the team show page (`/g/:slug/teams/:id`).
 
-### Requirement: Captain can reorder lineup slots
-The slot management section SHALL provide a mechanism for a captain to change the sort order of existing slots.
-
-#### Scenario: Reorder slots
-- **WHEN** a captain uses the move-up or move-down buttons to change the order of slots
-- **THEN** the updated sort_order values SHALL be persisted and the slot list SHALL reflect the new sequence
-
-### Requirement: Captain can delete a slot from the team edit page
-Each slot in the list SHALL have a delete control.
-
-#### Scenario: Delete slot with confirmation
-- **WHEN** a captain confirms deletion of a slot
-- **THEN** the slot SHALL be destroyed along with any associated MatchLineupAssignments
+#### Scenario: Back link is present on all tabs
+- **WHEN** any settings tab renders
+- **THEN** a link back to `/g/:slug/teams/:id` is visible
