@@ -1,6 +1,6 @@
 # Todos & Open Questions
 
-In no particular order. Crossed out when done.
+In no particular order. Deleted when done.
 
 1. Build UI for group owners to add and remove group members. Currently group
    membership can only be managed via AshAdmin or `iex`. A group settings page
@@ -57,9 +57,6 @@ In no particular order. Crossed out when done.
    index and create/edit forms.
 1. There should be an easy way to "copy" a previous year's team into this
    year's team for a given season.
-1. What makes sense in terms of lineup scheduling? We have slightly different
-   use cases for various USTA matches, and a different use case for something
-   like Winter Tennis.
 1. A team can be marked as archived, which would keep it from showing up in
    the /teams list by default. There will still be a way to see archived teams.
 1. Explore merging TeamRole (User → Team) and TeamMembership (Player → Team)
@@ -114,50 +111,3 @@ In no particular order. Crossed out when done.
    this into a conventional index page (list/create planning contexts) and a
    separate board/show page, so both conform to the standard page structure used
    by the rest of the app (sidenav layout + `<.page_header>` with back link).
-
-1. Install Credo and write a custom check that bans `html =~` assertions in
-   LiveView tests. The check should flag any test file using `html =~` for
-   content assertions and enforce use of `has_element?/3` instead. Wire the
-   check into `mix precommit` so violations fail the build before tests run.
-
-## Done
-
-1. ~It's likely that we'll need some notion of "Organization" / Groups — implemented
-   as the Group model with slug-based routing and full multitenancy via group_id
-   tenant scoping across all Tennis domain resources.~
-1. ~It's hard to drag/drop when the available players list is very long. Let's
-   make the team lists capped to screen height and scrollable.~
-1. ~On the player show page, show all team memberships for that player~
-1. ~On the roster planner page, when clicking a player, provide a link (that
-   opens in a new tab) to that player's show page.~
-1. ~Install the Usage Rules package and configure it properly~
-1. ~Build out the Teams index and show pages. We'll use Ash calculations and
-   aggregates to display data.~
-1. ~I'd like to get AshAdmin working~
-1. ~We need user accounts and some basic authentication / authorization. Along
-   with this, we'll need to add an email client of some sort for things like
-   password resets.~
-1. ~Introduce a test factory (e.g. ExMachina) to replace the repetitive inline
-   fixture helpers (`create_team_type`, `create_team`, `create_player`, etc.)
-   that are duplicated across test files.~
-1. ~We should start thinking about team match schedules.~
-1. ~It's likely that we'll need some notion of "Organization"~
-1. ~Team update page: update the team name, update the team's default timezone,
-   and delete the team. (Currently deletion is only possible via the roster
-   planner board; name editing also only lives there.)~
-1. ~Rework the site layout from the current top-nav to a sidenav. As part of
-   this, extract common layout pieces (group nav links, back-links, page header
-   wrapper) into reusable components so individual LiveViews stay thin.~
-1. ~Figure out how to actually use Tidewave; what's the point of entry? What
-   tasks can it do? Do I need to install an MCP/ACP for my Claude Code session
-   to be able to interact with it, or do I have to _just_ interact with it in the
-   browser?~
-1. ~Group owners need UI pages to create, edit, and update Location records
-   (currently only accessible via AshAdmin). Build `/:group_slug/locations`
-   index and `/:group_slug/locations/new` / `/:group_slug/locations/:id/edit`
-   pages.~
-1. ~Build better seed data given the new multi-tenancy setup: create at least one
-   Group with realistic team types, teams, players, and matches so the app is
-   immediately explorable after `mix ecto.reset`.~
-1. ~Revisit tags in CSV import/export — tags are currently excluded from CSV; decide
-   on format (e.g. pipe-separated values in a single column) and implement.~
