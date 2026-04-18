@@ -13,9 +13,9 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
 
   describe "ImportLive" do
     test "renders the import form", %{conn: conn, group: grp} do
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/import")
-      assert html =~ "Import Players"
-      assert html =~ "Import"
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/import")
+      assert has_element?(view, "h1", "Import Players")
+      assert has_element?(view, "button[type='submit']", "Import")
     end
 
     test "successful CSV upload redirects to players index with flash", %{
@@ -50,10 +50,10 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
       ])
       |> render_upload("players.csv")
 
-      html = render_submit(view, "import", %{})
+      render_submit(view, "import", %{})
 
-      assert html =~ "bad_column"
-      assert html =~ "Import cancelled"
+      assert has_element?(view, "#import-error", "bad_column")
+      assert has_element?(view, "#import-error", "Import cancelled")
       assert Tennis.list_players!(tenant: grp.id, actor: usr) == []
     end
 
@@ -72,9 +72,9 @@ defmodule TennisTrackerWeb.Players.ImportLiveTest do
       ])
       |> render_upload("players.csv")
 
-      html = render_submit(view, "import", %{})
+      render_submit(view, "import", %{})
 
-      assert html =~ "line 3"
+      assert has_element?(view, "#import-error", "line 3")
       assert Tennis.list_players!(tenant: grp.id, actor: usr) == []
     end
   end

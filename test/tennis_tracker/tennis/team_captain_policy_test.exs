@@ -213,7 +213,7 @@ defmodule TennisTracker.Tennis.TeamCaptainPolicyTest do
           actor: member
         )
 
-      assert length(memberships) >= 1
+      assert memberships != []
     end
 
     test "outsider sees no GroupMembership records (filtered out by policy)", %{

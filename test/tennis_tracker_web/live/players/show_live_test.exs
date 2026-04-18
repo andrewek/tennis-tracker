@@ -18,9 +18,9 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
       user: _usr
     } do
       player = Factory.player(group: grp, name: "Solo Player")
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
 
-      assert html =~ "No team memberships"
+      assert has_element?(view, "p", "No team memberships")
     end
 
     test "shows a real team membership", %{conn: conn, group: grp, user: usr} do
@@ -33,11 +33,11 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
         actor: usr
       )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
 
-      assert html =~ "2026"
-      assert html =~ "18+ 4.0"
-      assert html =~ "Team Alpha"
+      assert has_element?(view, "ul li", "2026")
+      assert has_element?(view, "ul li", "18+ 4.0")
+      assert has_element?(view, "ul li", "Team Alpha")
     end
 
     test "does not show pseudo team memberships", %{conn: conn, group: grp, user: usr} do
@@ -48,9 +48,9 @@ defmodule TennisTrackerWeb.Players.ShowLiveTest do
       {:ok, _} =
         Tennis.assign_player(player.id, pseudo_team.id, tt.id, 2026, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}")
 
-      assert html =~ "No team memberships"
+      assert has_element?(view, "p", "No team memberships")
     end
 
     test "shows memberships across multiple seasons, newest first", %{

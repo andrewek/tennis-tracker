@@ -18,37 +18,37 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
   describe "board loads" do
     test "context selector is shown at /roster-planner", %{conn: conn, group: grp} do
       Factory.team_type(group: grp)
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/roster-planner")
-      assert html =~ "Select a planning session"
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/roster-planner")
+      assert has_element?(view, "p", "Select a planning session")
     end
 
     test "board loads for a valid team_type_id and season_year", %{conn: conn, group: grp} do
       tt = Factory.team_type(group: grp)
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
-      assert html =~ "Unassigned"
-      assert html =~ "Not Participating"
+      assert has_element?(view, "#col-unassigned", "Unassigned")
+      assert has_element?(view, "span", "Not Participating")
     end
 
     test "board shows team type name in subtitle", %{conn: conn, group: grp} do
       tt = Factory.team_type(group: grp, traits: [:_40], name: "40+ 4.0")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
-      assert html =~ "40+ 4.0"
+      assert has_element?(view, "span", "40+ 4.0")
     end
 
     test "unassigned players appear in the Unassigned column", %{conn: conn, group: grp} do
       tt = Factory.team_type(group: grp)
       player = Factory.player(group: grp, name: "Alice Player")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
-      assert html =~ player.name
+      assert has_element?(view, "#player-#{player.id}")
     end
   end
 
@@ -65,13 +65,12 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
       {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{team.season_year}")
 
-      html =
-        render_click(view, "move_player", %{
-          "player_id" => player.id,
-          "target_id" => team.id
-        })
+      render_click(view, "move_player", %{
+        "player_id" => player.id,
+        "target_id" => team.id
+      })
 
-      assert html =~ "Team Alpha"
+      assert has_element?(view, "#col-#{team.id}", "Team Alpha")
       assert has_element?(view, "#col-#{team.id} #player-#{player.id}")
       refute has_element?(view, "#col-unassigned #player-#{player.id}")
     end
@@ -222,10 +221,10 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         actor: usr
       )
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{team.season_year}")
 
-      assert html =~ "minimum"
+      assert has_element?(view, "#col-#{team.id}", "minimum")
     end
 
     test "warning icon shown for player with invalid NTRP on this team", %{
@@ -259,10 +258,10 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         actor: usr
       )
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{team.season_year}")
 
-      assert html =~ "?"
+      assert has_element?(view, "#player-#{player.id} span[title='No rating']")
     end
 
     test "no rule violations shown when no season rules exist", %{
@@ -279,12 +278,12 @@ defmodule TennisTrackerWeb.RosterPlannerLiveTest do
         actor: usr
       )
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{team.season_year}")
 
-      refute html =~ "minimum"
-      refute html =~ "maximum"
-      refute html =~ "on-level"
+      refute has_element?(view, "#col-#{team.id}", "minimum")
+      refute has_element?(view, "#col-#{team.id}", "maximum")
+      refute has_element?(view, "#col-#{team.id}", "on-level")
     end
   end
 

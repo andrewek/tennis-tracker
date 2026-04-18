@@ -24,8 +24,8 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
     end
 
     test "owner can access the page", %{conn: conn, group: grp} do
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
-      assert html =~ "Locations"
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
+      assert has_element?(view, "h1", "Locations")
     end
   end
 
@@ -33,15 +33,15 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
     test "lists active locations", %{conn: conn, group: grp} do
       Factory.location(group: grp, name: "River City Courts")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
 
-      assert html =~ "River City Courts"
+      assert has_element?(view, "p", "River City Courts")
     end
 
     test "shows empty state when no active locations exist", %{conn: conn, group: grp} do
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
 
-      assert html =~ "No locations yet"
+      assert has_element?(view, "p", "No locations yet")
     end
 
     test "does not list archived locations on active tab", %{conn: conn, group: grp, user: usr} do
@@ -60,13 +60,12 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
 
-      html =
-        view
-        |> element("button[phx-click='request_archive']")
-        |> render_click()
+      view
+      |> element("button[phx-click='request_archive']")
+      |> render_click()
 
-      assert html =~ "Archive Location"
-      assert html =~ "Archivable Court"
+      assert has_element?(view, "h3", "Archive Location")
+      assert has_element?(view, "strong", "Archivable Court")
     end
 
     test "confirming archive removes location from active list", %{conn: conn, group: grp} do
@@ -92,10 +91,10 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       |> element("button[phx-click='request_archive']")
       |> render_click()
 
-      html = view |> element("button[phx-click='cancel_action']") |> render_click()
+      view |> element("button[phx-click='cancel_action']") |> render_click()
 
-      refute html =~ "Archive Location"
-      assert html =~ "Stays Active"
+      refute has_element?(view, "h3", "Archive Location")
+      assert has_element?(view, "p", "Stays Active")
     end
   end
 
@@ -106,17 +105,17 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
 
-      html = view |> element("button[phx-value-tab='archived']") |> render_click()
+      view |> element("button[phx-value-tab='archived']") |> render_click()
 
-      assert html =~ "Old Venue"
+      assert has_element?(view, "p", "Old Venue")
     end
 
     test "shows empty state on archived tab when nothing is archived", %{conn: conn, group: grp} do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
 
-      html = view |> element("button[phx-value-tab='archived']") |> render_click()
+      view |> element("button[phx-value-tab='archived']") |> render_click()
 
-      assert html =~ "No archived locations"
+      assert has_element?(view, "p", "No archived locations")
     end
   end
 
@@ -128,10 +127,10 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
       view |> element("button[phx-value-tab='archived']") |> render_click()
 
-      html = view |> element("button[phx-click='request_restore']") |> render_click()
+      view |> element("button[phx-click='request_restore']") |> render_click()
 
-      assert html =~ "Restore Location"
-      assert html =~ "Restorable Court"
+      assert has_element?(view, "h3", "Restore Location")
+      assert has_element?(view, "strong", "Restorable Court")
     end
 
     test "confirming restore moves location back to active", %{conn: conn, group: grp, user: usr} do
@@ -143,9 +142,9 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       view |> element("button[phx-click='request_restore']") |> render_click()
       view |> element("button[phx-click='confirm_action']") |> render_click()
 
-      html = view |> element("button[phx-value-tab='active']") |> render_click()
+      view |> element("button[phx-value-tab='active']") |> render_click()
 
-      assert html =~ "Coming Back"
+      assert has_element?(view, "p", "Coming Back")
     end
 
     test "canceling restore keeps location archived", %{conn: conn, group: grp, user: usr} do
@@ -155,10 +154,10 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
       view |> element("button[phx-value-tab='archived']") |> render_click()
       view |> element("button[phx-click='request_restore']") |> render_click()
-      html = view |> element("button[phx-click='cancel_action']") |> render_click()
+      view |> element("button[phx-click='cancel_action']") |> render_click()
 
-      refute html =~ "Restore Location"
-      assert html =~ "Stays Archived"
+      refute has_element?(view, "h3", "Restore Location")
+      assert has_element?(view, "p", "Stays Archived")
     end
   end
 end

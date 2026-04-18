@@ -45,7 +45,8 @@ defmodule TennisTracker.CredoChecks.NoHtmlMatch do
   defp issue_for(ctx, meta) do
     format_issue(
       ctx,
-      message: "Use `has_element?/2` or `has_element?/3` instead of `html =~` for LiveView assertions.",
+      message:
+        "Use `has_element?/2` or `has_element?/3` instead of `html =~` for LiveView assertions.",
       trigger: "html =~",
       line_no: meta[:line],
       column: meta[:column]

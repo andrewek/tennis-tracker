@@ -38,9 +38,9 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
 
   describe "create form" do
     test "renders create form", %{conn: conn, group: grp} do
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/locations/new")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations/new")
 
-      assert html =~ "Add Location"
+      assert has_element?(view, "h1", "Add Location")
     end
 
     test "successfully creates a location and redirects", %{conn: conn, group: grp, user: usr} do
@@ -49,7 +49,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
       n = System.unique_integer([:positive])
       name = "New Venue #{n}"
 
-      {:ok, _view, html} =
+      {:ok, redirected_view, _html} =
         view
         |> form("form",
           form: %{
@@ -63,7 +63,7 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
         |> render_submit()
         |> follow_redirect(conn)
 
-      assert html =~ "Location saved"
+      assert has_element?(redirected_view, "#flash-info", "Location saved")
 
       locations = Tennis.list_locations!(tenant: grp.id, actor: usr)
       assert Enum.any?(locations, &(&1.name == name))
@@ -72,12 +72,12 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
     test "shows validation error for missing required field", %{conn: conn, group: grp} do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations/new")
 
-      html =
-        view
-        |> form("form", form: %{name: ""})
-        |> render_submit()
+      view
+      |> form("form", form: %{name: ""})
+      |> render_submit()
 
-      assert html =~ "required" or html =~ "blank"
+      assert has_element?(view, "p.text-error", "required") or
+               has_element?(view, "p.text-error", "blank")
     end
   end
 
@@ -85,11 +85,11 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
     test "renders edit form pre-populated with location data", %{conn: conn, group: grp} do
       loc = Factory.location(group: grp, name: "My Court")
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/settings/locations/#{loc.id}/edit")
 
-      assert html =~ "Edit Location"
-      assert html =~ "My Court"
+      assert has_element?(view, "h1", "Edit Location")
+      assert has_element?(view, "input[name='form[name]'][value='My Court']")
     end
 
     test "successfully updates a location and redirects", %{conn: conn, group: grp, user: usr} do
@@ -101,13 +101,13 @@ defmodule TennisTrackerWeb.Settings.Locations.FormLiveTest do
       n = System.unique_integer([:positive])
       new_name = "After Update #{n}"
 
-      {:ok, _view, html} =
+      {:ok, redirected_view, _html} =
         view
         |> form("form", form: %{name: new_name, street_address: "99 New St"})
         |> render_submit()
         |> follow_redirect(conn)
 
-      assert html =~ "Location saved"
+      assert has_element?(redirected_view, "#flash-info", "Location saved")
 
       updated = Tennis.get_location!(loc.id, tenant: grp.id, actor: usr)
       assert updated.name == new_name

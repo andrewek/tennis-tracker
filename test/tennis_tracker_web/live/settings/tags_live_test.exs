@@ -34,9 +34,9 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
     test "existing categories are listed", %{conn: conn, group: grp} do
       create_category(grp, "Skill Level")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
 
-      assert html =~ "Skill Level"
+      assert has_element?(view, "h2", "Skill Level")
     end
 
     test "owner can create a new category", %{conn: conn, group: grp} do
@@ -44,8 +44,7 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
 
       render_submit(view, "create_category", %{"name" => "Pipeline"})
 
-      html = render(view)
-      assert html =~ "Pipeline"
+      assert has_element?(view, "h2", "Pipeline")
     end
 
     test "owner can rename a category", %{conn: conn, group: grp} do
@@ -63,9 +62,8 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
         "name" => "New Name"
       })
 
-      html = render(view)
-      assert html =~ "New Name"
-      refute html =~ "Old Name"
+      assert has_element?(view, "h2", "New Name")
+      refute has_element?(view, "h2", "Old Name")
     end
 
     test "clicking Delete shows confirmation modal", %{conn: conn, group: grp} do
@@ -84,9 +82,9 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
 
       render_click(view, "confirm_delete_category", %{"category_id" => category.id})
-      html = render_click(view, "delete_category", %{"category_id" => category.id})
+      render_click(view, "delete_category", %{"category_id" => category.id})
 
-      refute html =~ "Gone"
+      refute has_element?(view, "h2", "Gone")
     end
 
     test "cancelling category delete keeps it in the list", %{conn: conn, group: grp} do
@@ -95,9 +93,9 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
 
       render_click(view, "confirm_delete_category", %{"category_id" => category.id})
-      html = render_click(view, "cancel_delete_category", %{})
+      render_click(view, "cancel_delete_category", %{})
 
-      assert html =~ "Kept"
+      assert has_element?(view, "h2", "Kept")
     end
   end
 
@@ -106,10 +104,10 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
       category = create_category(grp, "Age Group")
       create_tag(grp, category, "40+")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/tags")
 
-      assert html =~ "Age Group"
-      assert html =~ "40+"
+      assert has_element?(view, "h2", "Age Group")
+      assert has_element?(view, "span", "40+")
     end
 
     test "owner can create a new tag", %{conn: conn, group: grp} do
@@ -122,8 +120,7 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
         "tag_name" => "55+"
       })
 
-      html = render(view)
-      assert html =~ "55+"
+      assert has_element?(view, "span", "55+")
     end
 
     test "owner can rename a tag", %{conn: conn, group: grp} do
@@ -136,9 +133,8 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
 
       render_submit(view, "save_tag_name", %{"tag_id" => tag.id, "name" => "New Tag"})
 
-      html = render(view)
-      assert html =~ "New Tag"
-      refute html =~ "Old Tag"
+      assert has_element?(view, "span", "New Tag")
+      refute has_element?(view, "span", "Old Tag")
     end
 
     test "clicking tag delete shows confirmation modal", %{conn: conn, group: grp} do
@@ -166,9 +162,9 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
         "tag_name" => tag.name
       })
 
-      html = render_click(view, "delete_tag", %{"tag_id" => tag.id})
+      render_click(view, "delete_tag", %{"tag_id" => tag.id})
 
-      refute html =~ "Remove Me"
+      refute has_element?(view, "span", "Remove Me")
     end
 
     test "cancelling tag delete keeps it in the list", %{conn: conn, group: grp} do
@@ -182,9 +178,9 @@ defmodule TennisTrackerWeb.Settings.TagsLiveTest do
         "tag_name" => tag.name
       })
 
-      html = render_click(view, "cancel_delete_tag", %{})
+      render_click(view, "cancel_delete_tag", %{})
 
-      assert html =~ "Stays"
+      assert has_element?(view, "span", "Stays")
     end
   end
 end

@@ -28,11 +28,11 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
         actor: usr
       )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
 
-      assert html =~ "Westroads 3.5"
-      assert html =~ "Alice Smith"
-      assert html =~ "Beth Jones"
+      assert has_element?(view, "h1", "Westroads 3.5")
+      assert has_element?(view, "#player-#{player_a.id}")
+      assert has_element?(view, "#player-#{player_b.id}")
     end
   end
 
@@ -59,22 +59,22 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
         home_or_away: :home
       )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
 
-      assert html =~ "Upcoming Matches"
-      assert html =~ "Past Matches"
-      assert html =~ "Future Opponent"
-      assert html =~ "Past Opponent"
-      assert html =~ "Test Court"
+      assert has_element?(view, "h2", "Upcoming Matches")
+      assert has_element?(view, "h2", "Past Matches")
+      assert has_element?(view, "#upcoming-matches", "Future Opponent")
+      assert has_element?(view, "#past-matches", "Past Opponent")
+      assert has_element?(view, "#upcoming-matches", "Test Court")
     end
 
     test "shows empty state when no matches", %{conn: conn, group: grp} do
       team = Factory.team(group: grp)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
 
-      assert html =~ "No upcoming matches scheduled"
-      assert html =~ "No past matches"
+      assert has_element?(view, "p", "No upcoming matches scheduled")
+      assert has_element?(view, "p", "No past matches")
     end
   end
 
@@ -82,10 +82,10 @@ defmodule TennisTrackerWeb.Teams.ShowLiveTest do
     test "shows Edit Team link and no Add Match button", %{conn: conn, group: grp} do
       team = Factory.team(group: grp)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams/#{team.id}")
 
-      assert html =~ "Team Settings"
-      refute html =~ "Add Match"
+      assert has_element?(view, "a", "Team Settings")
+      refute has_element?(view, "a", "Add Match")
     end
   end
 

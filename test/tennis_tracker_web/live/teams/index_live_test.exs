@@ -23,18 +23,18 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
           DateTime.utc_now() |> DateTime.add(5, :day) |> DateTime.truncate(:second)
       )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams")
 
-      refute html =~ "Next match: TBD"
-      assert html =~ "Next match:"
+      refute has_element?(view, "p", "Next match: TBD")
+      assert has_element?(view, "p", "Next match:")
     end
 
     test "shows TBD when team has no upcoming matches", %{conn: conn, group: grp} do
       Factory.team(group: grp, name: "No Schedule Team")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams")
 
-      assert html =~ "Next match: TBD"
+      assert has_element?(view, "p", "Next match: TBD")
     end
   end
 
@@ -44,10 +44,10 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
       Factory.team(group: grp, team_type: tt, name: "Westroads 3.5")
       Factory.team(group: grp, team_type: tt, name: "Miracle Hills 3.5")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams")
 
-      assert html =~ "Westroads 3.5"
-      assert html =~ "Miracle Hills 3.5"
+      assert has_element?(view, "#teams-grid h2", "Westroads 3.5")
+      assert has_element?(view, "#teams-grid h2", "Miracle Hills 3.5")
     end
 
     test "does not render pseudo-teams", %{conn: conn, group: grp, user: _usr} do
@@ -55,18 +55,18 @@ defmodule TennisTrackerWeb.Teams.IndexLiveTest do
       Factory.team(group: grp, team_type: tt, name: "Real Team")
       Factory.team(group: grp, team_type: tt, name: "Not Participating", traits: [:pseudo])
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams")
 
-      assert html =~ "Real Team"
-      refute html =~ "Not Participating"
+      assert has_element?(view, "#teams-grid h2", "Real Team")
+      refute has_element?(view, "#teams-grid h2", "Not Participating")
     end
   end
 
   describe "empty state" do
     test "shows empty state when no teams exist", %{conn: conn, group: grp} do
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/teams")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/teams")
 
-      assert html =~ "No teams yet"
+      assert has_element?(view, "p", "No teams yet")
     end
   end
 

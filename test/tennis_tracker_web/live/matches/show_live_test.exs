@@ -33,23 +33,23 @@ defmodule TennisTrackerWeb.Matches.ShowLiveTest do
           home_or_away: :home
         )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "Rival Team"
-      assert html =~ "HOME"
-      assert html =~ "Woods Tennis Center"
-      assert html =~ "4701 Happy Hollow Blvd"
-      assert html =~ "https://maps.google.com/?q=woods"
-      assert html =~ "Directions"
+      assert has_element?(view, "h1", "Rival Team")
+      assert has_element?(view, "h1", "HOME")
+      assert has_element?(view, "p", "Woods Tennis Center")
+      assert has_element?(view, "p", "4701 Happy Hollow Blvd")
+      assert has_element?(view, "a[href='https://maps.google.com/?q=woods']")
+      assert has_element?(view, "a", "Directions")
     end
 
     test "shows Location TBD when no location set", %{conn: conn, group: grp} do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team, opponent: "Someone")
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "Location TBD"
+      assert has_element?(view, "p", "Location TBD")
     end
 
     test "shows no map link when location has no google_maps_url", %{conn: conn, group: grp} do
@@ -57,19 +57,19 @@ defmodule TennisTrackerWeb.Matches.ShowLiveTest do
       location = Factory.location(group: grp, google_maps_url: nil)
       match = Factory.match(group: grp, team: team, location: location)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      refute html =~ "Directions"
+      refute has_element?(view, "a", "Directions")
     end
 
     test "links back to team page", %{conn: conn, group: grp} do
       team = Factory.team(group: grp, name: "My Team")
       match = Factory.match(group: grp, team: team)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}")
 
-      assert html =~ "My Team"
-      assert html =~ "/g/#{grp.slug}/teams/#{team.id}"
+      assert has_element?(view, "a", "My Team")
+      assert has_element?(view, "a[href='/g/#{grp.slug}/teams/#{team.id}']")
     end
 
     test "redirects to group teams with flash on non-existent match", %{conn: conn, group: grp} do

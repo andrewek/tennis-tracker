@@ -37,11 +37,14 @@ defmodule TennisTrackerWeb.Players.FormLiveTest do
       player = Factory.player(group: grp, name: "Alice")
       Tennis.add_player_tag(player.id, tag.id, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/players/#{player.id}/edit")
 
-      assert html =~ tag.name
+      assert has_element?(view, "span", tag.name)
       # The checkbox with tag.id value should be checked
-      assert html =~ ~s(value="#{tag.id}" checked)
+      assert has_element?(
+               view,
+               "input[type='checkbox'][name='tag_ids[]'][value='#{tag.id}'][checked]"
+             )
     end
 
     test "adding a tag on save creates a PlayerTag record", %{

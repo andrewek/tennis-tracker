@@ -43,15 +43,15 @@ defmodule TennisTrackerWeb.RosterPlannerTagFilterTest do
       Tennis.sync_season_rules_default_tags(sr.id, [tag.id], tenant: grp.id, actor: usr)
 
       alice = Factory.player(group: grp, name: "Alice")
-      _bob = Factory.player(group: grp, name: "Bob")
+      bob = Factory.player(group: grp, name: "Bob")
 
       Tennis.add_player_tag(alice.id, tag.id, tenant: grp.id, actor: usr)
 
-      {:ok, _view, html} =
+      {:ok, view, _html} =
         live(conn, ~p"/g/#{grp.slug}/roster-planner/#{tt.id}/#{Date.utc_today().year}")
 
-      assert html =~ "Alice"
-      refute html =~ "Bob"
+      assert has_element?(view, "#col-unassigned #player-#{alice.id}")
+      refute has_element?(view, "#col-unassigned #player-#{bob.id}")
     end
 
     test "when no default tags set, all players appear in unassigned", %{

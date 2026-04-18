@@ -26,10 +26,10 @@ defmodule TennisTrackerWeb.Matches.EditLiveTest do
           timezone: "America/Chicago"
         )
 
-      {:ok, _view, html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
+      {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/matches/#{match.id}/edit")
 
-      assert html =~ "Rival Club"
-      assert html =~ "My Team"
+      assert has_element?(view, "input[name='form[opponent]'][value='Rival Club']")
+      assert has_element?(view, "p", "My Team")
     end
 
     test "non-existent match ID redirects to group teams with flash", %{conn: conn, group: grp} do
