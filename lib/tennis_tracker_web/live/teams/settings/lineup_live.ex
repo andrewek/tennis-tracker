@@ -631,27 +631,40 @@ defmodule TennisTrackerWeb.Teams.Settings.LineupLive do
             type="checkbox"
             label="Include in clipboard"
           />
+          <% col_id_value =
+            case @slot_modal do
+              {:add, col_id} -> col_id
+              _ -> @slot_form[:team_lineup_column_id].value
+            end %>
           <.input
             field={@slot_form[:team_lineup_column_id]}
             type="select"
             label="Category"
             options={Enum.map(@lineup_columns, &{&1.name, &1.id})}
             prompt="Select category..."
+            value={col_id_value}
           />
-          <%= if match?({:add, _}, @slot_modal) do %>
-            <% has_out_slot = Enum.any?(@lineup_slots, &(&1.participation_type == :out)) %>
-            <.input
-              field={@slot_form[:participation_type]}
-              type="select"
-              label="Type"
-              options={[
-                [key: "Playing", value: "playing"],
-                [key: "Out", value: "out", disabled: has_out_slot],
-                [key: "Neutral", value: "neutral"]
-              ]}
-              prompt="Select type..."
-            />
-          <% end %>
+          <% out_slot_taken = Enum.any?(@lineup_slots, &(&1.participation_type == :out)) %>
+          <% out_disabled =
+            case @slot_modal do
+              {:edit, slot_id} ->
+                editing = Enum.find(@lineup_slots, &(&1.id == slot_id))
+                out_slot_taken && (editing == nil || editing.participation_type != :out)
+
+              _ ->
+                out_slot_taken
+            end %>
+          <.input
+            field={@slot_form[:participation_type]}
+            type="select"
+            label="Type"
+            options={[
+              [key: "Playing", value: "playing"],
+              [key: "Out", value: "out", disabled: out_disabled],
+              [key: "Neutral", value: "neutral"]
+            ]}
+            prompt="Select type..."
+          />
           <div class="flex gap-2 justify-end mt-4">
             <button type="button" class="btn btn-ghost btn-sm" phx-click="close_slot_modal">
               Cancel

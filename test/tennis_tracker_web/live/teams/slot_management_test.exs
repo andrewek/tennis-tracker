@@ -221,7 +221,7 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
              )
     end
 
-    test "participation_type field not shown in edit slot modal", %{
+    test "participation_type field shown in edit slot modal", %{
       conn: conn,
       group: grp,
       user: usr
@@ -248,7 +248,30 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       |> element("button[phx-click='open_edit_slot_modal'][phx-value-slot_id='#{slot.id}']")
       |> render_click()
 
-      refute has_element?(view, "select[name='slot_form[participation_type]']")
+      assert has_element?(view, "select[name='slot_form[participation_type]']")
+    end
+
+    test "category is pre-selected when opening add slot modal from a category card", %{
+      conn: conn,
+      group: grp,
+      user: usr
+    } do
+      team = Factory.team(group: grp)
+      reserve_col = get_reserve_col(grp, team)
+
+      {:ok, view, _html} =
+        live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/teams/#{team.id}/settings/lineup")
+
+      view
+      |> element(
+        "button[phx-click='open_add_slot_modal'][phx-value-column_id='#{reserve_col.id}']"
+      )
+      |> render_click()
+
+      assert has_element?(
+               view,
+               "select[name='slot_form[team_lineup_column_id]'] option[value='#{reserve_col.id}'][selected]"
+             )
     end
   end
 

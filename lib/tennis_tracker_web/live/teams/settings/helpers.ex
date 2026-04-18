@@ -26,7 +26,15 @@ defmodule TennisTrackerWeb.Teams.Settings.Helpers do
 
       {:ok, team} ->
         can_update_team =
-          Ash.can?({team, :update}, current_user, tenant: group_id, domain: Tennis)
+          Ash.can?(
+            Ash.Changeset.for_update(team, :update, %{},
+              actor: current_user,
+              tenant: group_id,
+              domain: Tennis
+            ),
+            current_user,
+            domain: Tennis
+          )
 
         can_manage_slots =
           Ash.can?(
