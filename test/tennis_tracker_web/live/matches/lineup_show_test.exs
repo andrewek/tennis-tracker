@@ -13,9 +13,14 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
   # ---------------------------------------------------------------------------
 
   describe "read-only lineup section" do
-    test "shows empty state when team has no slots", %{conn: conn, group: grp, user: usr} do
+    test "shows empty state when team has no playing slots", %{conn: conn, group: grp, user: usr} do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
+
+      # Delete all default playing slots so only the Out exclusion slot remains
+      Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.filter(&(&1.participation_type != :out))
+      |> Enum.each(&Tennis.delete_lineup_slot!(&1, tenant: grp.id, authorize?: false))
 
       {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
@@ -31,7 +36,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       slot =
         Tennis.create_lineup_slot!(
           %{
-            name: "#1 Singles",
+            name: "D1",
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -118,10 +123,17 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
   # ---------------------------------------------------------------------------
 
   describe "empty state" do
-    test "captain sees link to team edit page when no slots defined", %{conn: conn, group: grp} do
+    test "captain sees link to team edit page when no playing slots defined", %{
+      conn: conn,
+      group: grp
+    } do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
       captain = setup_captain(grp, team)
+
+      Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.filter(&(&1.participation_type != :out))
+      |> Enum.each(&Tennis.delete_lineup_slot!(&1, tenant: grp.id, authorize?: false))
 
       {:ok, view, _html} =
         live(log_in_user(conn, captain), ~p"/g/#{grp.slug}/matches/#{match.id}")
@@ -130,7 +142,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       assert has_element?(view, "a[href*='/teams/#{team.id}/settings']")
     end
 
-    test "non-captain member sees message but no team edit link when no slots defined", %{
+    test "non-captain member sees message but no team edit link when no playing slots defined", %{
       conn: conn,
       group: grp
     } do
@@ -138,10 +150,14 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       match = Factory.match(group: grp, team: team)
       member = setup_member(grp)
 
+      Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.filter(&(&1.participation_type != :out))
+      |> Enum.each(&Tennis.delete_lineup_slot!(&1, tenant: grp.id, authorize?: false))
+
       {:ok, view, _html} = live(log_in_user(conn, member), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
       assert has_element?(view, "#lineup-empty-state")
-      refute has_element?(view, "a[href*='/teams/#{team.id}/edit']")
+      refute has_element?(view, "a[href*='/teams/#{team.id}/settings']")
     end
   end
 
@@ -190,7 +206,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
 
       Tennis.create_lineup_slot!(
         %{
-          name: "#1 Singles",
+          name: "D1",
           team_id: team.id,
           group_id: grp.id,
           team_lineup_column_id: reserve_col.id
@@ -202,7 +218,7 @@ defmodule TennisTrackerWeb.Matches.LineupShowTest do
       {:ok, view, _html} = live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}")
 
       assert has_element?(view, "textarea#lineup-text-area.hidden")
-      assert has_element?(view, "textarea#lineup-text-area", "#1 Singles")
+      assert has_element?(view, "textarea#lineup-text-area", "D1")
     end
   end
 end

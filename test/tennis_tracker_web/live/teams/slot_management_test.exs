@@ -67,14 +67,14 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       view
       |> form("form[phx-submit='save_slot_modal']", %{
         "slot_form" => %{
-          "name" => "#1 Singles",
+          "name" => "#4 Singles",
           "expected_count" => "2",
           "include_in_clipboard" => "true"
         }
       })
       |> render_submit()
 
-      assert has_element?(view, "[id^='slot-']", "#1 Singles")
+      assert has_element?(view, "[id^='slot-']", "#4 Singles")
       assert has_element?(view, "#flash-info", "Slot saved")
     end
 

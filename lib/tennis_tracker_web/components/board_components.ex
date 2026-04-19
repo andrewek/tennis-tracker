@@ -129,11 +129,12 @@ defmodule TennisTrackerWeb.BoardComponents do
   attr :readonly, :boolean, default: false
   attr :on_click, :any, default: "select_player"
   attr :column_badges, :list, default: []
+  attr :id, :string, default: nil
 
   def player_card(assigns) do
     ~H"""
     <div
-      id={"player-#{@player.id}"}
+      id={@id || "player-#{@player.id}"}
       class={[
         "flex items-center justify-between px-2 py-1.5 rounded text-sm cursor-pointer select-none",
         "bg-base-100 hover:bg-base-300 transition-colors",

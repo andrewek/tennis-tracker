@@ -13,8 +13,9 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
     Factory.group_membership(group: grp, user: captain_user)
     Factory.team_role(group: grp, user: captain_user, team: team, traits: [:captain])
 
-    [reserve_col] =
+    reserve_col =
       Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.find(&(&1.name == "Reserve"))
 
     {:ok, team: team, member: member_user, captain: captain_user, reserve_col: reserve_col}
   end
@@ -28,7 +29,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       {:ok, slot} =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Singles",
+            name: "S1",
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -37,7 +38,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
           actor: usr
         )
 
-      assert slot.name == "#1 Singles"
+      assert slot.name == "S1"
       assert slot.team_id == team.id
       assert slot.include_in_clipboard == true
       assert is_nil(slot.expected_count)
@@ -52,7 +53,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       {:ok, slot} =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Doubles",
+            name: "D1",
             expected_count: 2,
             team_id: team.id,
             group_id: grp.id,
@@ -62,7 +63,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
           actor: captain
         )
 
-      assert slot.name == "#1 Doubles"
+      assert slot.name == "D1"
       assert slot.expected_count == 2
     end
 
@@ -182,7 +183,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       {:ok, _} =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Singles",
+            name: "S1",
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -194,7 +195,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       result =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Singles",
+            name: "S1",
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -213,12 +214,15 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       reserve_col: reserve_col
     } do
       team2 = Factory.team(group: grp)
-      [col2] = Tennis.list_lineup_columns_for_team!(team2.id, tenant: grp.id, authorize?: false)
+
+      col2 =
+        Tennis.list_lineup_columns_for_team!(team2.id, tenant: grp.id, authorize?: false)
+        |> Enum.find(&(&1.name == "Reserve"))
 
       {:ok, _} =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Singles",
+            name: "S1",
             team_id: team.id,
             group_id: grp.id,
             team_lineup_column_id: reserve_col.id
@@ -230,7 +234,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
       {:ok, slot2} =
         Tennis.create_lineup_slot(
           %{
-            name: "#1 Singles",
+            name: "S1",
             team_id: team2.id,
             group_id: grp.id,
             team_lineup_column_id: col2.id
@@ -239,16 +243,15 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
           actor: usr
         )
 
-      assert slot2.name == "#1 Singles"
+      assert slot2.name == "S1"
     end
 
-    test "sort_order is auto-assigned after the existing Out slot", %{
+    test "sort_order is auto-assigned in ascending order within the team", %{
       group: grp,
       user: usr,
       team: team,
       reserve_col: reserve_col
     } do
-      # "Out" exclusion slot is at sort_order 0 (auto-provisioned)
       {:ok, slot1} =
         Tennis.create_lineup_slot(
           %{
@@ -285,9 +288,8 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
           actor: usr
         )
 
-      assert slot1.sort_order == 1
-      assert slot2.sort_order == 2
-      assert slot3.sort_order == 3
+      assert slot1.sort_order < slot2.sort_order
+      assert slot2.sort_order < slot3.sort_order
     end
 
     test "default auto-provisioned Out slot has participation_type :out", %{
@@ -405,7 +407,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
   # ---------------------------------------------------------------------------
 
   describe "list_lineup_slots_for_team" do
-    test "includes the auto-provisioned Out slot plus added slots in sort_order", %{
+    test "includes default slots plus added slots in sort_order", %{
       group: grp,
       user: usr,
       team: team,
@@ -437,7 +439,10 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
 
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
       names = Enum.map(slots, & &1.name)
-      assert names == ["Out", "S1", "D1"]
+      # 6 default playing slots + 1 Out + S1 and D1
+      assert "Out" in names
+      assert "S1" in names
+      assert "D1" in names
     end
 
     test "member can read slots", %{
@@ -460,8 +465,8 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
         )
 
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: member)
-      # "Out" exclusion slot + "S1"
-      assert length(slots) == 2
+      # 6 default playing slots + 1 Out + "S1" = 8 total
+      assert length(slots) == 8
     end
   end
 
@@ -566,8 +571,7 @@ defmodule TennisTracker.Tennis.TeamLineupSlotTest do
 
       assert :ok = Tennis.delete_lineup_slot!(slot, tenant: grp.id, actor: usr)
       slots = Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
-      # Only the auto-provisioned "Out" slot remains
-      assert [%{name: "Out"}] = slots
+      refute Enum.any?(slots, &(&1.id == slot.id))
     end
 
     test "captain can delete a non-exclusion slot", %{

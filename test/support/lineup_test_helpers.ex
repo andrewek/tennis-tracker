@@ -19,6 +19,7 @@ defmodule TennisTrackerWeb.LineupTestHelpers do
   end
 
   def get_reserve_col(grp, team) do
-    Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false) |> hd()
+    Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+    |> Enum.find(&(&1.name == "Reserve"))
   end
 end

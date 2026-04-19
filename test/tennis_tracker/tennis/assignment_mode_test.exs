@@ -11,7 +11,9 @@ defmodule TennisTracker.Tennis.AssignmentModeTest do
     player = Factory.player(group: grp)
     player2 = Factory.player(group: grp)
 
-    [reserve_col] = Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
+    reserve_col =
+      Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
+      |> Enum.find(&(&1.name == "Reserve"))
 
     singles_col =
       Tennis.create_lineup_column!(
@@ -66,6 +68,16 @@ defmodule TennisTracker.Tennis.AssignmentModeTest do
   # ---------------------------------------------------------------------------
 
   describe ":one_per_match mode" do
+    setup %{group: grp, user: usr, team: team} do
+      {:ok, team} =
+        Tennis.update_team(team, %{lineup_assignment_mode: :one_per_match},
+          tenant: grp.id,
+          actor: usr
+        )
+
+      {:ok, team: team}
+    end
+
     test "reassigning moves player to new slot (only one assignment remains)", %{
       group: grp,
       user: usr,

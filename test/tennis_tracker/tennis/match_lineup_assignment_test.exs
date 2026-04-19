@@ -17,8 +17,9 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
     Factory.group_membership(group: grp, user: captain_user)
     Factory.team_role(group: grp, user: captain_user, team: team, traits: [:captain])
 
-    [reserve_col] =
+    reserve_col =
       Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.find(&(&1.name == "Reserve"))
 
     slot =
       Tennis.create_lineup_slot!(
@@ -101,6 +102,11 @@ defmodule TennisTracker.Tennis.MatchLineupAssignmentTest do
       slot: slot,
       reserve_col: reserve_col
     } do
+      Tennis.update_team!(team, %{lineup_assignment_mode: :one_per_match},
+        tenant: grp.id,
+        actor: usr
+      )
+
       slot2 =
         Tennis.create_lineup_slot!(
           %{

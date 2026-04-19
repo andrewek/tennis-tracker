@@ -88,7 +88,7 @@ defmodule TennisTracker.Tennis.Team do
     attribute :lineup_assignment_mode, :atom do
       allow_nil?(false)
       public?(true)
-      default(:one_per_match)
+      default(:one_per_column)
       constraints(one_of: [:one_per_match, :one_per_column, :many_per_match])
     end
 
@@ -137,10 +137,49 @@ defmodule TennisTracker.Tennis.Team do
 
       change(fn changeset, context ->
         Ash.Changeset.after_action(changeset, fn _changeset, team ->
-          if !team.is_pseudo do
+          if not team.is_pseudo do
             tenant = team.group_id
 
-            col =
+            assigned_col =
+              TennisTracker.Tennis.TeamLineupColumn
+              |> Ash.Changeset.for_create(
+                :create,
+                %{name: "Assigned", team_id: team.id, group_id: tenant},
+                domain: TennisTracker.Tennis,
+                tenant: tenant,
+                authorize?: false
+              )
+              |> Ash.create!()
+
+            default_slots = [
+              "#1 Singles",
+              "#2 Singles",
+              "#1 Doubles",
+              "#2 Doubles",
+              "#3 Doubles",
+              "Sub"
+            ]
+
+            Enum.each(default_slots, fn slot_name ->
+              TennisTracker.Tennis.TeamLineupSlot
+              |> Ash.Changeset.for_create(
+                :create,
+                %{
+                  name: slot_name,
+                  participation_type: :playing,
+                  include_in_clipboard: true,
+                  team_id: team.id,
+                  team_lineup_column_id: assigned_col.id,
+                  group_id: tenant
+                },
+                domain: TennisTracker.Tennis,
+                tenant: tenant,
+                authorize?: false
+              )
+              |> Ash.create!()
+            end)
+
+            reserve_col =
               TennisTracker.Tennis.TeamLineupColumn
               |> Ash.Changeset.for_create(
                 :create,
@@ -159,7 +198,7 @@ defmodule TennisTracker.Tennis.Team do
                 participation_type: :out,
                 include_in_clipboard: false,
                 team_id: team.id,
-                team_lineup_column_id: col.id,
+                team_lineup_column_id: reserve_col.id,
                 group_id: tenant
               },
               domain: TennisTracker.Tennis,
@@ -178,17 +217,7 @@ defmodule TennisTracker.Tennis.Team do
       require_atomic?(false)
       accept([:lineup_assignment_mode])
 
-      validate(fn changeset, context ->
-        if Ash.Changeset.changing_attribute?(changeset, :lineup_assignment_mode) do
-          new_mode = Ash.Changeset.get_attribute(changeset, :lineup_assignment_mode)
-          team = changeset.data
-          tenant = context.tenant
-
-          check_mode_change(new_mode, team, tenant)
-        else
-          :ok
-        end
-      end)
+      validate(&validate_mode_change/2)
     end
 
     update :update do
@@ -196,17 +225,7 @@ defmodule TennisTracker.Tennis.Team do
       require_atomic?(false)
       accept([:name, :default_timezone, :lineup_assignment_mode])
 
-      validate(fn changeset, context ->
-        if Ash.Changeset.changing_attribute?(changeset, :lineup_assignment_mode) do
-          new_mode = Ash.Changeset.get_attribute(changeset, :lineup_assignment_mode)
-          team = changeset.data
-          tenant = context.tenant
-
-          check_mode_change(new_mode, team, tenant)
-        else
-          :ok
-        end
-      end)
+      validate(&validate_mode_change/2)
     end
 
     destroy :destroy do
@@ -259,6 +278,15 @@ defmodule TennisTracker.Tennis.Team do
     strategy(:attribute)
     attribute(:group_id)
     global?(true)
+  end
+
+  defp validate_mode_change(changeset, context) do
+    if Ash.Changeset.changing_attribute?(changeset, :lineup_assignment_mode) do
+      new_mode = Ash.Changeset.get_attribute(changeset, :lineup_assignment_mode)
+      check_mode_change(new_mode, changeset.data, context.tenant)
+    else
+      :ok
+    end
   end
 
   defp check_mode_change(:many_per_match, _team, _tenant), do: :ok

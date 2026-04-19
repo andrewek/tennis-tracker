@@ -10,8 +10,9 @@ defmodule TennisTracker.Tennis.SeasonStatsTest do
     player = Factory.player(group: grp)
     Factory.team_membership(group: grp, team: team, player: player)
 
-    [reserve_col] =
+    reserve_col =
       Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.find(&(&1.name == "Reserve"))
 
     playing_slot =
       Tennis.create_lineup_slot!(
@@ -271,7 +272,9 @@ defmodule TennisTracker.Tennis.SeasonStatsTest do
       team2 = Factory.team(group: grp)
       Factory.team_membership(group: grp, team: team2, player: player)
 
-      [col2] = Tennis.list_lineup_columns_for_team!(team2.id, tenant: grp.id, authorize?: false)
+      col2 =
+        Tennis.list_lineup_columns_for_team!(team2.id, tenant: grp.id, authorize?: false)
+        |> Enum.find(&(&1.name == "Reserve"))
 
       slot2 =
         Tennis.create_lineup_slot!(

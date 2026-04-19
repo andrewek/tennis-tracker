@@ -60,13 +60,18 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
   # ---------------------------------------------------------------------------
 
   describe "empty state" do
-    test "shows empty state message and team edit link when no slots defined", %{
+    test "shows empty state message and team edit link when no playing slots defined", %{
       conn: conn,
       group: grp,
       user: usr
     } do
       team = Factory.team(group: grp)
       match = Factory.match(group: grp, team: team)
+
+      # Delete all default playing slots so only the Out exclusion slot remains
+      Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, authorize?: false)
+      |> Enum.filter(&(&1.participation_type != :out))
+      |> Enum.each(&Tennis.delete_lineup_slot!(&1, tenant: grp.id, authorize?: false))
 
       {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
@@ -107,7 +112,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      assert has_element?(view, "#col-available #player-#{player.id}")
+      assert has_element?(view, "#col-available [data-player-id='#{player.id}']")
     end
 
     test "assigned player appears in slot column, not Available", %{
@@ -116,6 +121,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       user: usr
     } do
       team = Factory.team(group: grp)
+
+      Tennis.update_team!(team, %{lineup_assignment_mode: :one_per_match},
+        tenant: grp.id,
+        actor: usr
+      )
+
       match = Factory.match(group: grp, team: team)
       player = Factory.player(group: grp, name: "Roger Federer")
       Factory.team_membership(group: grp, team: team, player: player)
@@ -127,9 +138,9 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
       # Player in slot column
-      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
-      # Player not in available column
-      refute has_element?(view, "#col-available #player-#{player.id}")
+      assert has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
+      # Player not in available column (one_per_match removes player from available)
+      refute has_element?(view, "#col-available [data-player-id='#{player.id}']")
     end
   end
 
@@ -144,6 +155,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       user: usr
     } do
       team = Factory.team(group: grp)
+
+      Tennis.update_team!(team, %{lineup_assignment_mode: :one_per_match},
+        tenant: grp.id,
+        actor: usr
+      )
+
       match = Factory.match(group: grp, team: team)
       player = Factory.player(group: grp, name: "Andy Murray")
       Factory.team_membership(group: grp, team: team, player: player)
@@ -152,15 +169,15 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      assert has_element?(view, "#col-available #player-#{player.id}")
+      assert has_element?(view, "#col-available [data-player-id='#{player.id}']")
 
       render_click(view, "move_lineup_player", %{
         "player_id" => player.id,
         "target_id" => slot.id
       })
 
-      refute has_element?(view, "#col-available #player-#{player.id}")
-      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+      refute has_element?(view, "#col-available [data-player-id='#{player.id}']")
+      assert has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
     end
 
     test "unassigning a player moves them back to Available", %{
@@ -179,15 +196,15 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       {:ok, view, _html} =
         live(log_in_user(conn, usr), ~p"/g/#{grp.slug}/matches/#{match.id}/lineup-edit")
 
-      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+      assert has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
 
       render_click(view, "move_lineup_player", %{
         "player_id" => player.id,
         "target_id" => "available"
       })
 
-      assert has_element?(view, "#col-available #player-#{player.id}")
-      refute has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+      assert has_element?(view, "#col-available [data-player-id='#{player.id}']")
+      refute has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
     end
   end
 
@@ -359,7 +376,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       })
 
       refute has_element?(view, "h3", player.name)
-      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+      assert has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
     end
 
     test "tapping the Available button unassigns the player and closes the modal", %{
@@ -387,7 +404,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       })
 
       refute has_element?(view, "h3", player.name)
-      assert has_element?(view, "#col-available #player-#{player.id}")
+      assert has_element?(view, "#col-available [data-player-id='#{player.id}']")
     end
 
     test "dismissing the modal via close button makes no assignment change", %{
@@ -412,7 +429,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       render_click(view, "deselect_player", %{})
 
       refute has_element?(view, "h3", player.name)
-      assert has_element?(view, "#col-#{slot.id} #player-#{player.id}")
+      assert has_element?(view, "#slot-#{slot.id}-player-#{player.id}")
     end
 
     test "tapping a player card while a modal is already open switches to the new player",
@@ -468,8 +485,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
         "target_id" => playing_slot.id
       })
 
-      assert has_element?(view, "#col-#{playing_slot.id} #player-#{player.id}")
-      refute has_element?(view, "#col-#{excl_slot.id} #player-#{player.id}")
+      assert has_element?(view, "#slot-#{playing_slot.id}-player-#{player.id}")
+      refute has_element?(view, "#slot-#{excl_slot.id}-player-#{player.id}")
     end
   end
 
@@ -484,6 +501,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       user: usr
     } do
       team = Factory.team(group: grp)
+
+      Tennis.update_team!(team, %{lineup_assignment_mode: :one_per_match},
+        tenant: grp.id,
+        actor: usr
+      )
+
       match = Factory.match(group: grp, team: team)
       player = Factory.player(group: grp, name: "Novak Djokovic")
       Factory.team_membership(group: grp, team: team, player: player)
@@ -502,8 +525,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       render(view1)
 
       # view2 should reflect the change via PubSub
-      assert has_element?(view2, "#col-#{slot.id} #player-#{player.id}")
-      refute has_element?(view2, "#col-available #player-#{player.id}")
+      assert has_element?(view2, "#slot-#{slot.id}-player-#{player.id}")
+      refute has_element?(view2, "#col-available [data-player-id='#{player.id}']")
     end
   end
 
@@ -577,8 +600,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
 
       render_click(view, "toggle_stats")
 
-      # Before assignment: Planned column (3rd td) shows 0
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "0")
+      # Before assignment: Planned column shows 0
+      assert has_element?(view, "#stats-#{player.id}-planned", "0")
 
       render_click(view, "move_lineup_player", %{
         "player_id" => player.id,
@@ -586,8 +609,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       })
 
       # After assignment: Planned column shows 1, Played (past) still 0
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "1")
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "0")
+      assert has_element?(view, "#stats-#{player.id}-planned", "1")
+      assert has_element?(view, "#stats-#{player.id}-played", "0")
     end
 
     test "drawer shows correct played count after assigning to a past playing slot", %{
@@ -606,8 +629,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
 
       render_click(view, "toggle_stats")
 
-      # Before assignment: Played column (2nd td) shows 0
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "0")
+      # Before assignment: Played column shows 0
+      assert has_element?(view, "#stats-#{player.id}-played", "0")
 
       render_click(view, "move_lineup_player", %{
         "player_id" => player.id,
@@ -615,8 +638,8 @@ defmodule TennisTrackerWeb.Matches.LineupEditTest do
       })
 
       # After assignment: Played column shows 1, Planned still 0
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(2)", "1")
-      assert has_element?(view, "#stats-row-#{player.id} td:nth-child(3)", "0")
+      assert has_element?(view, "#stats-#{player.id}-played", "1")
+      assert has_element?(view, "#stats-#{player.id}-planned", "0")
     end
 
     test "sorting by each option does not crash", %{conn: conn, group: grp, user: usr} do

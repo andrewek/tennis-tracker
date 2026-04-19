@@ -10,8 +10,6 @@ defmodule TennisTracker.Tennis.TeamModeChangeTest do
     match = Factory.match(group: grp, team: team)
     player = Factory.player(group: grp)
 
-    [_reserve_col] = Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
-
     singles_col =
       Tennis.create_lineup_column!(
         %{name: "Singles", team_id: team.id, group_id: grp.id},

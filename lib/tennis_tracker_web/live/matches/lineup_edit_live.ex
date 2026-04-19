@@ -499,6 +499,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
             >
               <.player_card
                 :for={player <- @available}
+                id={"available-player-#{player.id}"}
                 player={player}
                 readonly={false}
                 column_badges={Map.get(@player_column_assignments, player.id, [])}
@@ -529,6 +530,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
                   >
                     <.player_card
                       :for={player <- slot_players}
+                      id={"slot-#{slot.id}-player-#{player.id}"}
                       player={player}
                       readonly={false}
                     />
@@ -683,8 +685,12 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
                   ]}
                 >
                   <td class="truncate max-w-[9rem] font-medium">{player.name}</td>
-                  <td class="text-center text-base-content/60">{stats.played_past}</td>
-                  <td class="text-center font-medium">{stats.played_future}</td>
+                  <td id={"stats-#{player.id}-played"} class="text-center text-base-content/60">
+                    {stats.played_past}
+                  </td>
+                  <td id={"stats-#{player.id}-planned"} class="text-center font-medium">
+                    {stats.played_future}
+                  </td>
                   <td class="text-center text-base-content/70">
                     {total} / {@season_stats.total_matches}
                   </td>

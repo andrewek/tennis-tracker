@@ -16,7 +16,9 @@ defmodule TennisTracker.Tennis.ExclusionSlotAssignmentTest do
       Tennis.list_lineup_slots_for_team!(team.id, tenant: grp.id, actor: usr)
       |> Enum.filter(&(&1.participation_type == :out))
 
-    [reserve_col] = Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
+    reserve_col =
+      Tennis.list_lineup_columns_for_team!(team.id, tenant: grp.id, actor: usr)
+      |> Enum.find(&(&1.name == "Reserve"))
 
     # Create a playing slot in the reserve column (column required)
     {:ok, playing_slot} =
