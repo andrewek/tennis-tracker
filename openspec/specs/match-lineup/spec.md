@@ -1,11 +1,11 @@
 ## Requirements
 
-### Requirement: Teams have a lineup_assignment_mode
-Each team SHALL have a `lineup_assignment_mode` attribute (default `:one_per_match`) that determines how many slots a single player may occupy for a given match.
+### Requirement: lineup_assignment_mode defaults to one_per_column
+Each team SHALL have a `lineup_assignment_mode` attribute (default `:one_per_column`) that determines how many slots a single player may occupy for a given match.
 
-#### Scenario: Default mode is one_per_match
-- **WHEN** a team is created without specifying lineup_assignment_mode
-- **THEN** its lineup_assignment_mode SHALL default to :one_per_match
+#### Scenario: Default mode is one_per_column
+- **WHEN** a new team is created without specifying lineup_assignment_mode
+- **THEN** its lineup_assignment_mode SHALL default to :one_per_column
 
 ### Requirement: one_per_match mode — player may occupy at most one slot
 When a team's `lineup_assignment_mode` is `:one_per_match`, a player SHALL have at most one `MatchLineupAssignment` per match. Attempting to assign a player who is already assigned elsewhere SHALL update the existing assignment to the new slot (upsert behavior).
