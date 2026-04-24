@@ -47,6 +47,7 @@ This is a Phoenix 1.8.5 application with PostgreSQL, LiveView, Tailwind CSS v4, 
 **Forms:**
 - Always drive forms via `to_form/2` assigned in the LiveView, accessed as `@form[:field]` in templates
 - Never pass a changeset directly to `<.form>` or access `@changeset` in templates
+- Prefer form-level errors over flash messages — surface errors as close to the input as possible. Use `AshPhoenix.Form.add_error/3` or a form-level error assign rendered inline near the relevant field. Reserve flash for success confirmations and non-form errors.
 
 **HEEx:**
 - Use `{...}` for attribute interpolation; use `<%= ... %>` for block constructs (`if`, `case`, `for`) in tag bodies
@@ -61,6 +62,7 @@ This is a Phoenix 1.8.5 application with PostgreSQL, LiveView, Tailwind CSS v4, 
 - Use `Ash.Query` macros for filtering: `require Ash.Query` then `Ash.Query.filter(query, ...)`
 - Generate migrations with `mix ash_postgres.generate_migrations --name name` — **never** use `mix ecto.gen.migration`
 - Resource snapshots live in `priv/resource_snapshots/`; do not edit them manually
+- Prefer small, tightly scoped update actions (e.g. `:update_role`, `:update_name`) over a single general-purpose `:update` action. Authorization rules tend to become more granular over time; co-locating them with a focused action keeps policies readable and avoids unintended permission overlap.
 
 **Authorization UI convention:** If the current user cannot perform an action, do NOT render the button or link for it. If a user navigates directly to an unauthorized form URL, redirect them in `mount/3` or `handle_params/3`. Ash policies enforce at the data layer regardless — the UI convention is defense-in-depth plus UX clarity.
 
