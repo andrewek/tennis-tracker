@@ -832,7 +832,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
             player={@selection.player}
             current_team={@selection.team}
             group_slug={@current_group.slug}
-            on_close={JS.push("deselect_player")}
+            on_close="deselect_player"
           >
             <:actions>
               <button
@@ -873,7 +873,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
                 :delete -> "Delete Team"
               end
             }
-            on_close={JS.push("close_team_modal")}
+            on_close="close_team_modal"
           >
             <%= cond do %>
               <% @team_modal.mode == :create -> %>
@@ -905,7 +905,7 @@ defmodule TennisTrackerWeb.RosterPlannerLive do
           <.modal
             :if={@show_season_rules}
             title="Season Rules"
-            on_close={JS.push("hide_season_rules")}
+            on_close="hide_season_rules"
             max_width="max-w-xs"
           >
             <dl class="space-y-3 text-sm">

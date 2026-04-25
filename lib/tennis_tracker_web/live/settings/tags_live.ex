@@ -173,7 +173,7 @@ defmodule TennisTrackerWeb.Settings.TagsLive do
       <.modal
         :if={@confirm_delete_category}
         title="Delete Tag Category"
-        on_close={JS.push("cancel_delete_category")}
+        on_close="cancel_delete_category"
       >
         <% category = @confirm_delete_category %>
         <p class="text-sm text-base-content/70 mb-2">
@@ -201,7 +201,7 @@ defmodule TennisTrackerWeb.Settings.TagsLive do
       <.modal
         :if={@confirm_delete_tag}
         title="Delete Tag"
-        on_close={JS.push("cancel_delete_tag")}
+        on_close="cancel_delete_tag"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete tag <strong>{@confirm_delete_tag.name}</strong>? This cannot be undone.

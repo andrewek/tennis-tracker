@@ -569,7 +569,7 @@ defmodule TennisTrackerWeb.Teams.Settings.LineupLive do
       <.modal
         :if={@column_modal != nil}
         title={if @column_modal == :add, do: "Add Category", else: "Edit Category"}
-        on_close={JS.push("close_column_modal")}
+        on_close="close_column_modal"
       >
         <.form
           for={@column_form}
@@ -591,7 +591,7 @@ defmodule TennisTrackerWeb.Teams.Settings.LineupLive do
       <.modal
         :if={@column_to_delete != nil}
         title="Delete Category"
-        on_close={JS.push("hide_delete_column_modal")}
+        on_close="hide_delete_column_modal"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete category <strong>{@column_to_delete.name}</strong>? This cannot be undone.
@@ -612,7 +612,7 @@ defmodule TennisTrackerWeb.Teams.Settings.LineupLive do
       <.modal
         :if={@slot_modal != nil}
         title={slot_modal_title}
-        on_close={JS.push("close_slot_modal")}
+        on_close="close_slot_modal"
       >
         <.form
           for={@slot_form}
@@ -678,7 +678,7 @@ defmodule TennisTrackerWeb.Teams.Settings.LineupLive do
       <.modal
         :if={@slot_to_delete != nil}
         title="Delete Slot"
-        on_close={JS.push("hide_delete_slot_modal")}
+        on_close="hide_delete_slot_modal"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete slot <strong>{@slot_to_delete.name}</strong>? All lineup assignments for this slot will also be removed.

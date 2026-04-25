@@ -241,7 +241,7 @@ defmodule TennisTrackerWeb.Teams.ShowLive do
         player={@selected_player}
         current_team={@team.name}
         group_slug={@current_group.slug}
-        on_close={JS.push("close_player_modal")}
+        on_close="close_player_modal"
       />
     </Layouts.app>
     """

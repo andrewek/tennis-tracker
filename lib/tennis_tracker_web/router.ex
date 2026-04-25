@@ -73,6 +73,9 @@ defmodule TennisTrackerWeb.Router do
       live "/g/:group_slug/settings/locations/new", Settings.Locations.FormLive, :new
       live "/g/:group_slug/settings/locations/:id/edit", Settings.Locations.FormLive, :edit
 
+      live "/g/:group_slug/settings/members", Settings.Members.IndexLive, :index
+      live "/g/:group_slug/settings/members/new", Settings.Members.NewLive, :new
+
       live "/g/:group_slug/settings/tags", Settings.TagsLive, :index
 
       live "/g/:group_slug/settings/season-rules", Settings.SeasonRules.IndexLive, :index

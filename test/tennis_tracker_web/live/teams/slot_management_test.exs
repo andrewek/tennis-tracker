@@ -127,7 +127,7 @@ defmodule TennisTrackerWeb.Teams.SlotManagementTest do
       )
       |> render_click()
 
-      view |> element("button[phx-click='close_slot_modal']") |> render_click()
+      view |> element("button", "Cancel") |> render_click()
 
       refute has_element?(view, "form[phx-submit='save_slot_modal']")
     end

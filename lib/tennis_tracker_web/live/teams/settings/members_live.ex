@@ -271,7 +271,7 @@ defmodule TennisTrackerWeb.Teams.Settings.MembersLive do
       <.modal
         :if={@remove_pending_role}
         title="Remove Captain"
-        on_close={JS.push("cancel_remove")}
+        on_close="cancel_remove"
       >
         <p class="text-sm text-base-content/70 mb-6">
           What would you like to do with <strong>{@remove_pending_role.user && (@remove_pending_role.user.name || @remove_pending_role.user.email)}</strong>?

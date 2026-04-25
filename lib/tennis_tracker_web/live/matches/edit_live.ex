@@ -205,7 +205,7 @@ defmodule TennisTrackerWeb.Matches.EditLive do
       <.modal
         :if={@show_delete_modal}
         title="Delete Match"
-        on_close={JS.push("hide_delete_modal")}
+        on_close="hide_delete_modal"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete the match vs. <strong>{@match.opponent}</strong>? This cannot be undone.

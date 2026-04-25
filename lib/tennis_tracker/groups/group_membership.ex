@@ -27,6 +27,16 @@ defmodule TennisTracker.Groups.GroupMembership do
       authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
     end
 
+    policy action(:update_role) do
+      forbid_if(expr(user_id == ^actor(:id)))
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+
+    policy action(:destroy) do
+      forbid_if(expr(user_id == ^actor(:id)))
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+
     policy action_type([:update, :destroy]) do
       authorize_if(TennisTracker.Policies.IsGroupOwner)
     end
@@ -105,6 +115,10 @@ defmodule TennisTracker.Groups.GroupMembership do
 
     update :update do
       primary?(true)
+      accept([:role])
+    end
+
+    update :update_role do
       accept([:role])
     end
 

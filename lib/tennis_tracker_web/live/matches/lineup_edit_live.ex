@@ -560,7 +560,7 @@ defmodule TennisTrackerWeb.Matches.LineupEditLive do
           :if={selected_player}
           player={selected_player}
           group_slug={@current_group.slug}
-          on_close={JS.push("deselect_player")}
+          on_close="deselect_player"
         >
           <:actions>
             <% current_slot_ids =

@@ -310,11 +310,11 @@ defmodule TennisTrackerWeb.CoreComponents do
 
   ## Examples
 
-      <.modal title="Confirm Delete" on_close={JS.push("close_modal")}>
+      <.modal title="Confirm Delete" on_close="close_modal">
         <p>Are you sure?</p>
       </.modal>
 
-      <.modal title="Player" on_close={JS.push("deselect")} max_width="sm:max-w-sm" position={:bottom}>
+      <.modal title="Player" on_close="deselect" max_width="sm:max-w-sm" position={:bottom}>
         <:subtitle>NTRP: 3.5</:subtitle>
         ...
       </.modal>

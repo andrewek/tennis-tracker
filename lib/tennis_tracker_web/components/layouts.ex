@@ -113,6 +113,11 @@ defmodule TennisTrackerWeb.Layouts do
               <summary>Group Settings</summary>
               <ul>
                 <li>
+                  <.link navigate={~p"/g/#{@current_group.slug}/settings/members"}>
+                    Members
+                  </.link>
+                </li>
+                <li>
                   <.link navigate={~p"/g/#{@current_group.slug}/settings/locations"}>
                     Locations
                   </.link>

@@ -127,6 +127,12 @@ defmodule TennisTracker.Accounts.User do
       change({AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password})
     end
 
+    create :invite do
+      accept([:email])
+      argument(:password, :string, sensitive?: true, allow_nil?: false)
+      change({AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password})
+    end
+
     update :update_role do
       accept([:role])
     end

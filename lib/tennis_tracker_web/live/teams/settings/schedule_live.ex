@@ -326,7 +326,7 @@ defmodule TennisTrackerWeb.Teams.Settings.ScheduleLive do
       <.modal
         :if={@show_match_form}
         title="Add Match"
-        on_close={JS.push("close_match_form")}
+        on_close="close_match_form"
         max_width="max-w-lg"
       >
         <.form for={@match_form} phx-change="validate_match" phx-submit="save_match">
@@ -360,7 +360,7 @@ defmodule TennisTrackerWeb.Teams.Settings.ScheduleLive do
       <.modal
         :if={@match_to_delete}
         title="Delete Match"
-        on_close={JS.push("hide_delete_match_modal")}
+        on_close="hide_delete_match_modal"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete the match vs. <strong>{@match_to_delete.opponent}</strong>? This cannot be undone.

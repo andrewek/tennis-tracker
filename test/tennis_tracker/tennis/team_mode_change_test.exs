@@ -5,7 +5,7 @@ defmodule TennisTracker.Tennis.TeamModeChangeTest do
 
   setup :setup_group_with_owner
 
-  setup %{group: grp, user: usr} do
+  setup %{group: grp, user: _usr} do
     team = Factory.team(group: grp)
     match = Factory.match(group: grp, team: team)
     player = Factory.player(group: grp)

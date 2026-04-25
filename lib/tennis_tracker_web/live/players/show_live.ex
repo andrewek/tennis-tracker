@@ -84,7 +84,7 @@ defmodule TennisTrackerWeb.Players.ShowLive do
       <.modal
         :if={@show_delete_modal}
         title="Delete Player"
-        on_close={JS.push("hide_delete_modal")}
+        on_close="hide_delete_modal"
       >
         <p class="text-sm text-base-content/70 mb-6">
           Delete <strong>{@player.name}</strong>? This cannot be undone.

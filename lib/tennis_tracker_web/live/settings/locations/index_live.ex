@@ -242,7 +242,7 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLive do
       <.modal
         :if={@confirm_action != nil}
         title={if @confirm_action == :archive, do: "Archive Location", else: "Restore Location"}
-        on_close={JS.push("cancel_action")}
+        on_close="cancel_action"
       >
         <p class="text-sm text-base-content/70 mb-6">
           <%= if @confirm_action == :archive do %>

@@ -91,7 +91,7 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       |> element("button[phx-click='request_archive']")
       |> render_click()
 
-      view |> element("button[phx-click='cancel_action']") |> render_click()
+      view |> element("button", "Cancel") |> render_click()
 
       refute has_element?(view, "h3", "Archive Location")
       assert has_element?(view, "p", "Stays Active")
@@ -154,7 +154,7 @@ defmodule TennisTrackerWeb.Settings.Locations.IndexLiveTest do
       {:ok, view, _html} = live(conn, ~p"/g/#{grp.slug}/settings/locations")
       view |> element("button[phx-value-tab='archived']") |> render_click()
       view |> element("button[phx-click='request_restore']") |> render_click()
-      view |> element("button[phx-click='cancel_action']") |> render_click()
+      view |> element("button", "Cancel") |> render_click()
 
       refute has_element?(view, "h3", "Restore Location")
       assert has_element?(view, "p", "Stays Archived")
