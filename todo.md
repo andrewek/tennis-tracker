@@ -9,12 +9,6 @@ These are the things we need to do to get to a usable, deployable product.
 1. Configure with ngrok or similar for local demos before deployment is ready.
 
 ### Group Management
-1. Build UI for group owners to add and remove group members. A group settings page
-   (e.g. `/g/:group_slug/settings/members`) should let owners invite users by
-   email, change a member's role (owner ↔ member), and remove members — with
-   appropriate downstream cleanup of TeamRole records when a member is removed.
-   Consider whether members can self-remove (leave a group), which has the same
-   TeamRole cleanup requirement.
 1. Group owners need UI pages to create, edit, and update SeasonRules records
    (currently only accessible via AshAdmin). Build `/:group_slug/seasons`
    index and create/edit forms.
