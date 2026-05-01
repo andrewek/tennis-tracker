@@ -21,6 +21,14 @@ These are the things we need to do to get to a usable, deployable product.
 1. Make it easier to add a player to a team mid-season. Currently this requires
    going through the roster planner flow; there should be a direct "add player"
    action on the team show page for captains and group owners.
+1. Consider relaxing the TeamMembership uniqueness constraint from
+   `(player_id, team_type_id, season_year)` to `(player_id, team_id)`. This
+   would allow a player to appear on multiple teams in the same league/season —
+   a real scenario that happens 2-3 times per season when schedules change and
+   a player moves from one team to another. USTA registration is the source of
+   truth; this tool is just a helper. Implications: the roster planner's upsert
+   logic (which relies on the current identity to "move" a player between teams)
+   would need to change, and the pseudo-team concept would become less special.
 1. There should be an easy way to "copy" a previous year's team into this year's
    team for a given season, so captains don't have to rebuild rosters from scratch.
 1. A team can be marked as archived, which would keep it from showing up in the
