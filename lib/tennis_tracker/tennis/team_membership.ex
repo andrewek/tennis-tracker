@@ -8,6 +8,8 @@ defmodule TennisTracker.Tennis.TeamMembership do
     notifiers: [Ash.Notifier.PubSub],
     extensions: [AshAdmin.Resource]
 
+  require Ash.Query
+
   postgres do
     table("team_memberships")
     repo(TennisTracker.Repo)
@@ -26,11 +28,21 @@ defmodule TennisTracker.Tennis.TeamMembership do
       authorize_if(TennisTracker.Policies.IsGroupMember)
     end
 
-    policy action_type(:create) do
+    policy action(:create) do
       authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
     end
 
-    policy action_type([:update, :destroy]) do
+    policy action([:update, :destroy]) do
+      authorize_if(TennisTracker.Policies.IsGroupOwner)
+    end
+
+    policy action(:add_to_roster) do
+      authorize_if(TennisTracker.Policies.IsTeamCaptainCheck)
+      authorize_if(TennisTracker.Policies.IsGroupOwnerCheck)
+    end
+
+    policy action(:remove_from_roster) do
+      authorize_if(TennisTracker.Policies.IsTeamCaptain)
       authorize_if(TennisTracker.Policies.IsGroupOwner)
     end
   end
@@ -132,6 +144,40 @@ defmodule TennisTracker.Tennis.TeamMembership do
 
     destroy :destroy do
       primary?(true)
+    end
+
+    create :add_to_roster do
+      accept([:player_id, :team_id, :team_type_id, :season_year, :group_id])
+    end
+
+    destroy :remove_from_roster do
+      require_atomic?(false)
+
+      change(fn changeset, context ->
+        Ash.Changeset.before_action(changeset, fn changeset ->
+          team_id = changeset.data.team_id
+          player_id = changeset.data.player_id
+          tenant = context.tenant
+
+          has_assignment? =
+            case TennisTracker.Tennis.MatchLineupAssignment
+                 |> Ash.Query.filter(player_id == ^player_id and match.team_id == ^team_id)
+                 |> Ash.read_one(domain: TennisTracker.Tennis, tenant: tenant, authorize?: false) do
+              {:ok, nil} -> false
+              {:ok, _} -> true
+              {:error, _} -> false
+            end
+
+          if has_assignment? do
+            Ash.Changeset.add_error(changeset,
+              field: :player_id,
+              message: "is assigned to a match lineup and cannot be removed from the roster"
+            )
+          else
+            changeset
+          end
+        end)
+      end)
     end
   end
 

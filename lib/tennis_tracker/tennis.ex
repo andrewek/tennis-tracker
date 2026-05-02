@@ -619,6 +619,8 @@ defmodule TennisTracker.Tennis do
       define(:create_team_membership, action: :create)
       define(:update_team_membership, action: :update)
       define(:destroy_team_membership, action: :destroy)
+      define(:add_to_roster, action: :add_to_roster)
+      define(:remove_from_roster, action: :remove_from_roster)
     end
 
     resource TennisTracker.Tennis.TeamLineupColumn do

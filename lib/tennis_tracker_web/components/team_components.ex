@@ -4,11 +4,11 @@ defmodule TennisTrackerWeb.TeamComponents do
   use TennisTrackerWeb, :html
 
   @doc """
-  Renders the team settings layout with a four-tab navigation bar.
+  Renders the team settings layout with a five-tab navigation bar.
   """
   attr :current_page, :atom,
     required: true,
-    doc: "The current settings tab (:general, :schedule, :lineup, or :members)"
+    doc: "The current settings tab (:general, :schedule, :lineup, :roster, or :members)"
 
   attr :team, :map, required: true
   attr :current_group, :map, required: true
@@ -36,6 +36,12 @@ defmodule TennisTrackerWeb.TeamComponents do
           class={["tab", @current_page == :lineup && "tab-active"]}
         >
           Lineup Settings
+        </.link>
+        <.link
+          navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/settings/roster"}
+          class={["tab", @current_page == :roster && "tab-active"]}
+        >
+          Roster
         </.link>
         <.link
           navigate={~p"/g/#{@current_group.slug}/teams/#{@team.id}/settings/members"}
