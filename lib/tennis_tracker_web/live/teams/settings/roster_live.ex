@@ -105,7 +105,21 @@ defmodule TennisTrackerWeb.Teams.Settings.RosterLive do
   end
 
   def handle_event("open_add_panel", _params, socket) do
-    socket |> assign(:show_add_panel, true) |> noreply()
+    %{current_user: current_user, current_group_id: group_id, team: team} = socket.assigns
+
+    memberships =
+      Tennis.list_memberships_for_team!(team.id,
+        tenant: group_id,
+        actor: current_user,
+        load: [:player]
+      )
+
+    candidates = load_candidates(memberships, group_id, current_user)
+
+    socket
+    |> assign(:show_add_panel, true)
+    |> stream(:candidate_players, candidates, reset: true)
+    |> noreply()
   end
 
   def handle_event("close_add_panel", _params, socket) do
