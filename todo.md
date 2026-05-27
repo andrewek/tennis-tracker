@@ -18,9 +18,6 @@ These are the things we need to do to get to a usable, deployable product.
    or "Tags" settings page so admins don't need shell access for new groups.
 
 ### Team Management
-1. Make it easier to add a player to a team mid-season. Currently this requires
-   going through the roster planner flow; there should be a direct "add player"
-   action on the team show page for captains and group owners.
 1. Consider relaxing the TeamMembership uniqueness constraint from
    `(player_id, team_type_id, season_year)` to `(player_id, team_id)`. This
    would allow a player to appear on multiple teams in the same league/season —
