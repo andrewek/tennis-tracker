@@ -520,7 +520,7 @@ defmodule TennisTracker.Tennis do
 
   resources do
     resource TennisTracker.Tennis.TagCategory do
-      define(:list_tag_categories, action: :read)
+      define(:list_tag_categories, action: :list)
       define(:create_tag_category, action: :create)
       define(:get_tag_category, action: :read, get_by: [:id])
       define(:update_tag_category, action: :update)
@@ -528,8 +528,8 @@ defmodule TennisTracker.Tennis do
     end
 
     resource TennisTracker.Tennis.Tag do
-      define(:list_tags, action: :read)
-      define(:list_tags_for_category, action: :read)
+      define(:list_tags, action: :list)
+      define(:list_tags_for_category, action: :list)
       define(:get_tag, action: :read, get_by: [:id])
       define(:create_tag, action: :create)
       define(:update_tag, action: :update)

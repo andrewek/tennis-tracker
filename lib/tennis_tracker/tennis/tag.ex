@@ -81,6 +81,9 @@ defmodule TennisTracker.Tennis.Tag do
   actions do
     read :read do
       primary?(true)
+    end
+
+    read :list do
       prepare(build(sort: [name: :asc]))
     end
 
